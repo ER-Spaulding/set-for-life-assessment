@@ -3,55 +3,57 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
 /**
- * Exclusive-option guard — PRD §14, and PRD §29 acceptance tests 5 and 6.
+ * Exclusive-option guards (PRD §14; PRD §29 acceptance tests 5 and 6).
  *
- * Q9_L ("I don't usually feel financially stretched") and Q21_G ("None of these
- * usually stop me") are mutually exclusive with every other option in their
- * question. If either coexists with another selection, the capacity / fear
- * classifier would be computed from contradictory answers — e.g. "no financial
- * pressure" alongside four pressure sources — and every downstream tension,
- * friction statement and attention area would be built on nonsense.
+ * Q9_L ("I don't usually feel financially stretched") and Q21_G ("None of
+ * these usually stop me from moving forward") must stand alone: selecting
+ * one alongside any other option would corrupt the classifier tags, so every
+ * other option on those items must NOT be exclusive.
  */
-
 const cfg = JSON.parse(
   readFileSync(resolve(__dirname, "../../config/assessment-v1.0.json"), "utf8"),
-) as {
-  questions: Array<{
-    internal_id: string;
-    type: string;
-    options?: Array<{ code: string; label: string; exclusive?: boolean }>;
-  }>;
-};
+);
 
-const q = (id: string) => {
-  const found = cfg.questions.find((x) => x.internal_id === id);
-  if (!found) throw new Error(`question ${id} not found in config`);
-  return found;
-};
+const byId = new Map(
+  cfg.questions.map((q: { internal_id: string }) => [q.internal_id, q]),
+);
+const q9 = byId.get("Q9");
+const q21 = byId.get("Q21");
 
-describe("PRD §14 / §29 tests 5–6 — exclusive options", () => {
-  it("marks Q9_L exclusive and every other Q9 option non-exclusive", () => {
-    const question = q("Q9");
-    const exclusive = (question.options ?? []).filter((o) => o.exclusive);
-    expect(exclusive.map((o) => o.code)).toEqual(["Q9_L"]);
+describe("exclusive options (PRD §14, §29 tests 5–6)", () => {
+  it("types Q9/Q21 as the exclusive multi-select types (PRD §14)", () => {
+    expect(q9.type).toBe("multi_select_max_3_exclusive_no_pressure");
+    expect(q21.type).toBe("multi_select_max_2_exclusive_none");
   });
 
-  it("marks Q21_G exclusive and every other Q21 option non-exclusive", () => {
-    const question = q("Q21");
-    const exclusive = (question.options ?? []).filter((o) => o.exclusive);
-    expect(exclusive.map((o) => o.code)).toEqual(["Q21_G"]);
+  it("marks only Q9_L exclusive on Q9 (§29 test 5)", () => {
+    for (const o of q9.options) {
+      if (o.code === "Q9_L") {
+        expect(o.exclusive).toBe(true);
+      } else {
+        expect(o.exclusive).not.toBe(true);
+      }
+    }
+    expect(q9.exclusive_option_codes).toEqual(["Q9_L"]);
   });
 
-  it("uses the response types that encode exclusivity", () => {
-    expect(q("Q9").type).toBe("multi_select_max_3_exclusive_no_pressure");
-    expect(q("Q21").type).toBe("multi_select_max_2_exclusive_none");
+  it("marks only Q21_G exclusive on Q21 (§29 test 6)", () => {
+    for (const o of q21.options) {
+      if (o.code === "Q21_G") {
+        expect(o.exclusive).toBe(true);
+      } else {
+        expect(o.exclusive).not.toBe(true);
+      }
+    }
+    expect(q21.exclusive_option_codes).toEqual(["Q21_G"]);
   });
 
-  it("preserves the approved wording of the exclusive options verbatim", () => {
-    // PRD §34: exact approved participant wording.
-    const q9l = q("Q9").options?.find((o) => o.code === "Q9_L");
-    const q21g = q("Q21").options?.find((o) => o.code === "Q21_G");
-    expect(q9l?.label).toBe("I don't usually feel financially stretched.");
-    expect(q21g?.label).toBe("None of these usually stop me from moving forward.");
+  it("keeps the approved exclusive wording character for character (PRD §14)", () => {
+    expect(q9.options.find((o: { code: string }) => o.code === "Q9_L").label).toBe(
+      "I don't usually feel financially stretched.",
+    );
+    expect(
+      q21.options.find((o: { code: string }) => o.code === "Q21_G").label,
+    ).toBe("None of these usually stop me from moving forward.");
   });
 });

@@ -19,7 +19,10 @@
       "title_source": "prd",
       "conditional": false,
       "feeds": {
-        "session_metadata": ["participant_name", "completion_date"]
+        "session_metadata": [
+          "participant_name",
+          "completion_date"
+        ]
       },
       "notes": "Cover only. No diagnostic content."
     },
@@ -119,8 +122,13 @@
       "title_source": "prd",
       "conditional": false,
       "feeds": {
-        "connection-statements-v1.0.json": ["<triggered_tension>.headline", "<triggered_tension>.body"],
-        "narratives-v1.0.json": ["attention_areas.<default_attention_area>"]
+        "connection-statements-v1.0.json": [
+          "<triggered_tension>.headline",
+          "<triggered_tension>.body"
+        ],
+        "narratives-v1.0.json": [
+          "attention_areas.<default_attention_area>"
+        ]
       },
       "notes": "Only a triggered tension/override key may render its statement. Editorial pull-quote treatment."
     },
@@ -133,7 +141,9 @@
       "title_source": "prd",
       "conditional": false,
       "feeds": {
-        "assessment-v1.0.json": ["Q16"]
+        "assessment-v1.0.json": [
+          "Q16"
+        ]
       },
       "notes": "Participant Q16 selections displayed unranked. 'Destination Still Forming' presented neutrally. Question bank owned by another agent."
     },
@@ -144,7 +154,10 @@
       "uiux_ref": "S18",
       "title": "Perception Gap",
       "title_source": "structural",
-      "column_titles": ["HOW IT FELT GOING IN", "WHAT ELSE SHOWED UP"],
+      "column_titles": [
+        "HOW IT FELT GOING IN",
+        "WHAT ELSE SHOWED UP"
+      ],
       "column_titles_source": "uiux",
       "conditional": "only when the interpretation engine marks it meaningful",
       "feeds": {
@@ -181,7 +194,9 @@
           "activation.A4.HIGH"
         ]
       },
-      "notes": "A1–A4 remain four separate statements. No combined index, no readiness score, no funnel label."
+      "notes": "A1–A4 remain four separate statements. No combined index, no readiness score, no funnel label.",
+      "aggregate": false,
+      "aggregation_note": "PRD §11: 'Never average A1–A4 into a single motivation score.' Structural, not advisory — an engine must not combine activation levels."
     },
     {
       "id": "attention-area",
@@ -220,12 +235,37 @@
       "conditional": false,
       "feeds": {},
       "continuation_options": [
-        { "code": "KEEP_LEARNING", "label": "Keep Learning" },
-        { "code": "LOOK_CLOSER_FINANCIAL_PICTURE", "label": "Look Closer at My Financial Picture" },
-        { "code": "EXPLORE_MORE_INCOME", "label": "Explore Ways to Create More Income" },
-        { "code": "NOT_RIGHT_NOW", "label": "Not Right Now" }
+        {
+          "code": "KEEP_LEARNING",
+          "label": "Keep Learning",
+          "preselect": null,
+          "deprioritize": false,
+          "hidden": false
+        },
+        {
+          "code": "LOOK_CLOSER_FINANCIAL_PICTURE",
+          "label": "Look Closer at My Financial Picture",
+          "preselect": null,
+          "deprioritize": false,
+          "hidden": false
+        },
+        {
+          "code": "EXPLORE_MORE_INCOME",
+          "label": "Explore Ways to Create More Income",
+          "preselect": null,
+          "deprioritize": false,
+          "hidden": false
+        },
+        {
+          "code": "NOT_RIGHT_NOW",
+          "label": "Not Right Now",
+          "preselect": null,
+          "deprioritize": false,
+          "hidden": false
+        }
       ],
-      "notes": "Full results delivered before continuation choices. All choices comparable visual dignity; NOT_RIGHT_NOW never punished or hidden. Never preselect from A4."
+      "notes": "Full results delivered before continuation choices. All choices comparable visual dignity; NOT_RIGHT_NOW never punished or hidden. Never preselect from A4.",
+      "preselect_rule": "No path may be preselected, deprioritized, or hidden — NOT_RIGHT_NOW included. UIUX §22: do not preselect based on A4."
     },
     {
       "id": "pilot-feedback",
