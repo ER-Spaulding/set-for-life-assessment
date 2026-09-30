@@ -32,6 +32,21 @@ import { selectAttentionArea } from "../assessment/interpretation";
 import { classifyAll, isFearPresent } from "../assessment/classifiers";
 import type { SignalId, SignalState } from "../assessment/types";
 
+/**
+ * Placeholder written to computed_signals.evidence_confidence until the tier is
+ * DERIVED from the evidence rather than assumed.
+ *
+ * This value satisfies the column's CHECK constraint ('high'|'moderate'|
+ * 'limited') so the row is writable, but it is not a finding. Every signal is
+ * currently recorded as maximally confident, which would let a participant
+ * whose evidence was thin be addressed with the strongest available language
+ * ("Your responses show…" rather than "Your responses suggest…").
+ *
+ * MUST BE REPLACED with a real derivation before launch. See the call site for
+ * the full note, and PRD §19.1 for the three tiers.
+ */
+const UNRESOLVED_CONFIDENCE = "high" as const;
+
 /** The pinned asset versions a session records at creation (PRD §22.6). */
 export const PINNED_VERSION = "1.0";
 
@@ -209,10 +224,24 @@ export async function completeSession(sessionId: string): Promise<CompletionResu
   const letters = toLetterMap(responseMap);
   const scored = scoreAssessment(letters, tables, cutoffs);
 
+  // TENSION RULES READ THE S-LADDER STATE, NOT THE DISPLAY STATE.
+  //
+  // `displayState` is what a report RENDERS — it becomes a SpecialSignalState
+  // (e.g. AIM_CAPACITY_CONSTRAINED_ALIGNMENT) when a capacity rule applies.
+  // Every tension trigger matches only S1–S5, so feeding displayState here
+  // means an overridden signal silently matches no rule at all. Verified: with
+  // AIM carrying a special state, evaluateTensions returned [] instead of the
+  // null finding — a capacity-constrained participant would have received a
+  // Snapshot with no friction section.
+  //
+  // `state` is documented in scoring.ts as "the S-ladder position of value
+  // (reference position even when overridden)", which is exactly what the
+  // rules need. The special state still reaches the report via `special_state`
+  // and via the attention area chosen below.
   const signalStates = Object.fromEntries(
     (Object.keys(scored.signals) as SignalId[]).map((s) => [
       s,
-      (scored.signals[s].displayState ?? "S3") as SignalState,
+      scored.signals[s].state ?? "S3",
     ]),
   ) as Record<SignalId, SignalState>;
 
@@ -261,7 +290,21 @@ export async function completeSession(sessionId: string): Promise<CompletionResu
       value: scored.signals[signal].value,
       state: scored.signals[signal].state,
       special_state: scored.signals[signal].specialState,
-      evidence_confidence: "high",
+      // KNOWN GAP — NOT A COMPUTED VALUE.
+      //
+      // PRD §19.1 defines three confidence tiers (high / moderate / limited)
+      // and the approved library selects participant-facing language by them:
+      // "Your responses show…" / "Your responses suggest…" / "One possibility
+      // worth examining is…". The engine types the tiers
+      // (EvidenceConfidence) and validates them in buildEvidenceRecord, but
+      // nothing yet DERIVES which tier applies to a given signal — the
+      // evidence-chain layer is not yet wired into completion.
+      //
+      // Until it is, every row records "high", and a participant whose
+      // evidence was thin would be addressed with unwarranted certainty.
+      // Flagged here rather than silently defaulted so it cannot ship
+      // unnoticed; wiring the derived tier is a prerequisite for launch.
+      evidence_confidence: UNRESOLVED_CONFIDENCE,
     })),
     { onConflict: "session_id,signal" },
   );
