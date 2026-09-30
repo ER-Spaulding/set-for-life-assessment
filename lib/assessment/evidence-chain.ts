@@ -42,6 +42,10 @@ const SIGNALS: readonly SignalId[] = [
   'MOVE',
 ];
 
+// Lowercase, deliberately: this value is persisted to
+// computed_signals.evidence_confidence, whose CHECK constraint accepts only
+// ('high','moderate','limited'). The library's UPPERCASE keys are mapped via
+// LANGUAGE_STRENGTH_KEY when the approved sentence opener is needed.
 const CONFIDENCES: readonly EvidenceConfidence[] = [
   'high',
   'moderate',

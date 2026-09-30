@@ -57,15 +57,48 @@ export type ActivationItem = keyof typeof narratives.activation;
 export type ActivationLevel = "LOW" | "MID" | "HIGH";
 
 /**
- * Evidence confidence tiers (PRD §19.1). HIGH → "Your responses show…",
- * MODERATE → "Your responses suggest…", LIMITED → "One possibility worth
- * examining is…".
+ * Keys of the library's `language_strength` block — UPPERCASE, exactly as they
+ * appear in config/narratives-v1.0.json.
  */
-export type EvidenceConfidence = keyof typeof narratives.language_strength;
+export type LanguageStrengthKey = keyof typeof narratives.language_strength;
 
-/** The approved sentence prefixes themselves. */
+/**
+ * Evidence confidence AS PERSISTED AND CARRIED THROUGH THE ENGINE — lowercase.
+ *
+ * The authority here is not the library's key casing but the database:
+ *   computed_signals.evidence_confidence CHECK (... IN ('high','moderate','limited'))
+ * and PRD §19.1, whose tiers are *high* / *moderate* / *limited*. The library
+ * happens to store those tiers under UPPERCASE keys; that is a presentation
+ * detail of the JSON, not the contract. Typing this from `keyof` therefore
+ * produced a type that compiled fine and would have written values the CHECK
+ * constraint rejects.
+ */
+export type EvidenceConfidence = "high" | "moderate" | "limited";
+
+/**
+ * Compile-time guard: the lowercase contract and the library's uppercase keys
+ * must stay in step. If a tier is added to one and not the other, this fails
+ * to compile rather than drifting silently at runtime.
+ */
+type _TiersAgree =
+  Uppercase<EvidenceConfidence> extends LanguageStrengthKey ? true : never;
+const _tiersAgree: _TiersAgree = true;
+void _tiersAgree;
+
+/**
+ * The approved sentence prefixes themselves, keyed by the library's tier keys.
+ * Indexed with `Uppercase<EvidenceConfidence>` so callers holding the lowercase
+ * persisted value cannot accidentally index the library with the wrong casing.
+ */
 export type LanguageStrength =
-  (typeof narratives.language_strength)[EvidenceConfidence];
+  (typeof narratives.language_strength)[Uppercase<EvidenceConfidence>];
+
+/** Map the lowercase persisted value to its library key. */
+export const LANGUAGE_STRENGTH_KEY = {
+  high: "HIGH",
+  moderate: "MODERATE",
+  limited: "LIMITED",
+} as const satisfies Record<EvidenceConfidence, LanguageStrengthKey>;
 
 /**
  * Any addressable narrative entry, as a dotted path. The deterministic engine
