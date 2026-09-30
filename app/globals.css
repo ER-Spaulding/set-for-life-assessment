@@ -1,5 +1,25 @@
 @import "tailwindcss";
 
+/* Tailwind theme extension (Tailwind v4 @theme) — UIUX §3–§4, Font Map Companion.
+   Exposes the locked palette + font stacks as Tailwind utilities
+   (e.g. bg-evergreen, text-obsidian, font-display). Values mirror the :root
+   tokens below; :root remains the source of truth for raw values. No new
+   colours or fonts are introduced here. */
+@theme {
+  --color-evergreen: #28513f;
+  --color-blush: #daaaa6;
+  --color-terracotta: #bc5248;
+  --color-rose: #93504f;
+  --color-gold: #c49a45;
+  --color-champagne: #e2c98f;
+  --color-ivory: #f7f2e9;
+  --color-obsidian: #28231f;
+  --font-display: var(--font-playfair), Georgia, serif;
+  --font-serif: var(--font-cormorant), Georgia, serif;
+  --font-body: var(--font-inter), Arial, sans-serif;
+  --font-script: var(--font-allura), var(--font-cormorant), Georgia, serif;
+}
+
 /* ==========================================================================
    Set for Life — global tokens and base styles
    --------------------------------------------------------------------------
