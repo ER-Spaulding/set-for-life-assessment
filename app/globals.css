@@ -166,11 +166,19 @@
   :root {
     --gutter: 20px; /* @320 */
     --gutter-sm: 20px; /* @320 */
-    /* OPEN QUESTION: no 320px-specific T13 value appears in the Font Map or
-       UIUX spec (T13 mobile is 22/28). A 20/27 override was previously
-       hardcoded here without a source — removed per the no-guessing rule.
-       T13 inherits the 390px mobile value (22/28) at 320px until the
-       operator approves a distinct small-mobile CTA size. */
+    /* T13 320px override — SOURCED, not assumed.
+       Set-for-Life-Font-Map-v1.docx, verbatim: "T13 throughout: Cormorant
+       Garamond 700, 24/30 desktop, 22/28 mobile, 20/27 at 320 px. Keep at
+       least 56 px height."
+
+       NOTE ON A PRIOR REMOVAL: this override was once deleted as "unsourced"
+       because the Font Map COMPANION (the .md build summary) omits the 320px
+       figure — its table lists 24/30 desktop and 22/28 mobile only. The
+       ORIGINAL v1 .docx carries the 20/27 value. When the two font documents
+       disagree, the original Font Map is the authority; the Companion is a
+       summary of it. Restored here with the quote above. */
+    --type-t13-size: 20px;
+    --type-t13-line: 27px;
   }
 }
 
