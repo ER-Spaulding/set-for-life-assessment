@@ -16,8 +16,11 @@
   --color-obsidian: #28231f;
   --font-display: var(--font-playfair), Georgia, serif;
   --font-serif: var(--font-cormorant), Georgia, serif;
+  /* Real Cormorant 600 italic, not a browser-synthesised oblique. See the
+     :root block below for why the italic face is declared separately. */
+  --font-serif-italic: var(--font-cormorant-italic), var(--font-cormorant), Georgia, serif;
   --font-body: var(--font-inter), Arial, sans-serif;
-  --font-script: var(--font-allura), var(--font-cormorant), Georgia, serif;
+  --font-script: var(--font-allura), var(--font-cormorant-italic), var(--font-cormorant), Georgia, serif;
 }
 
 /* ==========================================================================
@@ -113,11 +116,18 @@
   /* Font families (reference the next/font variables set in layout.tsx) */
   --font-display: var(--font-playfair), Georgia, serif;
   --font-serif: var(--font-cormorant), Georgia, serif;
+  /* Cormorant 600 italic is loaded as its OWN face (see layout.tsx): the Font
+     Map specifies "Cormorant 600 normal/italic and 700 normal", and declaring
+     weight+style together would also fetch an unspecified 700 italic. Without
+     a distinct italic variable here, italic text would be SYNTHESISED by the
+     browser from the upright face rather than using the real italic — and
+     T05 "Event title / Cormorant 600 italic" depends on it. */
+  --font-serif-italic: var(--font-cormorant-italic), var(--font-cormorant), Georgia, serif;
   --font-body: var(--font-inter), Arial, sans-serif;
   /* Allura: short handwritten accents only — never paragraph body, never buttons.
      Fallback when Allura is unavailable: Cormorant Garamond 600 italic at
-     32/42 desktop, 28/38 mobile (per scaffold brief). */
-  --font-script: var(--font-allura), var(--font-cormorant), Georgia, serif;
+     32/42 desktop, 28/38 mobile (per Font Map v1). */
+  --font-script: var(--font-allura), var(--font-cormorant-italic), var(--font-cormorant), Georgia, serif;
 }
 
 @media (max-width: 1023px) {

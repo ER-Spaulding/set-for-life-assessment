@@ -14,9 +14,23 @@ const playfair = Playfair_Display({
   variable: "--font-playfair",
 });
 
+// Font Map v1, verbatim: "Cormorant 600 normal/italic and 700 normal".
+//
+// `next/font` loads the CROSS-PRODUCT of `weight` and `style`, so listing
+// both styles here would also fetch Cormorant 700 ITALIC — a face the locked
+// type system never specifies. No token uses it: T05 is 600 italic, and every
+// 700 token (T10, T11, T13, T18, T20) is upright. Declaring the weights
+// separately loads exactly the specified faces and nothing else.
+const cormorantItalic = Cormorant_Garamond({
+  weight: ["600"],
+  style: ["italic"],
+  subsets: ["latin"],
+  variable: "--font-cormorant-italic",
+});
+
 const cormorant = Cormorant_Garamond({
   weight: ["600", "700"],
-  style: ["normal", "italic"],
+  style: ["normal"],
   subsets: ["latin"],
   variable: "--font-cormorant",
 });
@@ -44,7 +58,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html
       lang="en"
-      className={`${playfair.variable} ${cormorant.variable} ${inter.variable} ${allura.variable}`}
+      className={`${playfair.variable} ${cormorant.variable} ${cormorantItalic.variable} ${inter.variable} ${allura.variable}`}
     >
       <body>{children}</body>
     </html>
