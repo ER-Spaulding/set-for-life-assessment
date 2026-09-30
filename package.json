@@ -7,9 +7,10 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "test": "vitest run",
+    "test": "node tests/unit/copy-library-consistency.mjs && vitest run",
     "test:watch": "vitest",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test:guards": "node tests/unit/copy-library-consistency.mjs"
   },
   "dependencies": {
     "next": "16.3.8",
