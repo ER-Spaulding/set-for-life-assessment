@@ -10,15 +10,38 @@ import { resolve } from "node:path";
  * one alongside any other option would corrupt the classifier tags, so every
  * other option on those items must NOT be exclusive.
  */
+interface Option {
+  code: string;
+  label: string;
+  exclusive?: boolean;
+}
+interface Question {
+  internal_id: string;
+  type: string;
+  options: Option[];
+  exclusive_option_codes?: string[];
+}
+interface QuestionBank {
+  questions: Question[];
+}
+
 const cfg = JSON.parse(
   readFileSync(resolve(__dirname, "../../config/assessment-v1.0.json"), "utf8"),
+) as QuestionBank;
+
+const byId = new Map<string, Question>(
+  cfg.questions.map((q) => [q.internal_id, q]),
 );
 
-const byId = new Map(
-  cfg.questions.map((q: { internal_id: string }) => [q.internal_id, q]),
-);
-const q9 = byId.get("Q9");
-const q21 = byId.get("Q21");
+/** Fail loudly at collection time rather than with a confusing `unknown` error. */
+const requireQ = (id: string): Question => {
+  const found = byId.get(id);
+  if (!found) throw new Error(`question ${id} missing from config`);
+  return found;
+};
+
+const q9 = requireQ("Q9");
+const q21 = requireQ("Q21");
 
 describe("exclusive options (PRD §14, §29 tests 5–6)", () => {
   it("types Q9/Q21 as the exclusive multi-select types (PRD §14)", () => {
@@ -49,11 +72,11 @@ describe("exclusive options (PRD §14, §29 tests 5–6)", () => {
   });
 
   it("keeps the approved exclusive wording character for character (PRD §14)", () => {
-    expect(q9.options.find((o: { code: string }) => o.code === "Q9_L").label).toBe(
-      "I don't usually feel financially stretched.",
-    );
-    expect(
-      q21.options.find((o: { code: string }) => o.code === "Q21_G").label,
-    ).toBe("None of these usually stop me from moving forward.");
+    const q9l = q9.options.find((o) => o.code === "Q9_L");
+    const q21g = q21.options.find((o) => o.code === "Q21_G");
+    expect(q9l, "Q9_L present").toBeDefined();
+    expect(q21g, "Q21_G present").toBeDefined();
+    expect(q9l!.label).toBe("I don't usually feel financially stretched.");
+    expect(q21g!.label).toBe("None of these usually stop me from moving forward.");
   });
 });
