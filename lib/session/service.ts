@@ -34,22 +34,15 @@ import {
   levelsForActivation,
   type ActivationLevels,
 } from "../assessment/activation";
-import type { SignalId, SignalState } from "../assessment/types";
-
-/**
- * Placeholder written to computed_signals.evidence_confidence until the tier is
- * DERIVED from the evidence rather than assumed.
- *
- * This value satisfies the column's CHECK constraint ('high'|'moderate'|
- * 'limited') so the row is writable, but it is not a finding. Every signal is
- * currently recorded as maximally confident, which would let a participant
- * whose evidence was thin be addressed with the strongest available language
- * ("Your responses show…" rather than "Your responses suggest…").
- *
- * MUST BE REPLACED with a real derivation before launch. See the call site for
- * the full note, and PRD §19.1 for the three tiers.
- */
-const UNRESOLVED_CONFIDENCE = "high" as const;
+import {
+  deriveEvidenceConfidence,
+  loadConfidenceDerivation,
+} from "../assessment/evidence-chain";
+import type {
+  EvidenceConfidence,
+  SignalId,
+  SignalState,
+} from "../assessment/types";
 
 /** The pinned asset versions a session records at creation (PRD §22.6). */
 export const PINNED_VERSION = "1.0";
@@ -309,6 +302,78 @@ export async function completeSession(sessionId: string): Promise<CompletionResu
   );
   const attentionArea = selectAttentionArea(tensionCodes);
 
+  // ---- evidence confidence, DERIVED per signal (PRD §19.1) ----
+  //
+  // This was previously a hardcoded "high" for every signal. The tier selects
+  // the strength of participant-facing language ("Your responses show…" vs
+  // "suggest…" vs "One possibility worth examining is…"), so recording a
+  // blanket "high" would address a thinly-evidenced participant with
+  // unwarranted certainty. See evidence-chain.ts for the rule and its config.
+  const derivation = loadConfidenceDerivation(cfg);
+
+  /** Item ids feeding each signal, from the config's own formula. */
+  const signalItems: Record<string, string[]> = {};
+  const signalsBlock = (cfg as Record<string, unknown>)['signals'] as
+    | Record<string, Record<string, unknown>>
+    | undefined;
+  for (const [signal, entry] of Object.entries(signalsBlock ?? {})) {
+    if (signal.startsWith('_')) continue;
+    const formula = entry?.['formula'] as Record<string, unknown> | undefined;
+    const questions = formula?.['questions'];
+    if (Array.isArray(questions)) {
+      signalItems[signal] = questions.filter(
+        (q): q is string => typeof q === 'string',
+      );
+    }
+  }
+
+  /** Tension codes referencing each signal, parsed from the config triggers. */
+  const signalTensions: Record<string, string[]> = {};
+  const collectSignalRefs = (node: unknown, code: string): void => {
+    if (Array.isArray(node)) {
+      for (const child of node) collectSignalRefs(child, code);
+      return;
+    }
+    if (node && typeof node === 'object') {
+      const obj = node as Record<string, unknown>;
+      const named = obj['signal'];
+      if (typeof named === 'string' && Array.isArray(obj['state_in'])) {
+        (signalTensions[named] ??= []).push(code);
+      }
+      for (const child of Object.values(obj)) collectSignalRefs(child, code);
+    }
+  };
+  const tensionsBlock = (cfg as Record<string, unknown>)['tensions'] as
+    | Record<string, unknown>
+    | undefined;
+  for (const [code, entry] of Object.entries(tensionsBlock ?? {})) {
+    if (code.startsWith('_')) continue;
+    collectSignalRefs(entry, code);
+  }
+
+  const triggered = new Set(tensionCodes);
+  const confidenceFor = (signal: SignalId): EvidenceConfidence => {
+    const contributing = signalItems[signal] ?? [];
+    // Corroboration = contributing items that actually carried a value, plus
+    // triggered tensions that reference this signal. An item whose option maps
+    // to null (a capacity override such as Q11_A) carries NO numeric evidence
+    // and is correctly absent from `items`, so it cannot corroborate.
+    const fromItems = contributing.filter(
+      (q) => items[q] !== undefined,
+    ).length;
+    const fromTensions = (signalTensions[signal] ?? []).filter((c) =>
+      triggered.has(c as never),
+    ).length;
+    return deriveEvidenceConfidence(
+      {
+        state: scored.signals[signal].state,
+        specialState: scored.signals[signal].specialState,
+        corroboration: fromItems + fromTensions,
+      },
+      derivation,
+    );
+  };
+
   // Persist, then freeze. The immutability trigger rejects later writes, so a
   // failure here surfaces as a database error rather than silent divergence.
   const nowIso = new Date().toISOString();
@@ -320,21 +385,10 @@ export async function completeSession(sessionId: string): Promise<CompletionResu
       value: scored.signals[signal].value,
       state: scored.signals[signal].state,
       special_state: scored.signals[signal].specialState,
-      // KNOWN GAP — NOT A COMPUTED VALUE.
-      //
-      // PRD §19.1 defines three confidence tiers (high / moderate / limited)
-      // and the approved library selects participant-facing language by them:
-      // "Your responses show…" / "Your responses suggest…" / "One possibility
-      // worth examining is…". The engine types the tiers
-      // (EvidenceConfidence) and validates them in buildEvidenceRecord, but
-      // nothing yet DERIVES which tier applies to a given signal — the
-      // evidence-chain layer is not yet wired into completion.
-      //
-      // Until it is, every row records "high", and a participant whose
-      // evidence was thin would be addressed with unwarranted certainty.
-      // Flagged here rather than silently defaulted so it cannot ship
-      // unnoticed; wiring the derived tier is a prerequisite for launch.
-      evidence_confidence: UNRESOLVED_CONFIDENCE,
+      // Derived from the signal's ladder state, any capacity override, and how
+      // many independent sources corroborate it. Always one of
+      // 'high'|'moderate'|'limited' — the DB CHECK constraint's own values.
+      evidence_confidence: confidenceFor(signal),
     })),
     { onConflict: "session_id,signal" },
   );

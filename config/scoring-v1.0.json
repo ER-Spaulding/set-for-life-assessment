@@ -992,6 +992,16 @@
         "_calibration_status": "ASSUMED_PENDING_OPERATOR_REVIEW"
       }
     },
+    "derivation": {
+      "_prd_section": "§19.1",
+      "_notes": "Operationalizes the three prose bands above into a deterministic, config-driven rule (PRD §15: thresholds as configuration, never hard-coded literals). The spec states the three tiers and the language each selects, but specifies NO numeric derivation — every value here is ASSUMED and must be calibrated during pilot. Read by lib/assessment/evidence-chain.ts deriveEvidenceConfidence(). Changing these values changes engine behaviour with no code change.",
+      "_calibration_status": "ASSUMED_PENDING_OPERATOR_REVIEW",
+      "extreme_states": ["S1", "S5"],
+      "middle_state": "S3",
+      "strong_corroboration_min": 2,
+      "moderate_corroboration_min": 2,
+      "_rule": "HIGH  = ladder state is an extreme_states member AND corroboration >= strong_corroboration_min. MODERATE = ladder state is a non-middle, non-extreme state (S2/S4), OR corroboration >= moderate_corroboration_min. LIMITED = a special (override) state applies, OR neither of the above holds."
+    },
     "relationship_language": [
       "appears alongside",
       "may be contributing",

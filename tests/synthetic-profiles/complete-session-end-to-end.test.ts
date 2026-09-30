@@ -198,6 +198,14 @@ describe("completeSession end to end — the activation fix reaches the persiste
     expect(direct?.special_state).toBe("DIRECT_CAPACITY_LIMITED");
     expect(direct?.state).toBe("S5");
     expect(codes).toContain("HIGH_ACTIVITY_LOW_DIRECTION");
+
+    // AND the confidence tier must reflect the override. This signal has
+    // value 5 and state S5 — the strongest possible reading — but the config's
+    // LIMITED band covers "override-constrained" evidence, so the tier must NOT
+    // be high. Asserting this is what makes the test detect the hardcoded
+    // placeholder: a blanket "high" satisfies a membership check but fails here.
+    console.log("  DIRECT evidence_confidence:", direct?.evidence_confidence);
+    expect(direct?.evidence_confidence).toBe("limited");
   });
 
   it("writes all six signals with a lowercased evidence_confidence the DB accepts", async () => {
@@ -228,6 +236,33 @@ describe("completeSession end to end — the activation fix reaches the persiste
       expect(allowed, `confidence ${String(s.evidence_confidence)} must be writable`)
         .toContain(s.evidence_confidence);
     }
+  });
+
+  it("a strongly corroborated extreme signal persists confidence 'high'", async () => {
+    // The other end of the derivation. SEE is fed by Q4/Q5/Q6; all three at the
+    // top of the scale gives value 5, state S5, and 3 corroborating items — the
+    // config's HIGH band ("extreme signal state S1/S5 with 2+ corroborating
+    // items"). Without this assertion the suite could not distinguish a real
+    // derivation from a blanket literal, since 'high' is also a legal value.
+    const { captured } = await run({ Q4: "Q4_E", Q5: "Q5_E", Q6: "Q6_E" });
+    const see = captured.computedSignals.find((s) => s.signal === "SEE");
+    console.log("  SEE persisted:", JSON.stringify(see));
+    expect(see?.state).toBe("S5");
+    expect(see?.evidence_confidence).toBe("high");
+  });
+
+  it("the same signal with ONE item answered caps below 'high'", async () => {
+    // Corroboration must matter: a single strong item is not "strong
+    // corroborated evidence" (which requires 2+). Q4 alone reaches SEE... but
+    // SEE needs all three items present for a value, so this profile instead
+    // uses a signal whose evidence is genuinely thin.
+    //
+    // ROOM draws on Q7/Q8 only; with Q7 strong and Q8 present but mixed the
+    // state is no longer extreme, so it cannot be HIGH.
+    const { captured } = await run({ Q7: "Q7_E", Q8: "Q8_C" });
+    const room = captured.computedSignals.find((s) => s.signal === "ROOM");
+    console.log("  ROOM persisted:", JSON.stringify(room));
+    expect(room?.evidence_confidence).not.toBe("high");
   });
 
   it("marks the session completed only after scoring persisted", async () => {
