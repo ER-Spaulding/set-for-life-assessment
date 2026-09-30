@@ -517,7 +517,7 @@
         { "code": "Q16_G", "label": "Being able to care for the people I love" },
         { "code": "Q16_H", "label": "Having something meaningful to leave behind" },
         { "code": "Q16_I", "label": "Having more choices and control over my time" },
-        { "code": "Q16_J", "label": "I’m still figuring out what “Set for Life” means to me" },
+        { "code": "Q16_J", "label": "I'm still figuring out what “Set for Life” means to me" },
         { "code": "Q16_K", "label": "Something else: ________", "open_text": true }
       ],
       "internal_construct": "Financial Direction",
