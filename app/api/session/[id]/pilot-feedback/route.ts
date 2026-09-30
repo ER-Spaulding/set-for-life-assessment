@@ -78,13 +78,17 @@ export async function POST(
 
   // Ratings are 1–5 where supplied; the CHECK constraints enforce the range,
   // so they are passed through and any violation surfaces as a clear 422.
+  // Allow-list is exactly the pilot_feedback columns in
+  // supabase/migrations/20260930000001_initial_schema.sql — anything else is
+  // dropped so a client field can never reach a nonexistent column.
   const row: Record<string, unknown> = { session_id: sessionId };
   for (const key of [
     "accuracy_rating",
     "synthesis_value_rating",
-    "most_useful",
-    "least_useful",
-    "free_text",
+    "felt_judged_or_pressured",
+    "inaccurate_text",
+    "useful_text",
+    "comprehension_text",
   ]) {
     if (payload[key] !== undefined) row[key] = payload[key];
   }

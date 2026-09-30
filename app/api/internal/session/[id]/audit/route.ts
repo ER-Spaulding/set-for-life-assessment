@@ -51,14 +51,18 @@ export async function GET(
     });
   }
 
+  // Column names pinned to supabase/migrations/20260930000001_initial_schema.sql:
+  // computed_signals carries signal_id / raw_value / state — there is no
+  // `value` or `special_state` column (the off-ladder DIRECT/AIM states live
+  // in the overrides table and the snapshot's narrative keys, not here).
   const { data: signals } = await db
     .from("computed_signals")
-    .select("signal, value, state, special_state, evidence_confidence")
+    .select("signal_id, raw_value, state, evidence_confidence")
     .eq("session_id", sessionId);
 
   const { data: tags } = await db
     .from("classifier_tags")
-    .select("tag")
+    .select("source_item_id, tag_code")
     .eq("session_id", sessionId);
 
   const { data: tensions } = await db
@@ -81,7 +85,12 @@ export async function GET(
     session,
     // Internal machinery — see the header note. Not participant-facing.
     signals: signals ?? [],
-    classifierTags: (tags ?? []).map((t: { tag: string }) => t.tag),
+    classifierTags: (tags ?? []).map(
+      (t: { source_item_id: string; tag_code: string }) => ({
+        sourceItemId: t.source_item_id,
+        tagCode: t.tag_code,
+      }),
+    ),
     tensions: (tensions ?? []).map((t: { tension_code: string }) => t.tension_code),
     overrides: overrides ?? [],
     auditTrail: audit ?? [],
