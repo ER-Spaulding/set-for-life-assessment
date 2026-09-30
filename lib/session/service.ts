@@ -378,21 +378,97 @@ export async function completeSession(sessionId: string): Promise<CompletionResu
   // failure here surfaces as a database error rather than silent divergence.
   const nowIso = new Date().toISOString();
 
+  // COLUMN NAMES ARE THE SCHEMA'S, NOT THE ENGINE'S.
+  //
+  // This insert previously sent `{ signal, value, special_state }` and
+  // `onConflict: "session_id,signal"`. None of those exist:
+  // `computed_signals` is (session_id, signal_id, raw_value, state,
+  // evidence_confidence, calculation_version) with PK (session_id, signal_id)
+  // — see migration 20260930000001 and PRD §22.3, which lists the same six.
+  // Verified by execution against a real Postgres: the old statement failed
+  // with `column "signal" of relation "computed_signals" does not exist`, so
+  // EVERY completion would have failed at this line. The stubbed DB in the
+  // test suite accepted any column name, which is why the suite stayed green.
+  //
+  // `calculation_version` is NOT NULL and carries PINNED_VERSION.
+  //
+  // The off-ladder states (DIRECT_CAPACITY_LIMITED, AIM_CAPACITY_CONSTRAINED_
+  // ALIGNMENT) have no column here by design — §22.3 gives none. They belong to
+  // the `overrides` table (override_code + payload) and to the Snapshot's
+  // narrative keys, and are written in the overrides block below.
   const { error: sigErr } = await db.from("computed_signals").upsert(
     (Object.keys(scored.signals) as SignalId[]).map((signal) => ({
       session_id: sessionId,
-      signal,
-      value: scored.signals[signal].value,
+      signal_id: signal,
+      raw_value: scored.signals[signal].value,
       state: scored.signals[signal].state,
-      special_state: scored.signals[signal].specialState,
       // Derived from the signal's ladder state, any capacity override, and how
       // many independent sources corroborate it. Always one of
       // 'high'|'moderate'|'limited' — the DB CHECK constraint's own values.
       evidence_confidence: confidenceFor(signal),
+      calculation_version: PINNED_VERSION,
     })),
-    { onConflict: "session_id,signal" },
+    { onConflict: "session_id,signal_id" },
   );
   if (sigErr) throw new Error(`session: signals ${sigErr.message}`);
+
+  // ---- capacity overrides + modifiers (§13.4–§13.7) ----
+  //
+  // §22.3: `overrides` = (session_id, override_code, source_item_ids, payload).
+  // The off-ladder signal states live HERE, not on computed_signals. Written
+  // from the scorer's own flags so the row set reflects exactly what fired.
+  const overrideRows: Array<Record<string, unknown>> = [];
+  const { overrideFlags, directSpecial, q18ModifierFired } = scored;
+  if (overrideFlags.Q11_CAPACITY_OVERRIDE) {
+    overrideRows.push({
+      session_id: sessionId,
+      override_code: "Q11_CAPACITY_OVERRIDE",
+      source_item_ids: ["Q11"],
+      payload: { option: codesFor("Q11")[0] ?? null },
+    });
+  }
+  if (overrideFlags.Q12_CAPACITY_OVERRIDE) {
+    overrideRows.push({
+      session_id: sessionId,
+      override_code: "Q12_CAPACITY_OVERRIDE",
+      source_item_ids: ["Q12"],
+      payload: { option: codesFor("Q12")[0] ?? null },
+    });
+  }
+  if (overrideFlags.AGENCY_EVIDENCE_LIMITED_DUE_TO_CAPACITY_CONTEXT) {
+    overrideRows.push({
+      session_id: sessionId,
+      override_code: "AGENCY_EVIDENCE_LIMITED_DUE_TO_CAPACITY_CONTEXT",
+      source_item_ids: ["Q11", "Q12", "Q10"],
+      payload: {},
+    });
+  }
+  if (q18ModifierFired) {
+    overrideRows.push({
+      session_id: sessionId,
+      override_code: "Q18_CAPACITY_MODIFIER",
+      source_item_ids: ["Q18"],
+      payload: { option: codesFor("Q18")[0] ?? null },
+    });
+  }
+  // The rendered off-ladder state per signal, when one applies.
+  for (const signal of Object.keys(scored.signals) as SignalId[]) {
+    const special = scored.signals[signal].specialState;
+    if (special) {
+      overrideRows.push({
+        session_id: sessionId,
+        override_code: special,
+        source_item_ids: [],
+        payload: { signal, display_state: special },
+      });
+    }
+  }
+  if (overrideRows.length > 0) {
+    const { error: oErr } = await db
+      .from("overrides")
+      .upsert(overrideRows, { onConflict: "session_id,override_code" });
+    if (oErr) throw new Error(`session: overrides ${oErr.message}`);
+  }
 
   if (tensionCodes.length > 0) {
     const { error: tErr } = await db
@@ -432,11 +508,20 @@ export async function loadSnapshot(sessionId: string) {
   if (sErr) throw new Error(`session: ${sErr.message}`);
   if (!session || session.status !== "completed") return null;
 
+  // The schema's column names — see the completion insert for the full note.
+  // `special_state` is NOT on this table; the off-ladder states are read from
+  // `overrides` below, which is where they are written.
   const { data: signals, error: gErr } = await db
     .from("computed_signals")
-    .select("signal, value, state, special_state")
+    .select("signal_id, raw_value, state")
     .eq("session_id", sessionId);
   if (gErr) throw new Error(`session: ${gErr.message}`);
+
+  const { data: overrides, error: oErr } = await db
+    .from("overrides")
+    .select("override_code, payload")
+    .eq("session_id", sessionId);
+  if (oErr) throw new Error(`session: ${oErr.message}`);
 
   const { data: tensions, error: tErr } = await db
     .from("tensions")
@@ -446,17 +531,30 @@ export async function loadSnapshot(sessionId: string) {
 
   const codes = (tensions ?? []).map((t: { tension_code: string }) => t.tension_code);
 
+  // signal -> off-ladder (special) state, from the overrides payloads.
+  const specialBySignal = new Map<string, string>();
+  for (const row of (overrides ?? []) as Array<{
+    override_code: string;
+    payload: { signal?: unknown; display_state?: unknown } | null;
+  }>) {
+    const signal = row.payload?.signal;
+    if (typeof signal === "string") specialBySignal.set(signal, row.override_code);
+  }
+
   return {
     sessionId,
     signals: (signals ?? []).map(
-      (s: { signal: string; state: string | null; special_state: string | null }) => ({
-        signal: s.signal,
-        // The renderable state: the special state when one applies.
-        state: s.special_state ?? s.state,
-        narrativeKey: s.special_state
-          ? `special_signal_states.${s.special_state}`
-          : `signal_states.${s.signal}.${s.state}`,
-      }),
+      (s: { signal_id: string; state: string | null }) => {
+        const special = specialBySignal.get(s.signal_id) ?? null;
+        return {
+          signal: s.signal_id,
+          // The renderable state: the special state when one applies.
+          state: special ?? s.state,
+          narrativeKey: special
+            ? `special_signal_states.${special}`
+            : `signal_states.${s.signal_id}.${s.state}`,
+        };
+      },
     ),
     tensionCodes: codes,
     connectionKeys: codes,

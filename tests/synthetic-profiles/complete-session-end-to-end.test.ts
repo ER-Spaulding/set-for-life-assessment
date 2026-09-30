@@ -34,10 +34,22 @@ import { REQUIRED_ITEM_IDS } from "@/lib/assessment/validation";
 
 const repo = resolve(__dirname, "../..");
 
-/** Minimal in-memory stand-in for the Supabase service client. */
+/**
+ * Minimal in-memory stand-in for the Supabase service client.
+ *
+ * LIMITATION, STATED PLAINLY: this fake accepts ANY column name, because it
+ * has no schema. It therefore cannot catch a SQL column mismatch — and one
+ * shipped (`computed_signals` was written with `signal`/`value`/
+ * `special_state`, none of which exist), failing every completion while this
+ * suite stayed green. That class of defect is covered by
+ * tests/integration/schema-column-contract.test.ts, which checks the column
+ * names against the real migration, and was confirmed against a live Postgres.
+ * Keep both: this file proves BEHAVIOUR, that one proves the SQL is well-formed.
+ */
 interface Captured {
   computedSignals: Array<Record<string, unknown>>;
   tensions: Array<Record<string, unknown>>;
+  overrides: Array<Record<string, unknown>>;
   sessionUpdate: Record<string, unknown> | null;
 }
 
@@ -45,6 +57,7 @@ function fakeDb(rows: Array<{ item_id: string; option_code: string }>) {
   const captured: Captured = {
     computedSignals: [],
     tensions: [],
+    overrides: [],
     sessionUpdate: null,
   };
 
@@ -69,6 +82,14 @@ function fakeDb(rows: Array<{ item_id: string; option_code: string }>) {
         return {
           upsert: (payload: Array<Record<string, unknown>>) => {
             captured.tensions = payload;
+            return Promise.resolve({ error: null });
+          },
+        };
+      }
+      if (table === "overrides") {
+        return {
+          upsert: (payload: Array<Record<string, unknown>>) => {
+            captured.overrides = payload;
             return Promise.resolve({ error: null });
           },
         };
@@ -190,13 +211,28 @@ describe("completeSession end to end — the activation fix reaches the persiste
       Q19: "Q19_A",
     });
     const codes = captured.tensions.map((t) => t.tension_code as string);
-    const direct = captured.computedSignals.find((s) => s.signal === "DIRECT");
+    const direct = captured.computedSignals.find((s) => s.signal_id === "DIRECT");
     console.log("  DIRECT persisted:", JSON.stringify(direct));
+    console.log("  overrides persisted:", JSON.stringify(captured.overrides));
     console.log("  capacity-constrained tensions:", JSON.stringify(codes));
 
     // Precondition: the override really did fire, or the test is vacuous.
-    expect(direct?.special_state).toBe("DIRECT_CAPACITY_LIMITED");
+    //
+    // The off-ladder state lands in the OVERRIDES table, not on
+    // computed_signals — §22.3 gives that table no column for it. Asserting it
+    // here rather than on the signal row is what the schema requires, and an
+    // earlier version of this test asserted `direct.special_state`, a column
+    // that does not exist.
+    const overrideCodes = captured.overrides.map((o) => o.override_code as string);
+    expect(overrideCodes).toContain("DIRECT_CAPACITY_LIMITED");
+    expect(overrideCodes).toContain("Q11_CAPACITY_OVERRIDE");
+    const directOverride = captured.overrides.find(
+      (o) => o.override_code === "DIRECT_CAPACITY_LIMITED",
+    );
+    expect((directOverride?.payload as { signal?: string })?.signal).toBe("DIRECT");
+
     expect(direct?.state).toBe("S5");
+    expect(direct).not.toHaveProperty("special_state");
     expect(codes).toContain("HIGH_ACTIVITY_LOW_DIRECTION");
 
     // AND the confidence tier must reflect the override. This signal has
@@ -210,11 +246,11 @@ describe("completeSession end to end — the activation fix reaches the persiste
 
   it("writes all six signals with a lowercased evidence_confidence the DB accepts", async () => {
     const { captured } = await run({ Q4: "Q4_E", Q5: "Q5_E", Q6: "Q6_E" });
-    const signals = captured.computedSignals.map((s) => s.signal as string);
+    const signals = captured.computedSignals.map((s) => s.signal_id as string);
     console.log(
       "  signals:",
       JSON.stringify(
-        captured.computedSignals.map((s) => [s.signal, s.evidence_confidence]),
+        captured.computedSignals.map((s) => [s.signal_id, s.evidence_confidence]),
       ),
     );
     expect(signals.sort()).toEqual(
@@ -245,7 +281,7 @@ describe("completeSession end to end — the activation fix reaches the persiste
     // items"). Without this assertion the suite could not distinguish a real
     // derivation from a blanket literal, since 'high' is also a legal value.
     const { captured } = await run({ Q4: "Q4_E", Q5: "Q5_E", Q6: "Q6_E" });
-    const see = captured.computedSignals.find((s) => s.signal === "SEE");
+    const see = captured.computedSignals.find((s) => s.signal_id === "SEE");
     console.log("  SEE persisted:", JSON.stringify(see));
     expect(see?.state).toBe("S5");
     expect(see?.evidence_confidence).toBe("high");
@@ -260,7 +296,7 @@ describe("completeSession end to end — the activation fix reaches the persiste
     // ROOM draws on Q7/Q8 only; with Q7 strong and Q8 present but mixed the
     // state is no longer extreme, so it cannot be HIGH.
     const { captured } = await run({ Q7: "Q7_E", Q8: "Q8_C" });
-    const room = captured.computedSignals.find((s) => s.signal === "ROOM");
+    const room = captured.computedSignals.find((s) => s.signal_id === "ROOM");
     console.log("  ROOM persisted:", JSON.stringify(room));
     expect(room?.evidence_confidence).not.toBe("high");
   });
