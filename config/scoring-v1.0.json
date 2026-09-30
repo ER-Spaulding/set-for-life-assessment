@@ -1,0 +1,516 @@
+{
+  "config_name": "scoring-v1.0",
+  "version": "1.0",
+  "source_spec": "Set_for_Life_Assessment_MASTER_PRD_Technical_Spec_FINAL_v1.0.md (v1.0 MVP Build Final)",
+  "governing_rules": [
+    "PRD §15: implement thresholds as configuration, not hard-coded literals. The engine reads this file; no numeric cutoff may live in code.",
+    "PRD §34: do not invent scoring logic, domain labels, diagnostic conclusions, product recommendations, continuation routing, consent assumptions, or CRM fields not specified in the PRD."
+  ],
+  "companion_libraries": {
+    "narratives": "SFL_narratives-v1.0.json (approved participant-facing copy; this config stores keys and thresholds only, never copy)",
+    "connection_statements": "SFL_connection-statements-v1.0.json (18 keys; tension codes here must match exactly)",
+    "signal_state_vocabulary": "SFL_signal-state-vocabulary-v1.0.json (state labels, language strength, rules)"
+  },
+  "_notes": "Each major block carries a prd_section citing its source. Every numeric value the PRD does not state explicitly carries _calibration_status ASSUMED_PENDING_OPERATOR_REVIEW and is consolidated in calibration_assumptions for pre-launch calibration.",
+
+  "directional_scale": {
+    "_prd_section": "§13.1",
+    "_notes": "Internal-only 1-5 directional values. Never exposed to participants (vocabulary rule).",
+    "values": {
+      "1": "strong friction signal",
+      "2": "meaningful friction signal",
+      "3": "mixed/developing",
+      "4": "relative strength",
+      "5": "strong relative strength"
+    }
+  },
+
+  "option_value_maps": {
+    "_prd_section": "§9, §13.1, §13.4, §13.5",
+    "_notes": "A-to-E options read low-to-high throughout §9. Q11_A and Q12_F carry no numeric value (capacity overrides). Q11 B-E = 2-5 preserves absolute scale position and aligns with assessment-v1.0.json scoring_behavior capacity_override_first_else_2_5; flagged as interpretation in calibration_assumptions.",
+    "profile_1_5": { "A": 1, "B": 2, "C": 3, "D": 4, "E": 5 },
+    "Q11_capacity_override_first_else_2_5": {
+      "Q11_A": null,
+      "Q11_B": 2, "Q11_C": 3, "Q11_D": 4, "Q11_E": 5,
+      "_calibration_status": "INTERPRETATION_ALIGNED_WITH_ASSESSMENT_CONFIG_PENDING_OPERATOR_REVIEW"
+    },
+    "Q12_capacity_override_last_else_1_5": {
+      "Q12_A": 1, "Q12_B": 2, "Q12_C": 3, "Q12_D": 4, "Q12_E": 5,
+      "Q12_F": null
+    },
+    "Q18_profile_1_5": { "A": 1, "B": 2, "C": 3, "D": 4, "E": 5 }
+  },
+
+  "signals": {
+    "_prd_section": "§13.2",
+    "_notes": "Formulas expressed as data (question lists + aggregation). Participant labels are the working §20.1 labels; internal construct names are unchanged. State copy lives in SFL_narratives-v1.0.json under the narrative_key shown; only keys, bands, and attention areas are stored here. All S1-S5 bands are ASSUMED (spec gives no numeric cutoffs).",
+    "SEE": {
+      "internal_construct": "Financial Visibility",
+      "participant_label": "SEE",
+      "formula": { "questions": ["Q4", "Q5", "Q6"], "aggregation": "mean", "exclusions": [], "context_questions": [] },
+      "narrative_source": "Q4, Q5, Q6",
+      "attention_area": "SEE_IT_MORE_CLEARLY",
+      "states": {
+        "S1": { "min": 1.0, "max": 1.79, "label": "Hard to See Clearly", "narrative_key": "SEE.S1", "_calibration_status": "ASSUMED_PENDING_OPERATOR_REVIEW" },
+        "S2": { "min": 1.8, "max": 2.59, "label": "Some Important Gaps", "narrative_key": "SEE.S2", "_calibration_status": "ASSUMED_PENDING_OPERATOR_REVIEW" },
+        "S3": { "min": 2.6, "max": 3.39, "label": "Coming Into Focus", "narrative_key": "SEE.S3", "_calibration_status": "ASSUMED_PENDING_OPERATOR_REVIEW" },
+        "S4": { "min": 3.4, "max": 4.19, "label": "Clear", "narrative_key": "SEE.S4", "_calibration_status": "ASSUMED_PENDING_OPERATOR_REVIEW" },
+        "S5": { "min": 4.2, "max": 5.0, "label": "Very Clear", "narrative_key": "SEE.S5", "_calibration_status": "ASSUMED_PENDING_OPERATOR_REVIEW" }
+      }
+    },
+    "ROOM": {
+      "internal_construct": "Financial Capacity",
+      "participant_label": "ROOM",
+      "formula": { "questions": ["Q7", "Q8"], "aggregation": "mean", "exclusions": [], "context_questions": ["Q9"] },
+      "context_rule": "Q9 supplies explanatory context only and contributes no numeric value (PRD §13.2).",
+      "narrative_source": "Q7, Q8; Q9 context",
+      "attention_area": "CREATE_MORE_ROOM",
+      "states": {
+        "S1": { "min": 1.0, "max": 1.79, "label": "Very Limited Room", "narrative_key": "ROOM.S1", "_calibration_status": "ASSUMED_PENDING_OPERATOR_REVIEW" },
+        "S2": { "min": 1.8, "max": 2.59, "label": "Limited Room", "narrative_key": "ROOM.S2", "_calibration_status": "ASSUMED_PENDING_OPERATOR_REVIEW" },
+        "S3": { "min": 2.6, "max": 3.39, "label": "Some Room", "narrative_key": "ROOM.S3", "_calibration_status": "ASSUMED_PENDING_OPERATOR_REVIEW" },
+        "S4": { "min": 3.4, "max": 4.19, "label": "Meaningful Room", "narrative_key": "ROOM.S4", "_calibration_status": "ASSUMED_PENDING_OPERATOR_REVIEW" },
+        "S5": { "min": 4.2, "max": 5.0, "label": "Strong Room", "narrative_key": "ROOM.S5", "_calibration_status": "ASSUMED_PENDING_OPERATOR_REVIEW" }
+      }
+    },
+    "DIRECT": {
+      "internal_construct": "Financial Agency",
+      "participant_label": "DIRECT",
+      "formula": { "questions": ["Q10", "Q11", "Q12"], "aggregation": "mean_of_non_overridden", "exclusions": ["Q11_A", "Q12_F"], "context_questions": [] },
+      "override_rule": "Subject to capacity overrides (§13.4-§13.6); see overrides block. Overridden items contribute no numeric value.",
+      "narrative_source": "Q10, Q11, Q12 with capacity overrides",
+      "attention_area": "BUILD_DECISION_CONFIDENCE",
+      "states": {
+        "S1": { "min": 1.0, "max": 1.79, "label": "Mostly Reactive", "narrative_key": "DIRECT.S1", "_calibration_status": "ASSUMED_PENDING_OPERATOR_REVIEW" },
+        "S2": { "min": 1.8, "max": 2.59, "label": "Often Reactive", "narrative_key": "DIRECT.S2", "_calibration_status": "ASSUMED_PENDING_OPERATOR_REVIEW" },
+        "S3": { "min": 2.6, "max": 3.39, "label": "Developing Direction", "narrative_key": "DIRECT.S3", "_calibration_status": "ASSUMED_PENDING_OPERATOR_REVIEW" },
+        "S4": { "min": 3.4, "max": 4.19, "label": "Intentional", "narrative_key": "DIRECT.S4", "_calibration_status": "ASSUMED_PENDING_OPERATOR_REVIEW" },
+        "S5": { "min": 4.2, "max": 5.0, "label": "Highly Intentional", "narrative_key": "DIRECT.S5", "_calibration_status": "ASSUMED_PENDING_OPERATOR_REVIEW" }
+      }
+    },
+    "PREPARE": {
+      "internal_construct": "Preparedness & Resilience",
+      "participant_label": "PREPARE",
+      "formula": { "questions": ["Q13", "Q14", "Q15"], "aggregation": "mean", "exclusions": [], "context_questions": [] },
+      "narrative_source": "Q13, Q14, Q15",
+      "attention_area": "STRENGTHEN_RESILIENCE",
+      "states": {
+        "S1": { "min": 1.0, "max": 1.79, "label": "Highly Exposed", "narrative_key": "PREPARE.S1", "_calibration_status": "ASSUMED_PENDING_OPERATOR_REVIEW" },
+        "S2": { "min": 1.8, "max": 2.59, "label": "Limited Cushion", "narrative_key": "PREPARE.S2", "_calibration_status": "ASSUMED_PENDING_OPERATOR_REVIEW" },
+        "S3": { "min": 2.6, "max": 3.39, "label": "Developing Resilience", "narrative_key": "PREPARE.S3", "_calibration_status": "ASSUMED_PENDING_OPERATOR_REVIEW" },
+        "S4": { "min": 3.4, "max": 4.19, "label": "Prepared", "narrative_key": "PREPARE.S4", "_calibration_status": "ASSUMED_PENDING_OPERATOR_REVIEW" },
+        "S5": { "min": 4.2, "max": 5.0, "label": "Strongly Prepared", "narrative_key": "PREPARE.S5", "_calibration_status": "ASSUMED_PENDING_OPERATOR_REVIEW" }
+      }
+    },
+    "AIM": {
+      "internal_construct": "Financial Direction",
+      "participant_label": "AIM",
+      "formula": { "questions": ["Q17", "Q18", "Q19"], "aggregation": "mean", "exclusions": [], "context_questions": ["Q16"] },
+      "context_rule": "Q16 is destination context only and contributes no numeric value (PRD §13.2). Q18 carries the §13.7 capacity modifier (interpretive; does not change the numeric average).",
+      "narrative_source": "Q17, Q18, Q19; Q16 context; Q18 capacity modifier",
+      "attention_area": "DEFINE_THE_DESTINATION",
+      "states": {
+        "S1": { "min": 1.0, "max": 1.79, "label": "Destination Unclear", "narrative_key": "AIM.S1", "_calibration_status": "ASSUMED_PENDING_OPERATOR_REVIEW" },
+        "S2": { "min": 1.8, "max": 2.59, "label": "Direction Is Forming", "narrative_key": "AIM.S2", "_calibration_status": "ASSUMED_PENDING_OPERATOR_REVIEW" },
+        "S3": { "min": 2.6, "max": 3.39, "label": "Some Direction", "narrative_key": "AIM.S3", "_calibration_status": "ASSUMED_PENDING_OPERATOR_REVIEW" },
+        "S4": { "min": 3.4, "max": 4.19, "label": "Clear Direction", "narrative_key": "AIM.S4", "_calibration_status": "ASSUMED_PENDING_OPERATOR_REVIEW" },
+        "S5": { "min": 4.2, "max": 5.0, "label": "Strongly Directed", "narrative_key": "AIM.S5", "_calibration_status": "ASSUMED_PENDING_OPERATOR_REVIEW" }
+      }
+    },
+    "MOVE": {
+      "internal_construct": "Information-to-Action",
+      "participant_label": "MOVE",
+      "formula": { "questions": ["Q23", "Q24", "Q25"], "aggregation": "mean", "exclusions": [], "context_questions": [] },
+      "subsignals": {
+        "_prd_section": "§13.2",
+        "_notes": "Question-to-subsignal mapping is derived from the §15 bottleneck definitions (Q23 strong/Q24 weak = analysis bottleneck; Q23+Q24 strong/Q25 weak = execution bottleneck), which imply Q23=intake, Q24=evaluation, Q25=follow-through. Flagged as derivation in calibration_assumptions.",
+        "Q23": "CONSUMPTION",
+        "Q24": "ANALYSIS",
+        "Q25": "ACTION"
+      },
+      "narrative_source": "Q23, Q24, Q25",
+      "attention_area": "TURN_INFORMATION_INTO_ACTION",
+      "states": {
+        "S1": { "min": 1.0, "max": 1.79, "label": "Information Stalls", "narrative_key": "MOVE.S1", "_calibration_status": "ASSUMED_PENDING_OPERATOR_REVIEW" },
+        "S2": { "min": 1.8, "max": 2.59, "label": "Action Often Slows", "narrative_key": "MOVE.S2", "_calibration_status": "ASSUMED_PENDING_OPERATOR_REVIEW" },
+        "S3": { "min": 2.6, "max": 3.39, "label": "Sometimes Moves", "narrative_key": "MOVE.S3", "_calibration_status": "ASSUMED_PENDING_OPERATOR_REVIEW" },
+        "S4": { "min": 3.4, "max": 4.19, "label": "Usually Moves", "narrative_key": "MOVE.S4", "_calibration_status": "ASSUMED_PENDING_OPERATOR_REVIEW" },
+        "S5": { "min": 4.2, "max": 5.0, "label": "Moves Into Action", "narrative_key": "MOVE.S5", "_calibration_status": "ASSUMED_PENDING_OPERATOR_REVIEW" }
+      }
+    }
+  },
+
+  "overrides": {
+    "_prd_section": "§13.4, §13.6, §13.7",
+    "_notes": "Capacity is never misread as low agency. Single-override mapping to DIRECT_CAPACITY_LIMITED is an interpretation (spec explicitly defines only the dual-override mapping); flagged accordingly.",
+    "Q11_A": {
+      "flag": "Q11_CAPACITY_OVERRIDE",
+      "value": true,
+      "effect": "Q11 contributes no numeric value to Agency; Agency = mean(Q10, Q12) unless Q12 is also capacity-constrained.",
+      "special_state_candidate": "DIRECT_CAPACITY_LIMITED",
+      "special_state_candidate_status": "INTERPRETATION_PENDING_OPERATOR_REVIEW"
+    },
+    "Q12_F": {
+      "flag": "Q12_CAPACITY_OVERRIDE",
+      "value": true,
+      "effect": "Q12 contributes no numeric value to Agency; Agency = mean(Q10, Q11) unless Q11 is also capacity-constrained.",
+      "special_state_candidate": "DIRECT_CAPACITY_LIMITED",
+      "special_state_candidate_status": "INTERPRETATION_PENDING_OPERATOR_REVIEW"
+    },
+    "BOTH_Q11_A_AND_Q12_F": {
+      "_prd_section": "§13.6",
+      "agency_evidence": "AGENCY_EVIDENCE=LIMITED_DUE_TO_CAPACITY_CONTEXT",
+      "effect": "Agency is based on Q10 only. This is not missing data; both answers are substantive.",
+      "state_rule": "Use DIRECT_LIMITED_EVIDENCE_CAPACITY rather than a low DIRECT state (approved narrative-library rule)."
+    },
+    "Q18_capacity_modifier": {
+      "_prd_section": "§13.7",
+      "_notes": "Interpretive rule: changes narrative selection, not the Direction numeric average. Cutoffs assumed.",
+      "condition": {
+        "direction_clarity_high": "mean(Q17, Q19) >= 4.0",
+        "alignment_low": "Q18 <= 2",
+        "capacity_low": "Capacity mean <= 2.5"
+      },
+      "_calibration_status": "ASSUMED_PENDING_OPERATOR_REVIEW",
+      "effect": "Generate CLEAR_DESTINATION_CAPACITY_CONSTRAINED_ALIGNMENT rather than low-direction language; prefer AIM_CAPACITY_CONSTRAINED_ALIGNMENT as the AIM signal state."
+    }
+  },
+
+  "special_signal_states": {
+    "_prd_section": "§13.6, §13.7; approved narrative library SPECIAL",
+    "_notes": "Keys resolve copy in SFL_narratives-v1.0.json SPECIAL.*.",
+    "DIRECT_CAPACITY_LIMITED": {
+      "label": "Intentional — Capacity Constrained",
+      "narrative_key": "SPECIAL.DIRECT_CAPACITY_LIMITED",
+      "when": "Single capacity override (Q11_A xor Q12_F). INTERPRETATION_PENDING_OPERATOR_REVIEW."
+    },
+    "DIRECT_LIMITED_EVIDENCE_CAPACITY": {
+      "label": "Intentionality — Limited Evidence",
+      "narrative_key": "SPECIAL.DIRECT_LIMITED_EVIDENCE_CAPACITY",
+      "when": "Q11_A and Q12_F both trigger; use rather than a low DIRECT state (explicit approved-library rule)."
+    },
+    "AIM_CAPACITY_CONSTRAINED_ALIGNMENT": {
+      "label": "Clear Direction — Limited Room to Act",
+      "narrative_key": "SPECIAL.AIM_CAPACITY_CONSTRAINED_ALIGNMENT",
+      "when": "Direction clear, Q18 alignment low, Capacity constrained (§13.7 condition above)."
+    }
+  },
+
+  "classifiers": {
+    "_prd_section": "§14",
+    "_notes": "Each tag fires on selection of its option. Q9 contributes context tags only (no numeric value). Q9_L and Q21_G are exclusive. Q1_G and Q16_J are explicitly NOT exclusive.",
+    "Q1_money_environment": {
+      "selection_limit": "max_2",
+      "tags": {
+        "Q1_A": "OPEN_MONEY_ENVIRONMENT",
+        "Q1_B": "MIXED_MONEY_LEARNING",
+        "Q1_C": "OBSERVATIONAL_LEARNING",
+        "Q1_D": "CRISIS_BASED_MONEY_CONVERSATION",
+        "Q1_E": "CONFLICTING_MONEY_MESSAGES",
+        "Q1_F": "LIMITED_MONEY_CONVERSATION",
+        "Q1_G": "OTHER_MONEY_ENVIRONMENT"
+      },
+      "exclusive": []
+    },
+    "Q9_capacity_context": {
+      "selection_limit": "max_3",
+      "tags": {
+        "Q9_A": "INCOME_PRESSURE",
+        "Q9_B": "LOW_AVAILABLE_MONEY",
+        "Q9_C": "DEBT_PRESSURE",
+        "Q9_D": "MAJOR_FIXED_COST_PRESSURE",
+        "Q9_E": "COST_OF_LIVING_PRESSURE",
+        "Q9_F": "INCOME_VOLATILITY",
+        "Q9_G": "UNEXPECTED_EXPENSE_PRESSURE",
+        "Q9_H": "SPENDING_PRESSURE",
+        "Q9_I": "FAMILY_SUPPORT_PRESSURE",
+        "Q9_J": "LEGACY_COMMITMENT_PRESSURE",
+        "Q9_K": "UNIDENTIFIED_PRESSURE",
+        "Q9_L": "NO_SIGNIFICANT_PRESSURE",
+        "Q9_M": "OTHER_PRESSURE"
+      },
+      "exclusive": ["Q9_L"],
+      "exclusive_note": "Q9_L ('I don't usually feel financially stretched') may not coexist with any other Q9 option. Q9_M permits open text and still emits OTHER_PRESSURE."
+    },
+    "Q16_destination": {
+      "selection_limit": "max_3",
+      "tags": {
+        "Q16_A": "PEACE_REDUCED_STRESS",
+        "Q16_B": "INCOME_SUFFICIENCY",
+        "Q16_C": "DEBT_FREEDOM",
+        "Q16_D": "FINANCIAL_SECURITY",
+        "Q16_E": "WEALTH_OWNERSHIP",
+        "Q16_F": "WORK_OPTIONALITY",
+        "Q16_G": "FAMILY_SUPPORT",
+        "Q16_H": "LEGACY",
+        "Q16_I": "TIME_CHOICE",
+        "Q16_J": "DESTINATION_STILL_FORMING",
+        "Q16_K": "OTHER_DESTINATION"
+      },
+      "exclusive": [],
+      "exclusive_note": "Q16_J ('still figuring out') is not exclusive per §14. Q16_K permits open text and still emits OTHER_DESTINATION."
+    },
+    "Q21_fear_friction": {
+      "selection_limit": "max_2",
+      "tags": {
+        "Q21_A": "TRUTH_AVOIDANCE",
+        "Q21_B": "WRONG_DECISION_FEAR",
+        "Q21_C": "JUDGMENT_EXPOSURE",
+        "Q21_D": "EXPLOITATION_PRESSURE_CONCERN",
+        "Q21_E": "INFORMATION_OVERLOAD",
+        "Q21_F": "REGRET_COMMITMENT_FEAR",
+        "Q21_G": "NO_SIGNIFICANT_FEAR_FRICTION",
+        "Q21_H": "OTHER_FEAR_FRICTION"
+      },
+      "exclusive": ["Q21_G"],
+      "exclusive_note": "Q21_G ('None of these usually stop me') may not coexist with any other Q21 option. Q21_H permits open text and still emits OTHER_FEAR_FRICTION.",
+      "fear_present_definition": {
+        "_notes": "Interpretation: any Q21 selection other than exclusive Q21_G counts as fear present for HIGH_FEAR_HIGH_ACTIVATION. Whether Q21_H ('something else') counts is flagged in open_questions.",
+        "fear_present": ["Q21_A", "Q21_B", "Q21_C", "Q21_D", "Q21_E", "Q21_F", "Q21_H"],
+        "_calibration_status": "INTERPRETATION_PENDING_OPERATOR_REVIEW"
+      }
+    }
+  },
+
+  "tension_thresholds": {
+    "_prd_section": "§15 ('Thresholds for high/low remain provisional in MVP v1.0')",
+    "_notes": "Every value here is ASSUMED and exists so pilot calibration can change it without rewriting the engine.",
+    "_calibration_status": "ASSUMED_PENDING_OPERATOR_REVIEW",
+    "item_high": { "value": ">= 4", "meaning": "relatively strong at item level" },
+    "item_low": { "value": "<= 2", "meaning": "weak at item level" },
+    "item_mid": { "value": "= 3", "meaning": "mixed" },
+    "signal_high": { "states": ["S4", "S5"], "numeric": "mean >= 3.4" },
+    "signal_low": { "states": ["S1", "S2"], "numeric": "mean <= 2.59" },
+    "capacity_low": { "states": ["S1", "S2"], "numeric": "Capacity mean <= 2.5" },
+    "pair_low_avg": { "value": "<= 2.5", "meaning": "low at two-item average level (used for Q4/Q5 and Q13/Q15 pairs)" }
+  },
+
+  "tensions": {
+    "_prd_section": "§15, plus §13.7 and §18.3 system codes",
+    "_notes": "16 cross-domain tensions from §15 plus the §13.7 capacity-constrained-alignment code and the §18.3 null-finding code = 18 codes, matching the 18 keys of SFL_connection-statements-v1.0.json exactly. Each connection_key resolves copy in that library. All high/low cutoffs reference tension_thresholds (assumed).",
+    "HIGH_ACTIVITY_LOW_DIRECTION": {
+      "provenance": "PRD §15",
+      "connection_key": "HIGH_ACTIVITY_LOW_DIRECTION",
+      "trigger": { "all": [{ "signal": "DIRECT", "state_in": ["S4", "S5"] }, { "signal": "AIM", "state_in": ["S1", "S2"] }] }
+    },
+    "HIGH_INFORMATION_LOW_ACTION": {
+      "provenance": "PRD §15",
+      "connection_key": "HIGH_INFORMATION_LOW_ACTION",
+      "trigger": { "all": [{ "item_gte": ["Q23", "Q24"], "threshold_ref": "tension_thresholds.item_high" }, { "item_lte": ["Q25"], "threshold_ref": "tension_thresholds.item_low" }] }
+    },
+    "INFORMATION_ANALYSIS_BOTTLENECK": {
+      "provenance": "PRD §15",
+      "connection_key": "INFORMATION_ANALYSIS_BOTTLENECK",
+      "trigger": { "all": [{ "item_gte": ["Q23"], "threshold_ref": "tension_thresholds.item_high" }, { "item_lte": ["Q24", "Q25"], "threshold_ref": "tension_thresholds.item_low" }] }
+    },
+    "INFORMATION_EXECUTION_BOTTLENECK": {
+      "provenance": "PRD §15",
+      "connection_key": "INFORMATION_EXECUTION_BOTTLENECK",
+      "trigger": { "all": [{ "item_gte": ["Q23", "Q24"], "threshold_ref": "tension_thresholds.item_high" }, { "item_lte": ["Q25"], "threshold_ref": "tension_thresholds.item_low" }] }
+    },
+    "INFORMATION_OVERLOAD_PATTERN": {
+      "provenance": "PRD §15",
+      "connection_key": "INFORMATION_OVERLOAD_PATTERN",
+      "trigger": { "any": [{ "item_lte": ["Q23", "Q24", "Q25"], "threshold_ref": "tension_thresholds.item_low" }, { "tag_present": ["INFORMATION_OVERLOAD"] }] }
+    },
+    "HIGH_VISIBILITY_LOW_CAPACITY": {
+      "provenance": "PRD §15",
+      "connection_key": "HIGH_VISIBILITY_LOW_CAPACITY",
+      "trigger": { "all": [{ "signal": "SEE", "state_in": ["S4", "S5"] }, { "signal": "ROOM", "state_in": ["S1", "S2"] }] }
+    },
+    "LOW_VISIBILITY_HIGH_CAPACITY": {
+      "provenance": "PRD §15",
+      "connection_key": "LOW_VISIBILITY_HIGH_CAPACITY",
+      "trigger": { "all": [{ "signal": "ROOM", "state_in": ["S4", "S5"] }, { "signal": "SEE", "state_in": ["S1", "S2"] }] }
+    },
+    "HIGH_DIRECTION_LOW_CAPACITY": {
+      "provenance": "PRD §15",
+      "connection_key": "HIGH_DIRECTION_LOW_CAPACITY",
+      "trigger": { "all": [{ "signal": "AIM", "state_in": ["S4", "S5"] }, { "signal": "ROOM", "state_in": ["S1", "S2"] }] }
+    },
+    "HIGH_FEAR_HIGH_ACTIVATION": {
+      "provenance": "PRD §15",
+      "connection_key": "HIGH_FEAR_HIGH_ACTIVATION",
+      "trigger": { "all": [{ "fear_present": true }, { "any_activation_high": ["A1", "A2", "A3"] }] },
+      "handling_note": "Do not increase pressure (PRD §15)."
+    },
+    "SUPPORT_OPENNESS_AGENCY_VULNERABILITY": {
+      "provenance": "PRD §15",
+      "connection_key": "SUPPORT_OPENNESS_AGENCY_VULNERABILITY",
+      "trigger": { "all": [{ "activation_high": ["A4"] }, { "item_lte": ["Q22"], "threshold_ref": "tension_thresholds.item_low" }] },
+      "handling_note": "Reinforce informed decision-making and participant ownership (PRD §15)."
+    },
+    "HEALTHY_PRIVACY_BOUNDARY": {
+      "provenance": "PRD §15",
+      "connection_key": "HEALTHY_PRIVACY_BOUNDARY",
+      "trigger": { "all": [{ "item_lte": ["Q20"], "threshold_ref": "tension_thresholds.item_low" }, { "item_gte": ["Q6", "Q22"], "threshold_ref": "tension_thresholds.item_high" }, { "tag_absent": ["TRUTH_AVOIDANCE", "JUDGMENT_EXPOSURE"] }] },
+      "_calibration_status": "ASSUMED_PENDING_OPERATOR_REVIEW"
+    },
+    "PRIVACY_AVOIDANCE_FRICTION": {
+      "provenance": "PRD §15",
+      "connection_key": "PRIVACY_AVOIDANCE_FRICTION",
+      "trigger": { "all": [{ "item_lte": ["Q20"], "threshold_ref": "tension_thresholds.item_low" }, { "item_lte": ["Q6"], "threshold_ref": "tension_thresholds.item_low" }, { "any_tag_present": ["TRUTH_AVOIDANCE", "JUDGMENT_EXPOSURE"] }] },
+      "handling_note": "Phrase as 'may be interacting with avoidance' (PRD §15).",
+      "_calibration_status": "ASSUMED_PENDING_OPERATOR_REVIEW"
+    },
+    "HIGH_CONFIDENCE_LOW_VISIBILITY": {
+      "provenance": "PRD §15",
+      "connection_key": "HIGH_CONFIDENCE_LOW_VISIBILITY",
+      "trigger": { "all": [{ "item_gte": ["Q24"], "threshold_ref": "tension_thresholds.item_high" }, { "avg_lte": { "items": ["Q4", "Q5"], "value": 2.5 }, "threshold_ref": "tension_thresholds.pair_low_avg" }] },
+      "_calibration_status": "ASSUMED_PENDING_OPERATOR_REVIEW"
+    },
+    "PREPAREDNESS_KNOWLEDGE_LOW_RESILIENCE": {
+      "provenance": "PRD §15",
+      "connection_key": "PREPAREDNESS_KNOWLEDGE_LOW_RESILIENCE",
+      "trigger": { "all": [{ "item_gte": ["Q14"], "threshold_ref": "tension_thresholds.item_high" }, { "avg_lte": { "items": ["Q13", "Q15"], "value": 2.5 }, "threshold_ref": "tension_thresholds.pair_low_avg" }] },
+      "_calibration_status": "ASSUMED_PENDING_OPERATOR_REVIEW"
+    },
+    "BIG_PICTURE_CASHFLOW_GAP": {
+      "provenance": "PRD §15",
+      "connection_key": "BIG_PICTURE_CASHFLOW_GAP",
+      "trigger": { "all": [{ "item_gte": ["Q4"], "threshold_ref": "tension_thresholds.item_high" }, { "item_lte": ["Q5"], "threshold_ref": "tension_thresholds.item_low" }] }
+    },
+    "DESTINATION_EXISTS_ACTIVITY_NOT_ORGANIZED": {
+      "provenance": "PRD §15",
+      "connection_key": "DESTINATION_EXISTS_ACTIVITY_NOT_ORGANIZED",
+      "trigger": { "all": [{ "item_gte": ["Q17"], "threshold_ref": "tension_thresholds.item_high" }, { "item_lte": ["Q19"], "threshold_ref": "tension_thresholds.item_low" }] }
+    },
+    "CLEAR_DESTINATION_CAPACITY_CONSTRAINED_ALIGNMENT": {
+      "provenance": "PRD §13.7 (surfaced as a connection statement)",
+      "connection_key": "CLEAR_DESTINATION_CAPACITY_CONSTRAINED_ALIGNMENT",
+      "trigger_ref": "overrides.Q18_capacity_modifier.condition",
+      "_calibration_status": "ASSUMED_PENDING_OPERATOR_REVIEW"
+    },
+    "NO_MEANINGFUL_FRICTION_IDENTIFIED": {
+      "provenance": "PRD §18.3 null finding (surfaced as a connection statement)",
+      "connection_key": "NO_MEANINGFUL_FRICTION_IDENTIFIED",
+      "trigger_ref": "null_finding.operationalization",
+      "_calibration_status": "ASSUMED_PENDING_OPERATOR_REVIEW"
+    }
+  },
+
+  "null_finding": {
+    "_prd_section": "§18.3",
+    "code": "NO_MEANINGFUL_FRICTION_IDENTIFIED",
+    "rule": "The engine must be able to return NO_MEANINGFUL_FRICTION_IDENTIFIED and must not invent a weakness.",
+    "operationalization": {
+      "_notes": "The spec states the requirement but no numeric gate; this operationalization is ASSUMED for pilot calibration.",
+      "condition": "No other tension triggered AND every operating signal at S3 or above AND no meaningful contextual friction.",
+      "_calibration_status": "ASSUMED_PENDING_OPERATOR_REVIEW"
+    },
+    "acceptance_anchor": "PRD §29 null-finding test: strong consistent evidence across all signals with no meaningful contextual friction."
+  },
+
+  "language_strength": {
+    "_prd_section": "§19.1",
+    "_notes": "Copy strings are verbatim from the spec and the approved vocabulary library. The evidence-confidence band selecting each level is not specified numerically; bands below are ASSUMED.",
+    "levels": {
+      "HIGH": {
+        "copy": "Your responses show…",
+        "evidence_confidence_band": "Strong corroborated evidence (e.g. extreme signal state S1/S5 with 2+ corroborating items or tensions).",
+        "_calibration_status": "ASSUMED_PENDING_OPERATOR_REVIEW"
+      },
+      "MODERATE": {
+        "copy": "Your responses suggest…",
+        "evidence_confidence_band": "Single-signal or partially corroborated evidence (e.g. S2/S4 states).",
+        "_calibration_status": "ASSUMED_PENDING_OPERATOR_REVIEW"
+      },
+      "LIMITED": {
+        "copy": "One possibility worth examining is…",
+        "evidence_confidence_band": "Override-constrained, single-item, or classifier-only contextual evidence.",
+        "_calibration_status": "ASSUMED_PENDING_OPERATOR_REVIEW"
+      }
+    },
+    "relationship_language": ["appears alongside", "may be contributing", "may help explain", "shows up together with"],
+    "prohibited_language": ["caused by", "the real problem is"]
+  },
+
+  "activation": {
+    "_prd_section": "§11, §17",
+    "structural_separation": {
+      "stored": ["A1_urgency", "A2_readiness", "A3_commitment", "A4_support_readiness"],
+      "never_average_A1_to_A4": true,
+      "_notes": "Never average A1-A4 into a single motivation score. Activation never changes diagnosis (§17). This is a structural property: no combined field exists in this config for the engine to read."
+    },
+    "items": {
+      "A1": { "name": "Urgency", "options": ["A1_A", "A1_B", "A1_C", "A1_D", "A1_E"] },
+      "A2": { "name": "Readiness", "options": ["A2_A", "A2_B", "A2_C", "A2_D", "A2_E"] },
+      "A3": { "name": "Commitment", "options": ["A3_A", "A3_B", "A3_C", "A3_D", "A3_E"] },
+      "A4": {
+        "name": "Support Readiness",
+        "options": ["A4_A", "A4_B", "A4_C", "A4_D", "A4_E"],
+        "safeguard": "Support Readiness means openness to exploring support under acceptable conditions. It is not appointment consent, marketing consent, agreement to work with a professional, or purchase intent (§11). Low A4 is a preference, not financial friction (§17)."
+      }
+    },
+    "level_bands": {
+      "_notes": "Not specified numerically; bands assumed for pattern detection and pilot calibration.",
+      "LOW": ["A", "B"],
+      "MID": ["C"],
+      "HIGH": ["D", "E"],
+      "_calibration_status": "ASSUMED_PENDING_OPERATOR_REVIEW"
+    },
+    "patterns": {
+      "_prd_section": "§17",
+      "HIGH_URGENCY_LOW_READINESS": { "when": { "A1": "HIGH", "A2": "LOW" } },
+      "LOW_URGENCY_HIGH_READINESS": { "when": { "A1": "LOW", "A2": "HIGH" } },
+      "HIGH_COMMITMENT_LOW_SUPPORT_READINESS": { "when": { "A3": "HIGH", "A4": "LOW" } },
+      "HIGH_SUPPORT_READINESS_LOW_PROFESSIONAL_AGENCY": { "when": { "A4": "HIGH", "Q22_item_low": true }, "threshold_ref": "tension_thresholds.item_low" }
+    },
+    "low_state_notes": "Low urgency is a legitimate state; do not manufacture urgency. Low support readiness is a preference, not financial friction (§17)."
+  },
+
+  "perception_gap": {
+    "_prd_section": "§16",
+    "_notes": "Outcomes are specified; the numeric comparison method is not. Gating rule is explicit; comparison function is an open question.",
+    "gating_rule": "Opening B must be interpreted only after Q16 is known; Q16 defines what 'Set for Life' means to that participant.",
+    "outcomes": [
+      "PERCEPTION_ALIGNED",
+      "PERCEPTION_MORE_OPTIMISTIC_THAN_PROFILE",
+      "PERCEPTION_MORE_CAUTIOUS_THAN_PROFILE",
+      "PERCEPTION_MIXED_COMPLEX"
+    ],
+    "handling_note": "Never tell the participant they are wrong about themselves.",
+    "comparison_method": "TBD_PENDING_OPERATOR_REVIEW"
+  },
+
+  "friction_precedence": {
+    "_prd_section": "§18.1, §18.2",
+    "_notes": "Qualitative rules, encoded as stated. No numeric thresholds involved.",
+    "rules": [
+      "Very low Capacity + moderate/high Agency: investigate Capacity before Agency.",
+      "Very low Visibility: be cautious about strong spending/intentionality conclusions.",
+      "High Direction + low Alignment + low Capacity: capacity-constrained alignment, not Direction friction.",
+      "Q23/Q24 high + Q25 low: execution friction, not education friction.",
+      "Q23/Q24 low: overload/analysis may precede execution.",
+      "Q21 fear + strong behavior: fear exists but may not be major friction.",
+      "Privacy + strong Visibility/Agency/Professional Agency: no Openness friction.",
+      "Low A4: do not classify as financial friction."
+    ],
+    "primary_vs_secondary": "Primary friction best explains multiple downstream difficulties; secondary is partly downstream of another factor; independent friction is meaningful but not explained by the primary. Do not simply select the lowest numeric domain (§18.2)."
+  },
+
+  "calibration_assumptions": [
+    { "id": "A1", "threshold": "S1-S5 bands 1.00-1.79 / 1.80-2.59 / 2.60-3.39 / 3.40-4.19 / 4.20-5.00 for all six signals", "rationale": "Equal-interval partition of the 1-5 continuum aligned to §13.1 anchors; boundaries avoid exact hits for 3-item averages." },
+    { "id": "A2", "threshold": "Item-level HIGH >= 4, LOW <= 2, MID = 3", "rationale": "Mirrors §13.1 anchors (4 = relative strength, 2 = meaningful friction)." },
+    { "id": "A3", "threshold": "Signal-level HIGH = S4-S5 (mean >= 3.40); LOW = S1-S2 (mean <= 2.59); capacity_low = mean <= 2.5; pair-low avg <= 2.5", "rationale": "Derives tension-level high/low from the assumed state bands so one calibration change propagates." },
+    { "id": "A4", "threshold": "Q11 non-override options B-E = 2-5 (A = null + override)", "rationale": "Preserves absolute scale position; aligns with assessment-v1.0.json scoring_behavior capacity_override_first_else_2_5." },
+    { "id": "A5", "threshold": "MOVE subsignals Q23=CONSUMPTION, Q24=ANALYSIS, Q25=ACTION", "rationale": "Derived from §15 bottleneck definitions, which imply intake -> evaluation -> follow-through order." },
+    { "id": "A6", "threshold": "Q18 modifier: clarity mean(Q17,Q19) >= 4.0, Q18 <= 2, Capacity <= 2.5", "rationale": "Operationalizes §13.7 'high / low / low' with item_high, item_low, and capacity_low." },
+    { "id": "A7", "threshold": "Single override (Q11_A xor Q12_F) surfaces DIRECT_CAPACITY_LIMITED", "rationale": "Spec explicitly maps only the dual case; this extends the approved SPECIAL state symmetrically. Requires operator confirmation." },
+    { "id": "A8", "threshold": "fear_present = any Q21 selection except exclusive Q21_G (includes Q21_H)", "rationale": "Q21_H ('something else') indicates something did impede a decision; operator to confirm." },
+    { "id": "A9", "threshold": "Privacy tensions: Q20 limited = value <= 2; Q6 avoidance/strength = <= 2 / >= 4; Q22 low/strong = <= 2 / >= 4; HIGH_CONFIDENCE_LOW_VISIBILITY pair avg(Q4,Q5) <= 2.5; PREPAREDNESS pair avg(Q13,Q15) <= 2.5", "rationale": "Item_high/item_low/pair_low_avg applied to the §15 prose; operator may widen Q20 avoidance to <= 3." },
+    { "id": "A10", "threshold": "Activation LOW = A/B, MID = C, HIGH = D/E", "rationale": "Standard 5-point collapse; aligns with vocabulary LOW/MID/HIGH activation copy." },
+    { "id": "A11", "threshold": "Language-strength evidence bands (HIGH = extreme state + corroboration; MODERATE = single-signal; LIMITED = override/single-item/classifier-only)", "rationale": "Provisional mapping so copy selection is deterministic; needs operator + pilot review." },
+    { "id": "A12", "threshold": "Null finding operationalized as: no other tension triggered AND all signals >= S3 AND no meaningful contextual friction", "rationale": "Encodes §29 acceptance test ('strong consistent evidence, no meaningful contextual friction') as a checkable gate." }
+  ],
+
+  "open_questions": [
+    "O1: Confirm S1-S5 band boundaries (A1) and tension high/low cutoffs (A2-A3, A9) before launch; pilot data should recalibrate.",
+    "O2: Confirm Q11 B-E = 2-5 mapping (A4) versus renormalized 1-4.",
+    "O3: Confirm single-override -> DIRECT_CAPACITY_LIMITED usage (A7).",
+    "O4: Confirm Q21_H counts as fear_present (A8).",
+    "O5: Specify the Perception Gap comparison function (OPEN_B 1-5 vs profile) - no numeric method in spec.",
+    "O6: Confirm null-finding gate (A12): should S3-minimum hold, or require all signals >= S4?",
+    "O7: Confirm language-strength evidence bands (A11)."
+  ]
+}

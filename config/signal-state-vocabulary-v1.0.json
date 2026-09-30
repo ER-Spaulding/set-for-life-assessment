@@ -1,0 +1,208 @@
+{
+  "SEE": {
+    "S1": {
+      "label": "Hard to See Clearly",
+      "copy": "Your responses show that parts of your current financial picture are difficult to see clearly right now. When the numbers, patterns, or day-to-day flow are hard to see, it can be difficult to know what deserves attention first.",
+      "attention_area": "SEE_IT_MORE_CLEARLY",
+      "source": "Q4, Q5, Q6"
+    },
+    "S2": {
+      "label": "Some Important Gaps",
+      "copy": "Your responses suggest that you can see parts of your financial picture, but important gaps remain. More visibility may make it easier to separate what feels urgent from what is actually driving the pattern.",
+      "attention_area": "SEE_IT_MORE_CLEARLY",
+      "source": "Q4, Q5, Q6"
+    },
+    "S3": {
+      "label": "Coming Into Focus",
+      "copy": "Your financial picture appears to be coming into focus. You can identify some of what is happening, while other parts may still require a closer look before the whole picture feels clear.",
+      "attention_area": "SEE_IT_MORE_CLEARLY",
+      "source": "Q4, Q5, Q6"
+    },
+    "S4": {
+      "label": "Clear",
+      "copy": "Your responses suggest that you have a clear view of much of your financial picture. You generally know what is coming in, what is going out, and where the major patterns are showing up.",
+      "attention_area": "SEE_IT_MORE_CLEARLY",
+      "source": "Q4, Q5, Q6"
+    },
+    "S5": {
+      "label": "Very Clear",
+      "copy": "Your responses show strong financial visibility. You appear willing and able to look at the numbers, recognize where money is going, and describe the larger picture with confidence.",
+      "attention_area": "SEE_IT_MORE_CLEARLY",
+      "source": "Q4, Q5, Q6"
+    }
+  },
+  "ROOM": {
+    "S1": {
+      "label": "Very Limited Room",
+      "copy": "Your responses show that there is very little financial room after regular needs and obligations are handled. That is a capacity finding, not a judgment about discipline or effort.",
+      "attention_area": "CREATE_MORE_ROOM",
+      "source": "Q7, Q8; Q9 context"
+    },
+    "S2": {
+      "label": "Limited Room",
+      "copy": "Your responses suggest that financial room is tight. There may be little flexibility for several priorities at once, especially when something unexpected happens.",
+      "attention_area": "CREATE_MORE_ROOM",
+      "source": "Q7, Q8; Q9 context"
+    },
+    "S3": {
+      "label": "Some Room",
+      "copy": "Your responses suggest that there is some financial room, but it may not feel consistent or sufficient for every priority competing for attention.",
+      "attention_area": "CREATE_MORE_ROOM",
+      "source": "Q7, Q8; Q9 context"
+    },
+    "S4": {
+      "label": "Meaningful Room",
+      "copy": "Your responses suggest that you usually have meaningful room to make choices beyond immediate obligations and can direct some money toward additional priorities.",
+      "attention_area": "CREATE_MORE_ROOM",
+      "source": "Q7, Q8; Q9 context"
+    },
+    "S5": {
+      "label": "Strong Room",
+      "copy": "Your responses show strong financial flexibility. After regular needs are handled, you appear to have room to address several priorities without every decision becoming a tradeoff.",
+      "attention_area": "CREATE_MORE_ROOM",
+      "source": "Q7, Q8; Q9 context"
+    }
+  },
+  "DIRECT": {
+    "S1": {
+      "label": "Mostly Reactive",
+      "copy": "Your responses show that financial decisions are often being made in response to what needs attention first. A clearer decision process may help you direct available money more deliberately.",
+      "attention_area": "BUILD_DECISION_CONFIDENCE",
+      "source": "Q10, Q11, Q12 with capacity overrides"
+    },
+    "S2": {
+      "label": "Often Reactive",
+      "copy": "Your responses suggest that competing needs can make financial decisions feel reactive. There is room to strengthen how priorities are chosen when money is available to direct.",
+      "attention_area": "BUILD_DECISION_CONFIDENCE",
+      "source": "Q10, Q11, Q12 with capacity overrides"
+    },
+    "S3": {
+      "label": "Developing Direction",
+      "copy": "Your decision-making appears mixed: some choices are intentional, while others are still shaped by what is most immediate. The pattern is developing rather than fixed.",
+      "attention_area": "BUILD_DECISION_CONFIDENCE",
+      "source": "Q10, Q11, Q12 with capacity overrides"
+    },
+    "S4": {
+      "label": "Intentional",
+      "copy": "Your responses suggest that you usually make financial decisions intentionally and can weigh tradeoffs rather than simply responding to the loudest demand.",
+      "attention_area": "BUILD_DECISION_CONFIDENCE",
+      "source": "Q10, Q11, Q12 with capacity overrides"
+    },
+    "S5": {
+      "label": "Highly Intentional",
+      "copy": "Your responses show a strong pattern of directing available money with purpose. You appear able to decide what money needs to accomplish and make tradeoffs with that purpose in mind.",
+      "attention_area": "BUILD_DECISION_CONFIDENCE",
+      "source": "Q10, Q11, Q12 with capacity overrides"
+    }
+  },
+  "PREPARE": {
+    "S1": {
+      "label": "Highly Exposed",
+      "copy": "Your responses show that an unexpected expense or major disruption could create significant financial strain. The issue here is resilience: how much protection exists when normal plans are interrupted.",
+      "attention_area": "STRENGTHEN_RESILIENCE",
+      "source": "Q13, Q14, Q15"
+    },
+    "S2": {
+      "label": "Limited Cushion",
+      "copy": "Your responses suggest that recovery from a meaningful disruption could be difficult or could create additional financial problems. Strengthening resilience may deserve attention.",
+      "attention_area": "STRENGTHEN_RESILIENCE",
+      "source": "Q13, Q14, Q15"
+    },
+    "S3": {
+      "label": "Developing Resilience",
+      "copy": "Your responses suggest some ability to absorb or think through disruptions, but the level of protection may not yet feel consistent across different situations.",
+      "attention_area": "STRENGTHEN_RESILIENCE",
+      "source": "Q13, Q14, Q15"
+    },
+    "S4": {
+      "label": "Prepared",
+      "copy": "Your responses suggest that you have meaningful financial resilience. You have thought about disruptions and appear to have some ability to absorb or recover from them.",
+      "attention_area": "STRENGTHEN_RESILIENCE",
+      "source": "Q13, Q14, Q15"
+    },
+    "S5": {
+      "label": "Strongly Prepared",
+      "copy": "Your responses show strong preparedness and resilience. You appear to understand major vulnerabilities and have meaningful flexibility or resources for responding when normal plans are disrupted.",
+      "attention_area": "STRENGTHEN_RESILIENCE",
+      "source": "Q13, Q14, Q15"
+    }
+  },
+  "AIM": {
+    "S1": {
+      "label": "Destination Unclear",
+      "copy": "Your responses show that the future your money is meant to support is not yet clearly defined. Without a destination, financial activity can stay busy without becoming directional.",
+      "attention_area": "DEFINE_THE_DESTINATION",
+      "source": "Q17, Q18, Q19; Q16 context; Q18 capacity modifier"
+    },
+    "S2": {
+      "label": "Direction Is Forming",
+      "copy": "Your responses suggest that parts of your financial destination are beginning to take shape, but today’s decisions may not yet feel consistently connected to it.",
+      "attention_area": "DEFINE_THE_DESTINATION",
+      "source": "Q17, Q18, Q19; Q16 context; Q18 capacity modifier"
+    },
+    "S3": {
+      "label": "Some Direction",
+      "copy": "You appear to have some sense of where you want your money to take you, although the connection between that destination and current activity may still be developing.",
+      "attention_area": "DEFINE_THE_DESTINATION",
+      "source": "Q17, Q18, Q19; Q16 context; Q18 capacity modifier"
+    },
+    "S4": {
+      "label": "Clear Direction",
+      "copy": "Your responses suggest that you have a clear financial direction and can see how many of today’s decisions connect to the future you want.",
+      "attention_area": "DEFINE_THE_DESTINATION",
+      "source": "Q17, Q18, Q19; Q16 context; Q18 capacity modifier"
+    },
+    "S5": {
+      "label": "Strongly Directed",
+      "copy": "Your responses show a strong sense of financial destination. You can describe what you want money to make possible and appear to organize current decisions around that direction.",
+      "attention_area": "DEFINE_THE_DESTINATION",
+      "source": "Q17, Q18, Q19; Q16 context; Q18 capacity modifier"
+    }
+  },
+  "MOVE": {
+    "S1": {
+      "label": "Information Stalls",
+      "copy": "Your responses show that financial information often does not make it all the way into action. The friction may occur while sorting information, evaluating it, or following through.",
+      "attention_area": "TURN_INFORMATION_INTO_ACTION",
+      "source": "Q23, Q24, Q25"
+    },
+    "S2": {
+      "label": "Action Often Slows",
+      "copy": "Your responses suggest that useful information can lose momentum before it becomes a decision or consistent action. Identifying where the process slows may be more useful than simply adding more information.",
+      "attention_area": "TURN_INFORMATION_INTO_ACTION",
+      "source": "Q23, Q24, Q25"
+    },
+    "S3": {
+      "label": "Sometimes Moves",
+      "copy": "Your responses suggest a mixed pattern: some financial information becomes action, while other information remains something you know, consider, or intend to revisit.",
+      "attention_area": "TURN_INFORMATION_INTO_ACTION",
+      "source": "Q23, Q24, Q25"
+    },
+    "S4": {
+      "label": "Usually Moves",
+      "copy": "Your responses suggest that you usually turn useful financial information into informed decisions and follow-through.",
+      "attention_area": "TURN_INFORMATION_INTO_ACTION",
+      "source": "Q23, Q24, Q25"
+    },
+    "S5": {
+      "label": "Moves Into Action",
+      "copy": "Your responses show a strong information-to-action pattern. You appear able to sort useful information, evaluate it, and move it into decisions and follow-through.",
+      "attention_area": "TURN_INFORMATION_INTO_ACTION",
+      "source": "Q23, Q24, Q25"
+    }
+  },
+  "SPECIAL": {
+    "DIRECT_CAPACITY_LIMITED": {
+      "label": "Intentional — Capacity Constrained",
+      "copy": "Your responses suggest that the main limitation is not a lack of intentionality. There may simply be too little money left after necessary expenses to make all of the additional decisions you would otherwise make."
+    },
+    "DIRECT_LIMITED_EVIDENCE_CAPACITY": {
+      "label": "Intentionality — Limited Evidence",
+      "copy": "Two of the questions that normally help describe how you direct money were constrained by limited financial room. Your remaining response suggests how you approach decisions, but there is not enough evidence to make a broader statement about agency."
+    },
+    "AIM_CAPACITY_CONSTRAINED_ALIGNMENT": {
+      "label": "Clear Direction — Limited Room to Act",
+      "copy": "Your responses suggest that you know where you want to go, but limited financial room may be making it difficult for today’s decisions to reflect that destination as fully as you would like."
+    }
+  }
+}

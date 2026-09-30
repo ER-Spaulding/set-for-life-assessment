@@ -1,26 +1,184 @@
 @import "tailwindcss";
 
+/* ==========================================================================
+   Set for Life — global tokens and base styles
+   --------------------------------------------------------------------------
+   QA WIDTHS: 1440 / 1024 / 390 / 320
+   Breakpoints: (max-width: 1023px) tablet · (max-width: 430px) mobile(390) ·
+   (max-width: 340px) small mobile(320).
+
+   MANDATORY RULES (hard accessibility/design rules — do not regress):
+   1. Body floor 18 CSS px. Microcopy floor 16 CSS px.
+      Nothing may render below these.
+   2. NO fixed-height text wrappers, NO clamping lines, NO ellipsis truncation,
+      NO compressed letterforms, NO text-as-image,
+      NO shrinking fonts to fit a panel. Extend vertically instead.
+   3. Prose measure: max-width 62ch (target 55–70 characters per line).
+   4. COLOUR ROLES:
+      - Ivory surface → Evergreen upright headline, Terracotta large italic
+        emphasis, Obsidian prose, Rose labels.
+      - Evergreen surface → Ivory headline/prose, Champagne emphasis.
+      - Gold is decorative only — never small paragraph text.
+      - Terracotta on Ivory is 4.24:1 → large text only.
+   5. Allura is for short handwritten accents only — never paragraph body
+      copy, never button copy.
+   ========================================================================== */
+
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  /* Palette */
+  --color-evergreen: #28513f;
+  --color-blush: #daaaa6;
+  --color-terracotta: #bc5248;
+  --color-rose: #93504f;
+  --color-gold: #c49a45; /* decorative only — never small paragraph text */
+  --color-champagne: #e2c98f; /* emphasis on Evergreen surfaces */
+  --color-ivory: #f7f2e9;
+  --color-obsidian: #28231f;
+
+  /* Type tokens — desktop (size/line-height in px) */
+  --type-t01-size: 72px; --type-t01-line: 78px; /* T01 Opening H1 / Playfair 800 */
+  --type-t02-size: 60px; --type-t02-line: 66px; /* T02 Feature H2 / Playfair 800 */
+  --type-t03-size: 42px; --type-t03-line: 48px; /* T03 Split-panel H2 / Playfair 800 */
+  --type-t04-size: 40px; --type-t04-line: 47px; /* T04 Long H2 / Playfair 800 */
+  --type-t05-size: 32px; --type-t05-line: 40px; /* T05 Event title / Cormorant 600 italic */
+  --type-t06-size: 24px; --type-t06-line: 33px; /* T06 Opening question / Cormorant 600 */
+  --type-t07-size: 26px; --type-t07-line: 35px; /* T07 Editorial lead / Cormorant 600 */
+  --type-t08-size: 18px; --type-t08-line: 29px; /* T08 Paragraph / Inter 400 */
+  --type-t09-size: 18px; --type-t09-line: 29px; /* T09 Bold body / Inter 700 */
+  --type-t10-size: 26px; --type-t10-line: 32px; /* T10 Card title / Cormorant 700 */
+  --type-t11-size: 25px; --type-t11-line: 31px; /* T11 Step title / Cormorant 700 */
+  --type-t12-size: 16px; --type-t12-line: 24px; /* T12 Section label / Inter 600 */
+  --type-t13-size: 24px; --type-t13-line: 30px; /* T13 CTA / Cormorant 700 */
+  --type-t14-size: 16px; --type-t14-line: 24px; /* T14 Microcopy/footer / Inter 400 */
+  --type-t15-size: 56px; --type-t15-line: 68px; /* T15 Script / Allura (short accents only) */
+  --type-t16-size: 24px; --type-t16-line: 34px; /* T16 Brand statement / Cormorant 600 */
+  --type-t17-size: 19px; --type-t17-line: 31px; /* T17 Long prose / Inter */
+  --type-t18-size: 24px; --type-t18-line: 31px; /* T18 Letter label / Cormorant 700 */
+  --type-t19-size: 28px; --type-t19-line: 36px; /* T19 Closing declaration / Playfair 800 */
+  --type-t20-size: 28px; --type-t20-line: 34px; /* T20 Number badge / Cormorant 700 */
+
+  /* Type tokens — mobile (recomposed, not scaled; never a ratio of desktop) */
+  --type-t01-size-m: 42px; --type-t01-line-m: 47px;
+  --type-t02-size-m: 36px; --type-t02-line-m: 42px;
+  --type-t03-size-m: 34px; --type-t03-line-m: 40px;
+  --type-t04-size-m: 32px; --type-t04-line-m: 39px;
+  --type-t05-size-m: 26px; --type-t05-line-m: 34px;
+  --type-t06-size-m: 22px; --type-t06-line-m: 31px;
+  --type-t07-size-m: 23px; --type-t07-line-m: 32px;
+  --type-t08-size-m: 18px; --type-t08-line-m: 28px;
+  --type-t09-size-m: 18px; --type-t09-line-m: 28px;
+  --type-t10-size-m: 25px; --type-t10-line-m: 31px;
+  --type-t11-size-m: 24px; --type-t11-line-m: 30px;
+  --type-t12-size-m: 16px; --type-t12-line-m: 24px;
+  --type-t13-size-m: 22px; --type-t13-line-m: 28px;
+  --type-t14-size-m: 16px; --type-t14-line-m: 24px;
+  --type-t15-size-m: 38px; --type-t15-line-m: 49px;
+  --type-t16-size-m: 24px; --type-t16-line-m: 34px;
+  --type-t17-size-m: 18px; --type-t17-line-m: 30px;
+  --type-t18-size-m: 24px; --type-t18-line-m: 31px;
+  --type-t19-size-m: 28px; --type-t19-line-m: 36px;
+  --type-t20-size-m: 28px; --type-t20-line-m: 34px;
+
+  /* Gutters (@1440) */
+  --gutter: 64px;
+
+  /* Spacing scale */
+  --space-label-headline: 12px;
+  --space-headline-copy: 24px;
+  --space-para-gap: 16px;
+  --space-reason-button: 20px;
+  --space-button-micro: 10px;
+  --space-script-clear: 12px;
+
+  /* Font families (reference the next/font variables set in layout.tsx) */
+  --font-display: var(--font-playfair), Georgia, serif;
+  --font-serif: var(--font-cormorant), Georgia, serif;
+  --font-body: var(--font-inter), Arial, sans-serif;
+  /* Allura: short handwritten accents only — never paragraph body, never buttons */
+  --font-script: var(--font-allura), var(--font-cormorant), Georgia, serif;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
+@media (max-width: 1023px) {
   :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+    /* Tablet (1024): no tablet type scale is specified — the documented mobile
+       values begin at 390. Type intentionally remains at desktop values here;
+       a 1024px viewport has room for the desktop scale. This is a documented
+       decision, not an oversight. */
+    /* OPEN QUESTION: no tablet (1024) gutter is specified — spec names 64/24/20
+       only. Left inheriting the 1440 value of 64px pending operator confirmation. */
   }
 }
 
+@media (max-width: 430px) {
+  :root {
+    --gutter: 24px; /* @390 */
+    --gutter-m: 24px; /* @390 */
+    --space-headline-copy: 20px;
+    /* Mobile type is recomposed, not scaled: the -m values above are an
+       independent set, never a ratio of desktop. Remap each desktop token to
+       its mobile counterpart so components using the base tokens respond. */
+    --type-t01-size: var(--type-t01-size-m);
+    --type-t01-line: var(--type-t01-line-m);
+    --type-t02-size: var(--type-t02-size-m);
+    --type-t02-line: var(--type-t02-line-m);
+    --type-t03-size: var(--type-t03-size-m);
+    --type-t03-line: var(--type-t03-line-m);
+    --type-t04-size: var(--type-t04-size-m);
+    --type-t04-line: var(--type-t04-line-m);
+    --type-t05-size: var(--type-t05-size-m);
+    --type-t05-line: var(--type-t05-line-m);
+    --type-t06-size: var(--type-t06-size-m);
+    --type-t06-line: var(--type-t06-line-m);
+    --type-t07-size: var(--type-t07-size-m);
+    --type-t07-line: var(--type-t07-line-m);
+    --type-t08-size: var(--type-t08-size-m);
+    --type-t08-line: var(--type-t08-line-m);
+    --type-t09-size: var(--type-t09-size-m);
+    --type-t09-line: var(--type-t09-line-m);
+    --type-t10-size: var(--type-t10-size-m);
+    --type-t10-line: var(--type-t10-line-m);
+    --type-t11-size: var(--type-t11-size-m);
+    --type-t11-line: var(--type-t11-line-m);
+    --type-t12-size: var(--type-t12-size-m);
+    --type-t12-line: var(--type-t12-line-m);
+    --type-t13-size: var(--type-t13-size-m);
+    --type-t13-line: var(--type-t13-line-m);
+    --type-t14-size: var(--type-t14-size-m);
+    --type-t14-line: var(--type-t14-line-m);
+    --type-t15-size: var(--type-t15-size-m);
+    --type-t15-line: var(--type-t15-line-m);
+    --type-t16-size: var(--type-t16-size-m);
+    --type-t16-line: var(--type-t16-line-m);
+    --type-t17-size: var(--type-t17-size-m);
+    --type-t17-line: var(--type-t17-line-m);
+    --type-t18-size: var(--type-t18-size-m);
+    --type-t18-line: var(--type-t18-line-m);
+    --type-t19-size: var(--type-t19-size-m);
+    --type-t19-line: var(--type-t19-line-m);
+    --type-t20-size: var(--type-t20-size-m);
+    --type-t20-line: var(--type-t20-line-m);
+  }
+}
+
+@media (max-width: 340px) {
+  :root {
+    --gutter: 20px; /* @320 */
+    --gutter-sm: 20px; /* @320 */
+    /* 320px-specific CTA override: T13 20/27 at 320 (vs 22/28 at 390). */
+    --type-t13-size: 20px;
+    --type-t13-line: 27px;
+  }
+}
+
+/* Base: Ivory surface, Obsidian prose, Evergreen upright headlines. */
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--color-ivory);
+  color: var(--color-obsidian); /* Obsidian prose on Ivory */
+  font-family: var(--font-body);
+  font-size: 18px; /* hard floor: body never below 18px */
+}
+
+/* Prose measure: target 55–70 characters per line. */
+.prose-measure {
+  max-width: 62ch;
 }

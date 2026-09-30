@@ -1,0 +1,679 @@
+{
+  "version": "1.0",
+  "instrument": "Set for Life Financial Assessment",
+  "question_bank_version": "1.0",
+  "source_spec": "Set_for_Life_Assessment_MASTER_PRD_Technical_Spec_FINAL_v1.0.md",
+  "completion_model": {
+    "required_assessment_responses": 31,
+    "composition": "Opening A + Opening B + Q1-Q25 + A1-A4",
+    "note": "Demographics (D1-D3) are separate from diagnostic completion per PRD S8."
+  },
+  "opening": [
+    {
+      "internal_id": "OPEN_A",
+      "section_label": "Opening A",
+      "external_order": null,
+      "type": "single_select",
+      "required": true,
+      "required_for_completion": true,
+      "prompt": "Is this your first time taking the Set for Life Financial Assessment?",
+      "options": [
+        { "code": "OPEN_A_A", "label": "Yes" },
+        { "code": "OPEN_A_B", "label": "No" }
+      ],
+      "internal_construct": null,
+      "feeds": null,
+      "scoring_behavior": "unscored_repeat_assessment_status",
+      "notes": "Repeat assessment status; unscored. System separately stores assessment number; never substitute system history for the participant answer (PRD S7/S10)."
+    },
+    {
+      "internal_id": "OPEN_B",
+      "section_label": "Opening B",
+      "external_order": null,
+      "type": "single_select",
+      "required": true,
+      "required_for_completion": true,
+      "prompt": "Before we get started, how “Set for Life” do you feel financially right now?",
+      "options": [
+        { "code": "OPEN_B_A", "label": "Not at all" },
+        { "code": "OPEN_B_B", "label": "A little" },
+        { "code": "OPEN_B_C", "label": "Somewhat" },
+        { "code": "OPEN_B_D", "label": "Mostly" },
+        { "code": "OPEN_B_E", "label": "Completely" }
+      ],
+      "internal_construct": null,
+      "feeds": "Perception Gap baseline",
+      "scoring_behavior": "perception_gap_baseline_interpreted_only_after_Q16",
+      "notes": "Baseline for Perception Gap; do not define Set for Life before this item (PRD S10)."
+    }
+  ],
+  "questions": [
+    {
+      "internal_id": "Q4",
+      "external_order": 1,
+      "type": "single_select",
+      "required": true,
+      "required_for_completion": true,
+      "prompt": "If someone asked you to describe your financial picture today—not every penny, but the big picture—how clearly could you do it?",
+      "options": [
+        { "code": "Q4_A", "label": "I would have a hard time describing it." },
+        { "code": "Q4_B", "label": "I know pieces of it, but there are significant gaps." },
+        { "code": "Q4_C", "label": "I have a general idea, but I would need to look some things up." },
+        { "code": "Q4_D", "label": "I have a pretty clear picture." },
+        { "code": "Q4_E", "label": "I could describe it confidently, including what comes in, what goes out, and my major financial obligations." }
+      ],
+      "internal_construct": "Financial Visibility",
+      "feeds": "Visibility",
+      "scoring_behavior": "profile_1_5"
+    },
+    {
+      "internal_id": "Q1",
+      "external_order": 2,
+      "type": "multi_select_max_2",
+      "max_select": 2,
+      "required": true,
+      "required_for_completion": true,
+      "prompt": "Thinking about the environment you grew up in, which statements best describe your experience with money?",
+      "options": [
+        { "code": "Q1_A", "label": "Money was talked about openly, and I learned quite a bit by being included." },
+        { "code": "Q1_B", "label": "I picked up some useful money lessons, but there were also things I had to figure out for myself." },
+        { "code": "Q1_C", "label": "Money was mostly handled privately, so I learned more by watching than by being taught directly." },
+        { "code": "Q1_D", "label": "Money conversations usually happened when there was a problem, concern, or need." },
+        { "code": "Q1_E", "label": "I received mixed or conflicting messages about money." },
+        { "code": "Q1_F", "label": "Money wasn't discussed very much at all." },
+        { "code": "Q1_G", "label": "My experience doesn't fit neatly into these choices." }
+      ],
+      "internal_construct": "Money Conditioning & Beliefs",
+      "feeds": "Money Environment",
+      "scoring_behavior": "classifier"
+    },
+    {
+      "internal_id": "Q7",
+      "external_order": 3,
+      "type": "single_select",
+      "required": true,
+      "required_for_completion": true,
+      "prompt": "Thinking about the past six months, how often have you felt like there was more month left than money available to handle it?",
+      "options": [
+        { "code": "Q7_A", "label": "Almost every month" },
+        { "code": "Q7_B", "label": "Many months" },
+        { "code": "Q7_C", "label": "Some months" },
+        { "code": "Q7_D", "label": "Rarely" },
+        { "code": "Q7_E", "label": "Almost never" }
+      ],
+      "internal_construct": "Financial Capacity",
+      "feeds": "Capacity",
+      "scoring_behavior": "profile_1_5"
+    },
+    {
+      "internal_id": "Q17",
+      "external_order": 4,
+      "type": "single_select",
+      "required": true,
+      "required_for_completion": true,
+      "prompt": "How clearly can you describe what you want your money to make possible over the next several years?",
+      "options": [
+        { "code": "Q17_A", "label": "I haven't really defined that yet." },
+        { "code": "Q17_B", "label": "I have ideas, but they're pretty general." },
+        { "code": "Q17_C", "label": "I can name a few things I want financially." },
+        { "code": "Q17_D", "label": "I have a fairly clear picture of what I'm working toward." },
+        { "code": "Q17_E", "label": "I can clearly describe the life or outcomes I want my money to help make possible." }
+      ],
+      "internal_construct": "Financial Direction",
+      "feeds": "Direction",
+      "scoring_behavior": "profile_1_5"
+    },
+    {
+      "internal_id": "Q5",
+      "external_order": 5,
+      "type": "single_select",
+      "required": true,
+      "required_for_completion": true,
+      "prompt": "By the end of a typical month, how well do you understand where your money went?",
+      "options": [
+        { "code": "Q5_A", "label": "I often wonder where it went." },
+        { "code": "Q5_B", "label": "I can account for the major bills, but a meaningful amount is hard to explain." },
+        { "code": "Q5_C", "label": "I generally know where it went, although some spending gets away from me." },
+        { "code": "Q5_D", "label": "I have a clear sense of where most of it went." },
+        { "code": "Q5_E", "label": "I can clearly identify the major patterns in where my money went." }
+      ],
+      "internal_construct": "Financial Visibility",
+      "feeds": "Visibility",
+      "scoring_behavior": "profile_1_5"
+    },
+    {
+      "internal_id": "Q2",
+      "external_order": 6,
+      "type": "single_select",
+      "required": true,
+      "required_for_completion": true,
+      "prompt": "Today, when money needs to be discussed honestly, how comfortable are you having that conversation?",
+      "options": [
+        { "code": "Q2_A", "label": "Very uncomfortable — I would rather avoid it." },
+        { "code": "Q2_B", "label": "Somewhat uncomfortable — I can do it, but I don't like it." },
+        { "code": "Q2_C", "label": "I can talk about money when necessary, but there are some things I'd rather keep to myself." },
+        { "code": "Q2_D", "label": "Fairly comfortable — I can usually talk about it when the conversation is useful." },
+        { "code": "Q2_E", "label": "Very comfortable — I can discuss money openly when there's a reason to." }
+      ],
+      "internal_construct": "Money Conditioning & Beliefs",
+      "feeds": "Conversation Openness",
+      "scoring_behavior": "profile_1_5"
+    },
+    {
+      "internal_id": "Q13",
+      "external_order": 7,
+      "type": "single_select",
+      "required": true,
+      "required_for_completion": true,
+      "prompt": "Think about an unexpected expense that would be noticeable for your household but not financially catastrophic. When something like that comes up, what usually happens?",
+      "options": [
+        { "code": "Q13_A", "label": "It throws my finances significantly off track." },
+        { "code": "Q13_B", "label": "I usually have to delay something else, borrow, or carry the expense forward." },
+        { "code": "Q13_C", "label": "I can manage it, but it creates noticeable financial pressure." },
+        { "code": "Q13_D", "label": "I can usually handle it with a temporary adjustment." },
+        { "code": "Q13_E", "label": "I generally have enough financial room or resources to absorb it." }
+      ],
+      "internal_construct": "Preparedness & Resilience",
+      "feeds": "Preparedness",
+      "scoring_behavior": "profile_1_5"
+    },
+    {
+      "internal_id": "Q23",
+      "external_order": 8,
+      "type": "single_select",
+      "required": true,
+      "required_for_completion": true,
+      "prompt": "When you hear different financial advice from social media, videos, podcasts, family, friends, books, or professionals, what usually happens?",
+      "options": [
+        { "code": "Q23_A", "label": "I often feel overwhelmed and don't know where to start." },
+        { "code": "Q23_B", "label": "The conflicting advice sometimes makes me put off making decisions." },
+        { "code": "Q23_C", "label": "I listen to different viewpoints but sometimes struggle to determine what applies to me." },
+        { "code": "Q23_D", "label": "I can usually sort through the information and identify what deserves more investigation." },
+        { "code": "Q23_E", "label": "I have a process for separating useful information from information that doesn't apply to my situation." }
+      ],
+      "internal_construct": "Information-to-Action",
+      "feeds": "Information",
+      "scoring_behavior": "profile_1_5"
+    },
+    {
+      "internal_id": "Q10",
+      "external_order": 9,
+      "type": "single_select",
+      "required": true,
+      "required_for_completion": true,
+      "prompt": "Which statement best describes how most of your financial decisions get made?",
+      "options": [
+        { "code": "Q10_A", "label": "Whatever needs attention first usually gets the money." },
+        { "code": "Q10_B", "label": "I mostly respond to bills, needs, and situations as they come up." },
+        { "code": "Q10_C", "label": "I try to plan, but immediate needs often change the plan." },
+        { "code": "Q10_D", "label": "Most of my money decisions are intentional, even when I have to adjust." },
+        { "code": "Q10_E", "label": "I generally decide what my money needs to accomplish before competing demands decide for me." }
+      ],
+      "internal_construct": "Financial Agency",
+      "feeds": "Agency",
+      "scoring_behavior": "profile_1_5"
+    },
+    {
+      "internal_id": "Q3",
+      "external_order": 10,
+      "type": "single_select",
+      "required": true,
+      "required_for_completion": true,
+      "prompt": "How much have you intentionally examined the money beliefs you picked up along the way?",
+      "options": [
+        { "code": "Q3_A", "label": "I haven't really thought about where my money beliefs came from." },
+        { "code": "Q3_B", "label": "I've noticed some of them, but haven't examined them very deeply." },
+        { "code": "Q3_C", "label": "I've questioned some beliefs while continuing to follow others." },
+        { "code": "Q3_D", "label": "I've intentionally examined many of my beliefs and changed some of them." },
+        { "code": "Q3_E", "label": "I regularly question whether my financial beliefs still fit the life I'm trying to build." }
+      ],
+      "internal_construct": "Money Conditioning & Beliefs",
+      "feeds": "Belief Awareness",
+      "scoring_behavior": "profile_1_5"
+    },
+    {
+      "internal_id": "Q8",
+      "external_order": 11,
+      "type": "single_select",
+      "required": true,
+      "required_for_completion": true,
+      "prompt": "After your regular bills and necessary expenses are handled, how much money is typically left for things like saving, paying extra toward debt, preparing for future needs, enjoying life, or handling something unexpected?",
+      "options": [
+        { "code": "Q8_A", "label": "None or almost none" },
+        { "code": "Q8_B", "label": "Very little" },
+        { "code": "Q8_C", "label": "Some, but I have to make careful choices about where it goes" },
+        { "code": "Q8_D", "label": "A reasonable amount" },
+        { "code": "Q8_E", "label": "Enough that I usually have room to address several priorities" }
+      ],
+      "internal_construct": "Financial Capacity",
+      "feeds": "Capacity",
+      "scoring_behavior": "profile_1_5"
+    },
+    {
+      "internal_id": "Q24",
+      "external_order": 12,
+      "type": "single_select",
+      "required": true,
+      "required_for_completion": true,
+      "prompt": "When two seemingly credible sources give different financial advice, how confident are you deciding what deserves further consideration?",
+      "options": [
+        { "code": "Q24_A", "label": "Not confident — I wouldn't really know how to evaluate them." },
+        { "code": "Q24_B", "label": "Slightly confident — I might go with whichever sounds more convincing." },
+        { "code": "Q24_C", "label": "Somewhat confident — I would research more, but I can still get stuck." },
+        { "code": "Q24_D", "label": "Confident — I know what questions to ask and what information I need." },
+        { "code": "Q24_E", "label": "Very confident — I can evaluate the reasoning, determine what applies to my situation, and seek additional expertise when needed." }
+      ],
+      "internal_construct": "Information-to-Action",
+      "feeds": "Information",
+      "scoring_behavior": "profile_1_5"
+    },
+    {
+      "internal_id": "Q14",
+      "external_order": 13,
+      "type": "single_select",
+      "required": true,
+      "required_for_completion": true,
+      "prompt": "How much have you thought through what would happen financially if your household experienced a major disruption?",
+      "options": [
+        { "code": "Q14_A", "label": "I mostly deal with those things if and when they happen." },
+        { "code": "Q14_B", "label": "I've thought about them, but I don't really know how my finances would respond." },
+        { "code": "Q14_C", "label": "I've considered some risks but not others." },
+        { "code": "Q14_D", "label": "I've intentionally thought through several of the major risks that could affect me." },
+        { "code": "Q14_E", "label": "I have a clear understanding of my major financial vulnerabilities and how I would respond to many of them." }
+      ],
+      "internal_construct": "Preparedness & Resilience",
+      "feeds": "Preparedness",
+      "scoring_behavior": "profile_1_5"
+    },
+    {
+      "internal_id": "Q20",
+      "external_order": 14,
+      "type": "single_select",
+      "required": true,
+      "required_for_completion": true,
+      "prompt": "If sharing some financial information could help you get useful guidance, how comfortable would you be sharing what's necessary with someone you trust?",
+      "options": [
+        { "code": "Q20_A", "label": "I'd still prefer not to share it." },
+        { "code": "Q20_B", "label": "I'd share only very limited information." },
+        { "code": "Q20_C", "label": "It would depend on what they needed and why." },
+        { "code": "Q20_D", "label": "I'd share what's necessary once I understood why it mattered." },
+        { "code": "Q20_E", "label": "I'm comfortable sharing relevant information while keeping unrelated details private." }
+      ],
+      "internal_construct": "Self-Efficacy, Trust & Openness",
+      "feeds": "Openness",
+      "scoring_behavior": "profile_1_5"
+    },
+    {
+      "internal_id": "Q11",
+      "external_order": 15,
+      "type": "single_select",
+      "required": true,
+      "required_for_completion": true,
+      "prompt": "After your regular bills and necessary expenses are accounted for, which statement best describes what happens with any money that's available?",
+      "options": [
+        { "code": "Q11_A", "label": "There usually isn't money left to make additional decisions with." },
+        { "code": "Q11_B", "label": "Whatever is left usually gets used as other needs or wants come up." },
+        { "code": "Q11_C", "label": "I make some intentional decisions about it, but not consistently." },
+        { "code": "Q11_D", "label": "I usually decide ahead of time what I want the available money to do." },
+        { "code": "Q11_E", "label": "I intentionally decide what available money will do based on both what I need today and what I'm working toward." }
+      ],
+      "internal_construct": "Financial Agency",
+      "feeds": "Agency",
+      "scoring_behavior": "capacity_override_first_else_2_5"
+    },
+    {
+      "internal_id": "Q18",
+      "external_order": 16,
+      "type": "single_select",
+      "required": true,
+      "required_for_completion": true,
+      "prompt": "How connected do your financial decisions today feel to the future you say you want?",
+      "options": [
+        { "code": "Q18_A", "label": "Not very connected — today is mostly about getting through today." },
+        { "code": "Q18_B", "label": "Slightly connected — I think about the future, but current demands usually take over." },
+        { "code": "Q18_C", "label": "Somewhat connected — some of my decisions support the future and others don't." },
+        { "code": "Q18_D", "label": "Well connected — many of my financial decisions reflect where I'm trying to go." },
+        { "code": "Q18_E", "label": "Very connected — I can clearly see how today's financial choices support the future I'm building." }
+      ],
+      "internal_construct": "Financial Direction",
+      "feeds": "Direction",
+      "scoring_behavior": "profile_1_5_with_capacity_modifier"
+    },
+    {
+      "internal_id": "Q6",
+      "external_order": 17,
+      "type": "single_select",
+      "required": true,
+      "required_for_completion": true,
+      "prompt": "When you suspect the financial numbers may not look the way you want them to, what are you most likely to do?",
+      "options": [
+        { "code": "Q6_A", "label": "Put off looking for as long as I can." },
+        { "code": "Q6_B", "label": "Check only what I absolutely need to know." },
+        { "code": "Q6_C", "label": "Look eventually, but usually after some delay." },
+        { "code": "Q6_D", "label": "Look even though I may feel uncomfortable." },
+        { "code": "Q6_E", "label": "Look because I'd rather know what I'm dealing with than wonder about it." }
+      ],
+      "internal_construct": "Financial Visibility",
+      "feeds": "Visibility",
+      "scoring_behavior": "profile_1_5"
+    },
+    {
+      "internal_id": "Q15",
+      "external_order": 18,
+      "type": "single_select",
+      "required": true,
+      "required_for_completion": true,
+      "prompt": "Think about a financial setback that would be significant for your household—not a small inconvenience, but something large enough to disrupt your normal financial routine. If something like that happened, what would recovery most likely look like?",
+      "options": [
+        { "code": "Q15_A", "label": "It could affect my finances for a long time or create additional financial problems." },
+        { "code": "Q15_B", "label": "I would likely need to borrow, fall behind, or make major sacrifices to recover." },
+        { "code": "Q15_C", "label": "I could recover, but it would probably take significant time and adjustment." },
+        { "code": "Q15_D", "label": "I could likely recover with temporary financial adjustments." },
+        { "code": "Q15_E", "label": "I have enough financial flexibility or resources that I could likely recover without creating a larger financial problem." }
+      ],
+      "internal_construct": "Preparedness & Resilience",
+      "feeds": "Preparedness",
+      "scoring_behavior": "profile_1_5"
+    },
+    {
+      "internal_id": "Q25",
+      "external_order": 19,
+      "type": "single_select",
+      "required": true,
+      "required_for_completion": true,
+      "prompt": "Think about the financial information you've learned over the past year. Which statement best describes what usually happens next?",
+      "options": [
+        { "code": "Q25_A", "label": "I consume a lot of information, but very little changes afterward." },
+        { "code": "Q25_B", "label": "I often learn something useful but don't know what to do with it." },
+        { "code": "Q25_C", "label": "I understand more than I act on." },
+        { "code": "Q25_D", "label": "I usually identify an appropriate next step when something applies to me." },
+        { "code": "Q25_E", "label": "I can turn useful financial information into informed decisions and follow-through." }
+      ],
+      "internal_construct": "Information-to-Action",
+      "feeds": "Information",
+      "scoring_behavior": "profile_1_5"
+    },
+    {
+      "internal_id": "Q12",
+      "external_order": 20,
+      "type": "single_select",
+      "required": true,
+      "required_for_completion": true,
+      "prompt": "Suppose something changes and you need to free up money for a new priority. Which statement sounds most like you?",
+      "options": [
+        { "code": "Q12_A", "label": "I wouldn't really know where the money could come from." },
+        { "code": "Q12_B", "label": "I'd probably handle whatever felt most urgent and figure out the rest later." },
+        { "code": "Q12_C", "label": "I'd know a few places I could look, but deciding what to change would be difficult." },
+        { "code": "Q12_D", "label": "I could look at where my money is currently going and make a deliberate tradeoff." },
+        { "code": "Q12_E", "label": "I could decide what needs to change while considering both the immediate need and my other financial priorities." },
+        { "code": "Q12_F", "label": "There usually isn't enough flexibility in my finances to free up money without falling behind somewhere else." }
+      ],
+      "internal_construct": "Financial Agency",
+      "feeds": "Agency",
+      "scoring_behavior": "capacity_override_last_else_1_5"
+    },
+    {
+      "internal_id": "Q21",
+      "external_order": 21,
+      "type": "multi_select_max_2_exclusive_none",
+      "max_select": 2,
+      "exclusive_option_codes": ["Q21_G"],
+      "required": true,
+      "required_for_completion": true,
+      "prompt": "Which of these, if any, have caused you to delay, avoid, or second-guess a financial decision?",
+      "options": [
+        { "code": "Q21_A", "label": "I don't want to see how things really look." },
+        { "code": "Q21_B", "label": "I'm afraid I'll make the wrong decision." },
+        { "code": "Q21_C", "label": "I don't want to feel judged or embarrassed about my financial situation." },
+        { "code": "Q21_D", "label": "I worry that someone may take advantage of me or pressure me into something." },
+        { "code": "Q21_E", "label": "There's so much information that I become unsure what to do." },
+        { "code": "Q21_F", "label": "I worry about making a decision now and regretting it later." },
+        { "code": "Q21_G", "label": "None of these usually stop me from moving forward.", "exclusive": true },
+        { "code": "Q21_H", "label": "Something else: ________", "open_text": true }
+      ],
+      "internal_construct": "Self-Efficacy, Trust & Openness",
+      "feeds": "Fear",
+      "scoring_behavior": "classifier"
+    },
+    {
+      "internal_id": "Q19",
+      "external_order": 22,
+      "type": "single_select",
+      "required": true,
+      "required_for_completion": true,
+      "prompt": "Which statement sounds most like your financial life right now?",
+      "options": [
+        { "code": "Q19_A", "label": "I'm mostly trying to keep up with what needs attention." },
+        { "code": "Q19_B", "label": "I'm doing financial things, but I'm not sure they're connected to one clear destination." },
+        { "code": "Q19_C", "label": "I have some goals, but my financial activity isn't consistently organized around them." },
+        { "code": "Q19_D", "label": "I have a direction, and many of my financial decisions support it." },
+        { "code": "Q19_E", "label": "I know where I'm trying to go financially and can explain how much of what I'm doing today helps me get there." }
+      ],
+      "internal_construct": "Financial Direction",
+      "feeds": "Direction",
+      "scoring_behavior": "profile_1_5"
+    },
+    {
+      "internal_id": "Q9",
+      "external_order": 23,
+      "type": "multi_select_max_3_exclusive_no_pressure",
+      "max_select": 3,
+      "exclusive_option_codes": ["Q9_L"],
+      "required": true,
+      "required_for_completion": true,
+      "prompt": "When money feels tight, what usually contributes to the pressure?",
+      "options": [
+        { "code": "Q9_A", "label": "I don't make enough money to cover everything comfortably." },
+        { "code": "Q9_B", "label": "There's little or no money left after the regular bills and expenses are paid." },
+        { "code": "Q9_C", "label": "Debt payments take up a significant part of my money." },
+        { "code": "Q9_D", "label": "Housing, childcare, transportation, or other major expenses take up a lot of my money." },
+        { "code": "Q9_E", "label": "Everyday expenses cost more than I can comfortably keep up with." },
+        { "code": "Q9_F", "label": "My income changes from month to month." },
+        { "code": "Q9_G", "label": "Unexpected expenses keep coming up." },
+        { "code": "Q9_H", "label": "I spend more than I intend to." },
+        { "code": "Q9_I", "label": "I regularly help or financially support other people." },
+        { "code": "Q9_J", "label": "Past financial decisions or commitments are still affecting me." },
+        { "code": "Q9_K", "label": "I know money feels tight, but I'm not completely sure why." },
+        { "code": "Q9_L", "label": "I don't usually feel financially stretched.", "exclusive": true },
+        { "code": "Q9_M", "label": "Something else: ________", "open_text": true }
+      ],
+      "internal_construct": "Financial Capacity",
+      "feeds": "Capacity Context",
+      "scoring_behavior": "classifier"
+    },
+    {
+      "internal_id": "Q22",
+      "external_order": 24,
+      "type": "single_select",
+      "required": true,
+      "required_for_completion": true,
+      "prompt": "A financial professional explains a recommendation, but there's a part you don't fully understand. What are you most likely to do?",
+      "options": [
+        { "code": "Q22_A", "label": "Assume they know more about this than I do and move forward based on their recommendation." },
+        { "code": "Q22_B", "label": "Ask a quick question, but probably rely mostly on their judgment." },
+        { "code": "Q22_C", "label": "Take some time before deciding, even if I'm not sure what else I need to know." },
+        { "code": "Q22_D", "label": "Ask questions until I understand the reasoning well enough to make my own decision." },
+        { "code": "Q22_E", "label": "Ask questions, consider the explanation, and seek additional information if I still don't understand." }
+      ],
+      "internal_construct": "Self-Efficacy, Trust & Openness",
+      "feeds": "Professional Agency",
+      "scoring_behavior": "profile_1_5"
+    },
+    {
+      "internal_id": "Q16",
+      "external_order": 25,
+      "type": "multi_select_max_3",
+      "max_select": 3,
+      "required": true,
+      "required_for_completion": true,
+      "prompt": "When you hear the words “Set for Life” financially, what does that mean to you?",
+      "options": [
+        { "code": "Q16_A", "label": "Not constantly worrying about money" },
+        { "code": "Q16_B", "label": "Having enough income to comfortably support the life I want" },
+        { "code": "Q16_C", "label": "Being debt-free or no longer controlled by debt" },
+        { "code": "Q16_D", "label": "Having savings and being prepared for the unexpected" },
+        { "code": "Q16_E", "label": "Owning meaningful assets and building wealth" },
+        { "code": "Q16_F", "label": "Being able to work because I choose to—not only because I have to" },
+        { "code": "Q16_G", "label": "Being able to care for the people I love" },
+        { "code": "Q16_H", "label": "Having something meaningful to leave behind" },
+        { "code": "Q16_I", "label": "Having more choices and control over my time" },
+        { "code": "Q16_J", "label": "I’m still figuring out what “Set for Life” means to me" },
+        { "code": "Q16_K", "label": "Something else: ________", "open_text": true }
+      ],
+      "internal_construct": "Financial Direction",
+      "feeds": "Destination",
+      "scoring_behavior": "classifier"
+    }
+  ],
+  "activation": [
+    {
+      "internal_id": "A1",
+      "section_label": "A1 Urgency",
+      "external_order": null,
+      "type": "single_select",
+      "required": true,
+      "required_for_completion": true,
+      "prompt": "Based on where you are financially today, how important does it feel to make meaningful progress over the next 6–12 months?",
+      "options": [
+        { "code": "A1_A", "label": "Not particularly important right now" },
+        { "code": "A1_B", "label": "Somewhat important" },
+        { "code": "A1_C", "label": "Important" },
+        { "code": "A1_D", "label": "Very important" },
+        { "code": "A1_E", "label": "Extremely important" }
+      ],
+      "internal_construct": "Activation",
+      "feeds": "Urgency",
+      "scoring_behavior": "activation_separate_never_averaged_never_changes_diagnosis"
+    },
+    {
+      "internal_id": "A2",
+      "section_label": "A2 Readiness",
+      "external_order": null,
+      "type": "single_select",
+      "required": true,
+      "required_for_completion": true,
+      "prompt": "How ready do you feel to take a closer look at your financial life and make changes where appropriate?",
+      "options": [
+        { "code": "A2_A", "label": "Not ready right now" },
+        { "code": "A2_B", "label": "I'm thinking about it" },
+        { "code": "A2_C", "label": "I'm becoming ready" },
+        { "code": "A2_D", "label": "I'm ready" },
+        { "code": "A2_E", "label": "I'm ready to begin now" }
+      ],
+      "internal_construct": "Activation",
+      "feeds": "Readiness",
+      "scoring_behavior": "activation_separate_never_averaged_never_changes_diagnosis"
+    },
+    {
+      "internal_id": "A3",
+      "section_label": "A3 Commitment",
+      "external_order": null,
+      "type": "single_select",
+      "required": true,
+      "required_for_completion": true,
+      "prompt": "If you identified a financial change that made sense for your situation, how willing would you be to follow through consistently?",
+      "options": [
+        { "code": "A3_A", "label": "Not willing right now" },
+        { "code": "A3_B", "label": "Slightly willing" },
+        { "code": "A3_C", "label": "Somewhat willing" },
+        { "code": "A3_D", "label": "Very willing" },
+        { "code": "A3_E", "label": "Fully willing" }
+      ],
+      "internal_construct": "Activation",
+      "feeds": "Commitment",
+      "scoring_behavior": "activation_separate_never_averaged_never_changes_diagnosis"
+    },
+    {
+      "internal_id": "A4",
+      "section_label": "A4 Support Readiness",
+      "external_order": null,
+      "type": "single_select",
+      "required": true,
+      "required_for_completion": true,
+      "prompt": "If you discovered that professional guidance could help you better understand your options—and there were a clear, affordable, and trustworthy way to get that help—how open would you be to exploring it?",
+      "options": [
+        { "code": "A4_A", "label": "Not open right now" },
+        { "code": "A4_B", "label": "Possibly, but I'd need more information" },
+        { "code": "A4_C", "label": "Somewhat open" },
+        { "code": "A4_D", "label": "Very open" },
+        { "code": "A4_E", "label": "I'd want to explore what that support could look like" }
+      ],
+      "internal_construct": "Activation",
+      "feeds": "Support Readiness",
+      "scoring_behavior": "activation_separate_never_averaged_never_changes_diagnosis",
+      "notes": "Support Readiness means openness to exploring support under acceptable conditions. It is not appointment consent, marketing consent, agreement to work with a professional, or purchase intent (PRD S11)."
+    }
+  ],
+  "demographics": [
+    {
+      "internal_id": "D1",
+      "section_label": "D1 Age range",
+      "type": "single_select",
+      "required": false,
+      "required_for_completion": false,
+      "diagnostic": false,
+      "prompt": "What is your age range?",
+      "options": [
+        { "code": "D1_A", "label": "18–24" },
+        { "code": "D1_B", "label": "25–34" },
+        { "code": "D1_C", "label": "35–44" },
+        { "code": "D1_D", "label": "45–54" },
+        { "code": "D1_E", "label": "55–64" },
+        { "code": "D1_F", "label": "65–74" },
+        { "code": "D1_G", "label": "75+" },
+        { "code": "D1_H", "label": "Prefer not to say" }
+      ],
+      "internal_construct": null,
+      "feeds": null,
+      "scoring_behavior": "no_diagnostic_effect"
+    },
+    {
+      "internal_id": "D2",
+      "section_label": "D2 Gender",
+      "type": "single_select",
+      "required": false,
+      "required_for_completion": false,
+      "diagnostic": false,
+      "prompt": "How do you describe your gender?",
+      "options": [
+        { "code": "D2_A", "label": "Woman" },
+        { "code": "D2_B", "label": "Man" },
+        { "code": "D2_C", "label": "Prefer to self-describe: ________", "open_text": true },
+        { "code": "D2_D", "label": "Prefer not to say" }
+      ],
+      "internal_construct": null,
+      "feeds": null,
+      "scoring_behavior": "no_diagnostic_effect"
+    },
+    {
+      "internal_id": "D3",
+      "section_label": "D3 Household income",
+      "type": "single_select",
+      "required": false,
+      "required_for_completion": false,
+      "diagnostic": false,
+      "prompt": "What is your approximate annual household income?",
+      "options": [
+        { "code": "D3_A", "label": "Under $25,000" },
+        { "code": "D3_B", "label": "$25,000–$49,999" },
+        { "code": "D3_C", "label": "$50,000–$74,999" },
+        { "code": "D3_D", "label": "$75,000–$99,999" },
+        { "code": "D3_E", "label": "$100,000–$149,999" },
+        { "code": "D3_F", "label": "$150,000–$249,999" },
+        { "code": "D3_G", "label": "$250,000 or more" },
+        { "code": "D3_H", "label": "Prefer not to say" }
+      ],
+      "internal_construct": null,
+      "feeds": null,
+      "scoring_behavior": "no_diagnostic_effect"
+    }
+  ],
+  "spec_notes": [
+    "OPEN JUDGEMENT CALL: task brief asked for internal_id values like OPENING_A, but the spec S10 literally heads the items OPEN_A / OPEN_B with option codes OPEN_A_A / OPEN_B_A. Used OPEN_A and OPEN_B as internal_id (matching the spec's own codes) with section_label Opening A / Opening B. No wording affected.",
+    "ACTIVATION TYPE INFERENCE: spec S11 gives no explicit Type/Required lines for A1-A4 (unlike S9/S10). Treated all four as required single_select because S8 counts A1-A4 in the 31 required responses and S17 stores each separately. Flagging for spec owner to confirm rather than altering wording.",
+    "OPEN-TEXT BLANKS: Q21_H, Q9_M, Q16_K and D2_C carry a write-in blank rendered in the spec as ________. Preserved verbatim in the label and added an open_text:true structural flag; no wording changed.",
+    "EM-DASH / CURLY-QUOTE FIDELITY: prompts and labels preserve the spec's em dashes (Q2, Q4, Q16_F, Q18, Q24, activation A4) and curly quotes around Set for Life (OPEN_B, Q16 prompt, Q16_J) exactly as printed, including the spec's own straight-vs-curly apostrophe variation (e.g. Q2_C I'd vs Q19 I'm). Nothing normalized.",
+    "SCORING BEHAVIOR PROSE: recorded verbatim behavior keys from S9 (profile_1_5, classifier, capacity_override_first_else_2_5, capacity_override_last_else_1_5, profile_1_5_with_capacity_modifier). No thresholds invented; scoring config is a separate file.",
+    "DEMOGRAPHICS REQUIRED FLAG: D1-D3 marked required:false / required_for_completion:false because S8 separates demographics from diagnostic completion; Prefer not to say is a valid completed demographic response per S6/S8 and never a diagnostic signal. UI still presents all three."
+  ]
+}
