@@ -214,3 +214,48 @@ body {
 .prose-measure {
   max-width: 62ch;
 }
+
+/* --------------------------------------------------------------------------
+   Colour role utilities (Font Map Companion §"Palette / text roles").
+   Contrast (WCAG 2.x, verified 2026-09-30):
+   - Evergreen on Ivory 8.05:1 — AA/AAA for all text; upright headlines.
+   - Terracotta on Ivory 4.24:1 — PASSES AA for large text (≥18.66px bold /
+     ≥24px regular) ONLY; never small/body text (fails AA 4.5:1).
+   - Obsidian on Ivory 13.95:1 — body prose.
+   - Rose on Ivory 5.38:1 — labels/eyebrows (floor here is 16px; AA-normal ok).
+   - Ivory on Evergreen 8.05:1 — dark-panel headline/prose.
+   - Champagne on Evergreen 5.55:1 — dark-panel emphasis (AA-normal ok).
+   - Gold on Ivory 2.34:1 / on Evergreen 3.44:1 — FAILS AA everywhere:
+     decorative (rules/borders/markers) ONLY, never text.
+   -------------------------------------------------------------------------- */
+
+/* Ivory surface roles */
+.t-headline {
+  /* Evergreen upright headline on Ivory (8.05:1). UIUX §3–§4. */
+  color: var(--color-evergreen);
+}
+.t-emphasis {
+  /* Terracotta large italic/emphasis on Ivory (4.24:1 — LARGE TEXT ONLY). */
+  color: var(--color-terracotta);
+}
+.t-prose {
+  /* Obsidian prose on Ivory (13.95:1). */
+  color: var(--color-obsidian);
+}
+.t-label {
+  /* Rose section label/eyebrow on Ivory (5.38:1). */
+  color: var(--color-rose);
+}
+
+/* Evergreen surface roles */
+.surface-evergreen {
+  background-color: var(--color-evergreen);
+  color: var(--color-ivory); /* Ivory headline/prose (8.05:1) */
+}
+.surface-evergreen .t-emphasis-dark {
+  /* Champagne emphasis on Evergreen (5.55:1). */
+  color: var(--color-champagne);
+}
+.surface-ivory {
+  background-color: var(--color-ivory);
+}
