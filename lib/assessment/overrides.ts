@@ -100,13 +100,20 @@ export function loadQ18Cutoffs(scoringConfig: unknown): Q18Cutoffs {
   }
   const num = (key: string): number => {
     const raw = cond[key];
-    const m = raw?.match(/-?\d+(\.\d+)?/);
+    // Take the LAST number: condition strings embed question ids too
+    // (e.g. "mean(Q17, Q19) >= 4.0" — the threshold 4.0 is the final number).
+    const all = raw?.match(/-?\d+(\.\d+)?/g);
+    const m = all?.[all.length - 1];
     if (!m) {
       throw new Error(
         `overrides.loadQ18Cutoffs: cannot parse a number from condition.${key} (${JSON.stringify(raw)})`,
       );
     }
-    return Number(m[0]);
+    // `m` is the matched string (match() with /g returns strings, not arrays
+    // of groups). Number(m[0]) would take the FIRST CHARACTER and silently
+    // truncate "2.5" to 2 and "4.0" to 4 — which would quietly loosen the
+    // §13.7 alignment and capacity gates. Parse the whole match.
+    return Number(m);
   };
   return {
     directionHighAtOrAbove: num('direction_clarity_high'),
