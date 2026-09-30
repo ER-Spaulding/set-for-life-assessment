@@ -1,1 +1,242 @@
-{"_notes": {"aggregate_rule": "S19 renders A1, A2, A3, A4 as four separate rows. Per PRD §11: 'Never average A1–A4 into a single motivation score.' The engine MUST NOT combine activation levels; 'aggregate': false on S19 is structural, not advisory.", "narrative_reference_rule": "This config is structure only. Screens reference approved narrative keys from config/narratives-v1.0.json, config/connection-statements-v1.0.json, and config/signal-state-vocabulary-v1.0.json. No participant-facing sentence may be authored, edited, or paraphrased here — copy lives only in those libraries.", "s18_rule": "S18 renders only when a perception-gap key is triggered by the deterministic engine (Q2 starting view vs assessed profile). No gap key => screen omitted, numbering of remaining screens unchanged.", "s21_rule": "Per UIUX §22: the 'Not Right Now' continuation path must not be hidden, punished, or preselected. All four paths carry 'preselect': null and 'deprioritize': false.", "titles": "The 'title' strings are approved participant-facing copy reproduced exactly; they are identifiers, not narrative."}, "config_name": "report", "screens": [{"description": "Report entry point. No narrative source keys; orientation and navigation only.", "id": "S12", "source": {}, "title": "YOUR FINANCIAL SNAPSHOT", "type": "section"}, {"description": "One row per signal (SEE, ROOM, DIRECT, PREPARE, AIM, MOVE) with its assessed state label and copy from the signal-state vocabulary.", "id": "S13", "source": {"library": "config/signal-state-vocabulary-v1.0.json", "signals": ["SEE", "ROOM", "DIRECT", "PREPARE", "AIM", "MOVE"], "states": ["S1", "S2", "S3", "S4", "S5"]}, "title": "YOUR OPERATING PROFILE", "type": "section"}, {"description": "Signals assessed at S4 or S5. Strength framing only; no friction copy on this screen.", "id": "S14", "source": {"filter": "state in (S4, S5)", "library": "config/signal-state-vocabulary-v1.0.json"}, "title": "WHERE YOUR STRENGTHS SHOW UP", "type": "section"}, {"description": "Triggered tension keys, rendered via their connection-statement headline/body.", "id": "S15", "source": {"connection_statements": "config/connection-statements-v1.0.json", "tensions": "engine tension codes"}, "title": "WHERE THE FRICTION SHOWS UP", "type": "section"}, {"description": "The single selected connection statement plus the big-picture template that frames it.", "id": "S16", "source": {"big_picture_templates": "config/narratives-v1.0.json:big_picture_templates", "connection_statements": "config/connection-statements-v1.0.json"}, "title": "THE CONNECTION", "type": "section"}, {"description": "One of CAPACITY_FIRST / NO_FRICTION / PRIMARY_FRICTION, assembled from strength + friction + connection sentences.", "id": "S17", "source": {"keys": ["CAPACITY_FIRST", "NO_FRICTION", "PRIMARY_FRICTION"], "library": "config/narratives-v1.0.json:big_picture_templates"}, "title": "WHAT SET FOR LIFE MEANS TO YOU", "type": "section"}, {"condition": {"render_when": "perception-gap key triggered", "trigger_keys": ["PERCEPTION_ALIGNED", "PERCEPTION_MORE_OPTIMISTIC_THAN_PROFILE", "PERCEPTION_MORE_CAUTIOUS_THAN_PROFILE", "PERCEPTION_MIXED_COMPLEX"]}, "description": "Conditional. Renders only when the engine triggers a perception-gap key (Q2 starting view vs assessed profile). Omitted entirely when no gap key fires.", "id": "S18", "source": {"keys": ["PERCEPTION_ALIGNED", "PERCEPTION_MORE_OPTIMISTIC_THAN_PROFILE", "PERCEPTION_MORE_CAUTIOUS_THAN_PROFILE", "PERCEPTION_MIXED_COMPLEX"], "library": "config/narratives-v1.0.json:perception_gap"}, "title": "THE STARTING POINT AND WHAT ELSE SHOWED UP", "type": "conditional"}, {"_note": "Structural: per PRD §11, 'Never average A1–A4 into a single motivation score.' Four separate rows; no combined value.", "aggregate": false, "description": "Four separate rows — A1, A2, A3, A4 — each with its LOW/MID/HIGH copy. Never combined.", "id": "S19", "source": {"keys": ["A1", "A2", "A3", "A4"], "levels": ["LOW", "MID", "HIGH"], "library": "config/narratives-v1.0.json:activation"}, "title": "YOUR READINESS", "type": "section"}, {"description": "Single attention-area entry selected by the engine: label + body.", "id": "S20", "source": {"keys": ["BUILD_DECISION_CONFIDENCE", "CREATE_MORE_ROOM", "DEFINE_THE_DESTINATION", "KEEP_OBSERVING", "SEE_IT_MORE_CLEARLY", "STRENGTHEN_RESILIENCE", "TURN_INFORMATION_INTO_ACTION"], "library": "config/narratives-v1.0.json:attention_areas"}, "title": "ONE AREA WORTH EXAMINING NEXT", "type": "section"}, {"description": "Optional consent capture. No narrative source keys.", "id": "S20A", "source": {}, "title": "STAY CONNECTED — ON YOUR TERMS", "type": "consent"}, {"description": "Four continuation paths. No path is preselected, hidden, or deprioritized (UIUX §22).", "id": "S21", "paths": [{"deprioritize": false, "id": "BOOK_CONVERSATION", "preselect": null}, {"deprioritize": false, "id": "RECEIVE_RESOURCES", "preselect": null}, {"deprioritize": false, "id": "NOT_RIGHT_NOW", "preselect": null}, {"deprioritize": false, "id": "EXIT"}], "title": "YOU DECIDE WHAT HAPPENS NEXT.", "type": "paths"}, {"description": "Pilot feedback capture. No narrative source keys.", "id": "S22", "source": {}, "title": "PILOT FEEDBACK", "type": "feedback"}], "source_spec": "PRD §20; UIUX §8 (screen map), §17 (Snapshot composition), §19 (readiness rendering), §21 (attention area), §22 (continuation paths), §22A (consent)", "version": "1.0"}
+{
+  "version": "1.0",
+  "note": "Snapshot composition config — structural only. Screen order, titles, and which config keys feed each screen. Contains NO narrative copy: all participant-facing language resolves by key from the approved libraries (narratives-v1.0.json, connection-statements-v1.0.json, signal-state-vocabulary-v1.0.json). Titles marked title_source 'uiux' or 'prd' are exact approved participant-facing strings; titles marked 'structural' are working labels for screens the PRD/UIUX do not name. References to assessment-v1.0.json / scoring-v1.0.json are owned by other agents — listed here as feed pointers only.",
+  "libraries": {
+    "narratives": "config/narratives-v1.0.json",
+    "connection_statements": "config/connection-statements-v1.0.json",
+    "signal_state_vocabulary": "config/signal-state-vocabulary-v1.0.json",
+    "assessment": "config/assessment-v1.0.json",
+    "scoring": "config/scoring-v1.0.json"
+  },
+  "screens": [
+    {
+      "id": "cover",
+      "order": 1,
+      "prd_ref": "§20 Screen/Page 1",
+      "uiux_ref": "S12",
+      "title": "YOUR SET FOR LIFE FINANCIAL SNAPSHOT",
+      "subtitle": "A personalized look at how you currently see, direct, prepare, and make decisions with your money.",
+      "title_source": "prd",
+      "conditional": false,
+      "feeds": {
+        "session_metadata": ["participant_name", "completion_date"]
+      },
+      "notes": "Cover only. No diagnostic content."
+    },
+    {
+      "id": "big-picture",
+      "order": 2,
+      "prd_ref": "§20 Screen/Page 2",
+      "uiux_ref": "S12",
+      "title": "Big Picture",
+      "title_source": "structural",
+      "conditional": false,
+      "feeds": {
+        "narratives-v1.0.json": [
+          "big_picture_templates.PRIMARY_FRICTION",
+          "big_picture_templates.NO_FRICTION",
+          "big_picture_templates.CAPACITY_FIRST",
+          "language_strength.HIGH",
+          "language_strength.MODERATE",
+          "language_strength.LIMITED",
+          "connection_statements.<triggered_tension>"
+        ]
+      },
+      "notes": "Assembled per approved assembly templates only (STRENGTH + FRICTION + CONTEXT + CONNECTION + ACTIVATION order). Connection Statement rendered prominently."
+    },
+    {
+      "id": "operating-profile",
+      "order": 3,
+      "prd_ref": "§20 Screen/Page 3",
+      "uiux_ref": "S13",
+      "title": "Financial Operating Profile",
+      "title_source": "structural",
+      "conditional": false,
+      "feeds": {
+        "narratives-v1.0.json": [
+          "signal_states.SEE.S1-S5",
+          "signal_states.ROOM.S1-S5",
+          "signal_states.DIRECT.S1-S5",
+          "signal_states.PREPARE.S1-S5",
+          "signal_states.AIM.S1-S5",
+          "signal_states.MOVE.S1-S5",
+          "special_signal_states.*"
+        ],
+        "signal-state-vocabulary-v1.0.json": [
+          "SEE.S1-S5",
+          "ROOM.S1-S5",
+          "DIRECT.S1-S5",
+          "PREPARE.S1-S5",
+          "AIM.S1-S5",
+          "MOVE.S1-S5",
+          "SPECIAL.*"
+        ]
+      },
+      "notes": "Participant-friendly operating labels SEE / ROOM / DIRECT / PREPARE / AIM / MOVE (PRD §20.1). Descriptive state labels only — no raw 1–5 values, no scores, no gauges."
+    },
+    {
+      "id": "strengths",
+      "order": 4,
+      "prd_ref": "§20 Screen/Page 4",
+      "uiux_ref": "S14",
+      "title": "What’s Already Working for You",
+      "title_source": "prd",
+      "conditional": false,
+      "feeds": {
+        "narratives-v1.0.json": [
+          "signal_states.<SIGNAL>.S4-S5",
+          "language_strength.HIGH",
+          "language_strength.MODERATE"
+        ]
+      },
+      "notes": "1–3 evidence-supported strengths only. No invented strengths."
+    },
+    {
+      "id": "friction",
+      "order": 5,
+      "prd_ref": "§20 Screen/Page 5",
+      "uiux_ref": "S15",
+      "title": "Where There’s Friction",
+      "title_source": "prd",
+      "conditional": false,
+      "feeds": {
+        "narratives-v1.0.json": [
+          "signal_states.<SIGNAL>.S1-S2",
+          "special_signal_states.DIRECT_CAPACITY_LIMITED",
+          "special_signal_states.DIRECT_LIMITED_EVIDENCE_CAPACITY",
+          "special_signal_states.AIM_CAPACITY_CONSTRAINED_ALIGNMENT",
+          "rules"
+        ]
+      },
+      "notes": "1–3 meaningful findings. Null-finding rule applies: if NO_MEANINGFUL_FRICTION_IDENTIFIED, do not populate from low signals."
+    },
+    {
+      "id": "connection",
+      "order": 6,
+      "prd_ref": "§20 Screen/Page 6",
+      "uiux_ref": "S16",
+      "title": "The Connection / Here’s the Part Worth Noticing",
+      "title_source": "prd",
+      "conditional": false,
+      "feeds": {
+        "connection-statements-v1.0.json": ["<triggered_tension>.headline", "<triggered_tension>.body"],
+        "narratives-v1.0.json": ["attention_areas.<default_attention_area>"]
+      },
+      "notes": "Only a triggered tension/override key may render its statement. Editorial pull-quote treatment."
+    },
+    {
+      "id": "destination-meaning",
+      "order": 7,
+      "prd_ref": "§20 Screen/Page 7",
+      "uiux_ref": "S17",
+      "title": "What “Set for Life” Means to You",
+      "title_source": "prd",
+      "conditional": false,
+      "feeds": {
+        "assessment-v1.0.json": ["Q16"]
+      },
+      "notes": "Participant Q16 selections displayed unranked. 'Destination Still Forming' presented neutrally. Question bank owned by another agent."
+    },
+    {
+      "id": "perception-gap",
+      "order": 8,
+      "prd_ref": "§20 Screen/Page 8",
+      "uiux_ref": "S18",
+      "title": "Perception Gap",
+      "title_source": "structural",
+      "column_titles": ["HOW IT FELT GOING IN", "WHAT ELSE SHOWED UP"],
+      "column_titles_source": "uiux",
+      "conditional": "only when the interpretation engine marks it meaningful",
+      "feeds": {
+        "narratives-v1.0.json": [
+          "perception_gap.PERCEPTION_ALIGNED",
+          "perception_gap.PERCEPTION_MORE_OPTIMISTIC_THAN_PROFILE",
+          "perception_gap.PERCEPTION_MORE_CAUTIOUS_THAN_PROFILE",
+          "perception_gap.PERCEPTION_MIXED_COMPLEX"
+        ]
+      },
+      "notes": "Never use 'wrong', 'misperception', 'reality check', or corrective arrows."
+    },
+    {
+      "id": "readiness",
+      "order": 9,
+      "prd_ref": "§20 Screen/Page 9",
+      "uiux_ref": "S19",
+      "title": "Your Readiness Right Now",
+      "title_source": "uiux",
+      "conditional": false,
+      "feeds": {
+        "narratives-v1.0.json": [
+          "activation.A1.LOW",
+          "activation.A1.MID",
+          "activation.A1.HIGH",
+          "activation.A2.LOW",
+          "activation.A2.MID",
+          "activation.A2.HIGH",
+          "activation.A3.LOW",
+          "activation.A3.MID",
+          "activation.A3.HIGH",
+          "activation.A4.LOW",
+          "activation.A4.MID",
+          "activation.A4.HIGH"
+        ]
+      },
+      "notes": "A1–A4 remain four separate statements. No combined index, no readiness score, no funnel label."
+    },
+    {
+      "id": "attention-area",
+      "order": 10,
+      "prd_ref": "§20 Screen/Page 10",
+      "uiux_ref": "S20",
+      "title": "ONE AREA WORTH EXAMINING NEXT",
+      "title_source": "uiux",
+      "conditional": false,
+      "feeds": {
+        "narratives-v1.0.json": [
+          "attention_areas.<primary>",
+          "attention_areas.<secondary_optional>"
+        ]
+      },
+      "notes": "One primary area with visual priority; optional secondary is subordinate. Educational direction, not a financial recommendation."
+    },
+    {
+      "id": "mobile-preferences",
+      "order": 10.5,
+      "prd_ref": "§20 / §21-adjacent",
+      "uiux_ref": "S20A",
+      "title": "STAY CONNECTED — ON YOUR TERMS",
+      "title_source": "uiux",
+      "conditional": "after substantive Snapshot value has been delivered; mobile optional and consent-specific",
+      "feeds": {},
+      "notes": "Phone entry and consent are separate controls. No pre-checked consent. Not required to unlock results."
+    },
+    {
+      "id": "continuation",
+      "order": 11,
+      "prd_ref": "§20 Final + §21",
+      "uiux_ref": "S21",
+      "title": "YOU DECIDE WHAT HAPPENS NEXT.",
+      "title_source": "uiux",
+      "conditional": false,
+      "feeds": {},
+      "continuation_options": [
+        { "code": "KEEP_LEARNING", "label": "Keep Learning" },
+        { "code": "LOOK_CLOSER_FINANCIAL_PICTURE", "label": "Look Closer at My Financial Picture" },
+        { "code": "EXPLORE_MORE_INCOME", "label": "Explore Ways to Create More Income" },
+        { "code": "NOT_RIGHT_NOW", "label": "Not Right Now" }
+      ],
+      "notes": "Full results delivered before continuation choices. All choices comparable visual dignity; NOT_RIGHT_NOW never punished or hidden. Never preselect from A4."
+    },
+    {
+      "id": "pilot-feedback",
+      "order": 12,
+      "prd_ref": "§20-adjacent (pilot mode)",
+      "uiux_ref": "S22",
+      "title": "Pilot Feedback",
+      "title_source": "structural",
+      "conditional": "only when pilot mode is enabled",
+      "feeds": {},
+      "notes": "Post-Snapshot validation survey. Rendered only under the pilot feature flag."
+    }
+  ]
+}
