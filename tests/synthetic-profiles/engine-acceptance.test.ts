@@ -115,9 +115,14 @@ function runEngine(profile: SyntheticProfile): EngineRun {
     {
       signalStates: states,
       items,
-      // Spread to a plain record: TensionInputs takes Record<string, ...> and
-      // ActivationLevels is a closed four-key shape (the point of TEST 8).
-      activation: { ...activation },
+      // Passed straight through. TensionInputs.activation is typed
+      // ActivationLevels (the same closed four-key shape this builder returns),
+      // so no widening is needed — and none should be added. An earlier version
+      // of this line spread into a plain record because the contract was
+      // Record<string, ActivationLevel>; that looseness accepted any string
+      // key and is what let a hardcoded all-MID object reach production
+      // unnoticed. See lib/assessment/tensions.ts.
+      activation,
       tags,
       fearPresent,
       capacityMean: scoring.signals.ROOM.value ?? undefined,
