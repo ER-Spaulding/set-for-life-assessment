@@ -67,9 +67,9 @@ const probeTensions = (p: Probe): string[] =>
 /**
  * PRD §29 acceptance tests, second batch (tests 11–14, 16, 18).
  *
- * NOTE on PRD §29 Test 17 (server authority): SKIPPED, not stubbed. It needs
- * the API layer, which another agent is building now. A vacuous test here
- * would be a false green, so there is deliberately no test for it.
+ * NOTE on PRD §29 Test 17 (server authority): covered in the sibling file
+ * acceptance-17-server-authority.test.ts, now that lib/session/service.ts
+ * exists. It is deliberately not duplicated here.
  */
 
 describe("PRD §29 TEST 11 — high direction / low capacity is capacity-constrained alignment, not low Direction", () => {
