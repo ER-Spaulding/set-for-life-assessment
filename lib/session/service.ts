@@ -30,6 +30,10 @@ import { loadQ18Cutoffs } from "../assessment/overrides";
 import { evaluateTensions } from "../assessment/tensions";
 import { selectAttentionArea } from "../assessment/interpretation";
 import { classifyAll, isFearPresent } from "../assessment/classifiers";
+import {
+  levelsForActivation,
+  type ActivationLevels,
+} from "../assessment/activation";
 import type { SignalId, SignalState } from "../assessment/types";
 
 /**
@@ -261,20 +265,46 @@ export async function completeSession(sessionId: string): Promise<CompletionResu
     Q16: codesFor("Q16"),
     Q21: q21Codes,
   });
+
+  // ACTIVATION MUST COME FROM THE PARTICIPANT'S A1–A4 ANSWERS.
+  //
+  // Two tension rules read activation: HIGH_FEAR_HIGH_ACTIVATION
+  // (`any_activation_high: [A1,A2,A3]`) and SUPPORT_OPENNESS_AGENCY_VULNERABILITY
+  // (`activation_high: [A4]`). This call site previously passed a hardcoded
+  // all-MID object behind an `as never` cast, which silenced the type error
+  // that would have caught it. Because no participant can be simultaneously
+  // all-MID and HIGH, `activation_high` never evaluated true: BOTH codes were
+  // unreachable in production, and a participant who explicitly reported high
+  // urgency to act alongside financial fear received a Snapshot with neither
+  // the fear-aware handling note (PRD §15: "Do not increase pressure") nor the
+  // support-openness finding.
+  //
+  // Verified by execution before the fix: identical responses returned []
+  // under the hardcoded levels and
+  // ["HIGH_FEAR_HIGH_ACTIVATION","SUPPORT_OPENNESS_AGENCY_VULNERABILITY"]
+  // under the participant's real A1–A4 choices.
+  //
+  // A1–A4 are required items (validation.ts REQUIRED_ITEM_IDS), so the
+  // completeness gate above guarantees all four are present here.
+  // `levelsForActivation` throws on an unrecognised option rather than
+  // defaulting — a malformed answer must surface, not silently re-create the
+  // all-MID failure this comment documents.
+  const activation: ActivationLevels = levelsForActivation({
+    A1: codesFor("A1")[0],
+    A2: codesFor("A2")[0],
+    A3: codesFor("A3")[0],
+    A4: codesFor("A4")[0],
+  });
+
   const tensionCodes = evaluateTensions(
     {
       signalStates,
       items,
-      activation: {
-        A1: "MID",
-        A2: "MID",
-        A3: "MID",
-        A4: "MID",
-      } as never,
+      activation,
       // classifyAll returns question → tags; the evaluator wants a flat list.
       tags: Object.values(tags).flat(),
       fearPresent: isFearPresent(q21Codes),
-    } as never,
+    },
     cfg,
   );
   const attentionArea = selectAttentionArea(tensionCodes);

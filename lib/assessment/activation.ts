@@ -10,13 +10,25 @@
 
 import type { ActivationKey, ActivationLevel } from './types';
 
-/** The four separate activation values. Never collapse to a scalar. */
-export interface ActivationLevels {
+/**
+ * The four separate activation values. Never collapse to a scalar.
+ *
+ * Declared as a TYPE ALIAS, not an `interface`, and that is load-bearing.
+ * TypeScript grants an implicit index signature to object-literal type
+ * aliases but NOT to interfaces, so this shape is assignable to
+ * `Record<string, ActivationLevel>` / `Partial<Record<...>>` (which the
+ * tension evaluator's keyed lookups require) while still rejecting a missing
+ * or misspelled A1–A4 key at the call site. As an `interface` it was
+ * assignable to neither: consumers had to cast through `never`, and one such
+ * cast hid a hardcoded all-MID object on the completion path — permanently
+ * disabling every activation-driven tension rule. Keep this a type alias.
+ */
+export type ActivationLevels = {
   A1: ActivationLevel;
   A2: ActivationLevel;
   A3: ActivationLevel;
   A4: ActivationLevel;
-}
+};
 
 /** Option letters collapsing to each level (config `activation.level_bands`). */
 const LOW_LETTERS = ['A', 'B'];

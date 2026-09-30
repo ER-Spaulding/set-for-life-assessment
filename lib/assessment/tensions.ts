@@ -23,12 +23,8 @@ import {
   evaluateQ18CapacityModifier,
   loadQ18Cutoffs,
 } from './overrides';
-import type {
-  ActivationLevel,
-  SignalId,
-  SignalState,
-  TensionCode,
-} from './types';
+import type { ActivationLevels } from './activation';
+import type { ActivationLevel, SignalId, SignalState, TensionCode } from './types';
 
 /** Inputs the tension engine needs. Owned by sibling modules' outputs. */
 export interface TensionInputs {
@@ -36,8 +32,24 @@ export interface TensionInputs {
   signalStates: Record<SignalId, SignalState>;
   /** Raw item values, 1–5 Likert (e.g. { Q4: 4, Q5: 2, ... }). */
   items: Record<string, number>;
-  /** Four separate activation levels (from activation.ts — never averaged). */
-  activation: Record<string, ActivationLevel>;
+  /**
+   * Four separate activation levels (from activation.ts — never averaged).
+   *
+   * Typed as the closed four-key `ActivationLevels`, NOT `Record<string,
+   * ActivationLevel>`. The looser record accepts any string key, so a caller
+   * passing a key the config does not name — or omitting A4 entirely — still
+   * type-checked, and `activation_high: ["A4"]` would then evaluate false for
+   * every participant with no error anywhere. That is how a hardcoded all-MID
+   * object once shipped from the completion path, making
+   * HIGH_FEAR_HIGH_ACTIVATION and SUPPORT_OPENNESS_AGENCY_VULNERABILITY
+   * permanently unreachable. Requiring the closed shape makes a missing or
+   * misspelled activation key a compile error.
+   *
+   * The evaluator still defends at runtime (leaf conditions read through a
+   * Partial cast below, so an absent key can never satisfy a clause); this
+   * type is the compile-time half of the same rule.
+   */
+  activation: ActivationLevels;
   /** Classifier tags across Q1/Q9/Q16/Q21 (default: none). */
   tags?: string[];
   /** Any Q21 selection other than exclusive Q21_G (default: false). */
@@ -238,9 +250,11 @@ function evaluateLeaf(
   const states = inputs.signalStates as
     | Partial<Record<string, SignalState>>
     | undefined;
-  const activation = inputs.activation as
-    | Partial<Record<string, ActivationLevel>>
-    | undefined;
+  // Partial view for the keyed lookup below: a config clause naming an
+  // activation item the participant never answered must read `undefined` and
+  // fail the clause, never throw and never fall back to a default level.
+  const activation: Partial<Record<string, ActivationLevel>> | undefined =
+    inputs.activation;
 
   if ('signal' in node) {
     if (typeof node['signal'] !== 'string' || !Array.isArray(node['state_in'])) {
