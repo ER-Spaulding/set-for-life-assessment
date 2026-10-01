@@ -15,6 +15,7 @@
 import { NextResponse } from "next/server";
 import { isDatabaseConfigured, errorBody } from "@/lib/db/client";
 import { loadSnapshot } from "@/lib/session/service";
+import { recordEventInBackground } from "@/lib/analytics/write";
 
 export const dynamic = "force-dynamic";
 
@@ -51,6 +52,11 @@ export async function GET(
       { status: 403 },
     );
   }
+
+  // §16: a completed Snapshot was served. Recorded HERE, after the 403 branch,
+  // so the count means "reports actually delivered" rather than "requests that
+  // arrived" — a mid-assessment session hitting this route is not a view.
+  recordEventInBackground({ eventName: "snapshot_viewed", sessionId });
 
   return NextResponse.json(snapshot);
 }

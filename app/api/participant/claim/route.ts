@@ -35,6 +35,7 @@ import { isDatabaseConfigured, errorBody } from "@/lib/db/client";
 import { normaliseEmail, issueVerificationToken, verificationStartedBody } from "@/lib/auth";
 import { sendVerificationEmail } from "@/lib/email/verification";
 import { queryIfEmailBelongsToAnother } from "@/lib/session/provisional";
+import { recordEventInBackground } from "@/lib/analytics/write";
 
 export const dynamic = "force-dynamic";
 
@@ -115,6 +116,15 @@ export async function POST(request: Request) {
     // response shape, and the participant can retry from the same screen.
   }).catch(() => {
     /* never surfaces */
+  });
+
+  // §16: the participant chose Save My Progress and a verification link was
+  // sent. Recorded HERE because this route is what sent it — the browser only
+  // asked. No name, no email, no participant-entered content: the event says
+  // "the prompt was used", nothing about who used it or what they typed.
+  recordEventInBackground({
+    eventName: "save_progress_used",
+    participantId,
   });
 
   return NextResponse.json(

@@ -58,6 +58,12 @@ export default function StartPage() {
         sessionId: string;
         sflNumber: string;
       };
+
+      // §16: `assessment_started` is recorded by the provisional route, at the
+      // moment the participant and session rows are actually created. It is not
+      // reported from here — a browser claiming an assessment started is not
+      // evidence that one did.
+      //
       // The Set for Life Number is shown AFTER Opening B (§3: it is offered at
       // the Save My Progress moment), so it is carried rather than displayed
       // here. Stashing it in sessionStorage keeps it available across the first

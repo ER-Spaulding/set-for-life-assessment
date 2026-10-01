@@ -62,6 +62,9 @@ export default function SnapshotPage() {
         if (alive) {
           setSnapshot(data);
           setStatus("ready");
+          // §16: `snapshot_viewed` is recorded by the snapshot route, at the
+          // moment it actually served a completed Snapshot. Recording it here
+          // would count a render, not a served report.
         }
       } catch {
         if (alive) setStatus("unavailable");

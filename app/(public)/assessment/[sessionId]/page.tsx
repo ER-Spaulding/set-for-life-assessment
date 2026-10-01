@@ -30,6 +30,10 @@ import {
   type UiQuestion,
 } from "@/lib/ui/questions";
 import { MoneyMoment } from "@/components/assessment/MoneyMoment";
+// CLIENT COMPONENT: the analytics import MUST be ./client, never ./write.
+// ./write pulls in the service client (`server-only`) and the build fails on
+// exactly this line if that is ever got wrong — which is how this was caught.
+import { reportEvent } from "@/lib/analytics/client";
 import { SaveMyProgress } from "@/components/identity/SaveMyProgress";
 import { QuestionFrame } from "@/components/assessment/QuestionFrame";
 import { SingleSelectCard } from "@/components/assessment/SingleSelectCard";
@@ -216,6 +220,14 @@ export default function SessionPage() {
     const due = MONEY_MOMENTS[index];
     if (due && !shownMoments[due]) {
       setMoment(due);
+      // §16: a Money Moment rendering is a browser-only fact — nothing happens
+      // server-side — so it is reported through the client route, which derives
+      // the participant from the session row rather than from this page.
+      reportEvent({
+        eventName: "money_moment_displayed",
+        sessionId,
+        payload: { moment: due, position: index + 1 },
+      });
       return;
     }
 
@@ -239,12 +251,20 @@ export default function SessionPage() {
     (advance = true) => {
       const id = moment;
       setMoment(null);
-      if (id) setShownMoments((prev) => ({ ...prev, [id]: true }));
+      if (id) {
+        setShownMoments((prev) => ({ ...prev, [id]: true }));
+        reportEvent({
+          eventName: "money_moment_continued",
+          sessionId,
+          payload: { moment: id },
+        });
+      }
 
       // §3.4: Save My Progress is offered immediately after Money Moment 01 —
       // after the participant has momentum, not before they have seen anything.
       if (advance && id === SAVE_PROGRESS_AFTER && participantId && !claimed) {
         setShowSavePrompt(true);
+        reportEvent({ eventName: "save_progress_offered", sessionId });
         return;
       }
       if (!advance) return;
@@ -281,6 +301,8 @@ export default function SessionPage() {
           return;
         }
         setClaimed(true);
+        // §16: `save_progress_used` is recorded by the claim route, which is
+        // what actually sent the verification link.
       } catch {
         setClaimError("We could not send the link just now. Please try again.");
       } finally {
@@ -338,6 +360,9 @@ export default function SessionPage() {
         error={claimError}
         onKeepGoing={() => {
           setShowSavePrompt(false);
+          // §16: a participant declining to save happens only in the browser —
+          // no server is involved — so this is one of the four client events.
+          reportEvent({ eventName: "save_progress_skipped", sessionId });
           leaveMoment(true);
         }}
         onClaim={(firstName, email) => void claim(firstName, email)}

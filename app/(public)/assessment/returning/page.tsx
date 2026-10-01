@@ -43,6 +43,10 @@ export default function ReturningPage() {
     if (busy) return;
     setBusy(true);
     try {
+      // §16: `returning_flow_started` / `returning_flow_completed` are recorded
+      // by the lookup route itself. Both are statements about what the SERVER
+      // did — it received a well-formed number and it sent (or did not send) a
+      // verification message — so neither belongs in a client claim.
       const res = await fetch("/api/auth/lookup", {
         method: "POST",
         headers: { "content-type": "application/json" },

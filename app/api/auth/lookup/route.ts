@@ -36,6 +36,7 @@ import { NextResponse } from "next/server";
 import { serviceClient, isDatabaseConfigured, errorBody } from "@/lib/db/client";
 import { normalizeJurisdictionSafe } from "@/lib/profile/jurisdiction-lookup";
 import { verificationStartedBody } from "@/lib/auth";
+import { recordEventInBackground } from "@/lib/analytics/write";
 
 export const dynamic = "force-dynamic";
 
@@ -58,18 +59,25 @@ export async function POST(request: Request) {
 
   // A checksum failure means this cannot be anyone's number, so naming the
   // problem is safe AND kind: "check the number" is better than a dead end.
-  if (lookup.kind === "malformed") {
+  if (lookup.kind === "malformed" || lookup.kind === "absent") {
+    // §16: an attempted lookup that failed its own checksum. Recorded with NO
+    // participant correlator — by construction this number belongs to nobody,
+    // so attaching one is impossible — and `outcome` distinguishes it from a
+    // complete flow, which is the drop-off the returning funnel needs to see.
+    recordEventInBackground({
+      eventName: "returning_flow_started",
+      payload: { outcome: "invalid_number" },
+    });
+    if (lookup.kind === "absent") {
+      // An empty submission is a client bug, not a lookup.
+      return NextResponse.json(errorBody("MALFORMED", "Enter your Set for Life Number."), {
+        status: 400,
+      });
+    }
     return NextResponse.json(
       errorBody("MALFORMED", "That does not look like a Set for Life Number."),
       { status: 400 },
     );
-  }
-
-  if (lookup.kind === "absent") {
-    // An empty submission is a client bug, not a lookup.
-    return NextResponse.json(errorBody("MALFORMED", "Enter your Set for Life Number."), {
-      status: 400,
-    });
   }
 
   const db = serviceClient();
@@ -81,6 +89,17 @@ export async function POST(request: Request) {
     .maybeSingle();
 
   const participantId = (participant as { participant_id?: string } | null)?.participant_id;
+
+  // §16: a well-formed number was submitted. Recorded WITHOUT an `outcome`,
+  // because this function must not learn whether the number resolved — the
+  // anti-enumeration posture above is about what leaves this route, and writing
+  // the distinction into a table an operator can read is the same disclosure
+  // arriving by another door. The correlator is attached only when the row
+  // genuinely exists, which is a fact the server may hold.
+  recordEventInBackground({
+    eventName: "returning_flow_started",
+    participantId: participantId ?? null,
+  });
 
   if (participantId) {
     // Send to the contact already on file for THIS participant. Deliberately no
@@ -101,6 +120,15 @@ export async function POST(request: Request) {
   // Identical response either way. `verificationStartedBody()` is the same shape
   // the existing verification routes return, so the anti-enumeration behaviour
   // is consistent across the flow rather than re-invented here.
+  //
+  // §16: the same reasoning applies to the event. It is recorded for every
+  // well-formed number regardless of whether one resolved, so the count cannot
+  // be read as a count of real participants.
+  recordEventInBackground({
+    eventName: "returning_flow_completed",
+    participantId: participantId ?? null,
+  });
+
   return NextResponse.json(verificationStartedBody(), { status: 202 });
 }
 

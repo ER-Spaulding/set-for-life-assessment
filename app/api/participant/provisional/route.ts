@@ -24,6 +24,7 @@
 import { NextResponse } from "next/server";
 import { isDatabaseConfigured, errorBody } from "@/lib/db/client";
 import { createProvisionalParticipant } from "@/lib/session/provisional";
+import { recordEventInBackground } from "@/lib/analytics/write";
 
 export const dynamic = "force-dynamic";
 
@@ -36,6 +37,18 @@ export async function POST() {
 
   try {
     const { participantId, sessionId, sflNumber } = await createProvisionalParticipant();
+
+    // §16: the participant and session now exist, so an assessment has actually
+    // started. Recorded HERE rather than by the browser that asked, because this
+    // is the only place the claim is true. Fire-and-forget so measurement can
+    // never delay or break the start.
+    recordEventInBackground({
+      eventName: "assessment_started",
+      participantId,
+      sessionId,
+      payload: { channel: "first_time" },
+    });
+
     return NextResponse.json(
       {
         participantId,

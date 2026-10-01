@@ -16,6 +16,7 @@
 import { NextResponse } from "next/server";
 import { isDatabaseConfigured, errorBody } from "@/lib/db/client";
 import { completeSession } from "@/lib/session/service";
+import { recordEventInBackground } from "@/lib/analytics/write";
 
 export const dynamic = "force-dynamic";
 
@@ -55,6 +56,12 @@ export async function POST(
       { status: 422 },
     );
   }
+
+  // §16: completion and Snapshot generation are the same server moment — the
+  // payload is persisted before this response is built — so both are recorded
+  // here, after the write, and never in a way that could affect it.
+  recordEventInBackground({ eventName: "assessment_completed", sessionId: result.sessionId });
+  recordEventInBackground({ eventName: "snapshot_generated", sessionId: result.sessionId });
 
   // `firstName` is the participant's own name, returned only when their
   // identity is verified (Addendum 02 v1.1 §3.2/§15) so the synthesis reveal
