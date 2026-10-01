@@ -617,7 +617,32 @@ async function verifiedFirstName(
     .maybeSingle();
   const participantId = (session as { participant_id?: string } | null)?.participant_id;
   if (!participantId) return null;
+  return verifiedFirstNameForParticipant(db, participantId);
+}
 
+/**
+ * The same gate, keyed by participant instead of session.
+ *
+ * The returning flow arrives at /auth/verified holding a participant id and a
+ * just-consumed verification token — it has no session yet, which is precisely
+ * what it is about to look up. So the §4.1 greeting cannot go through the
+ * session-shaped helper above.
+ *
+ * This exists because of a real defect: the greeting rendered
+ * "Welcome back, there." for EVERY returning participant, because the page's
+ * `firstName` state was initialized to "" and never populated, so a
+ * `firstName || "there"` fallback always won. Addendum 02 §4.1 says "the
+ * first-name welcome is required" — and the code was not merely missing the
+ * name, it was substituting a placeholder that reads as a name.
+ *
+ * Extracted rather than duplicated so there is ONE definition of "verified",
+ * matching the session-shaped call. If the evidence for verification changes,
+ * both callers move together.
+ */
+export async function verifiedFirstNameForParticipant(
+  db: ReturnType<typeof serviceClient>,
+  participantId: string,
+): Promise<string | null> {
   const { data: contact } = await db
     .from("participant_contacts")
     .select("verified_at")

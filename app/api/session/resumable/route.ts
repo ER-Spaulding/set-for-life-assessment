@@ -10,6 +10,7 @@
 
 import { NextResponse } from "next/server";
 import { serviceClient, isDatabaseConfigured, errorBody } from "@/lib/db/client";
+import { verifiedFirstNameForParticipant } from "@/lib/session/service";
 
 export const dynamic = "force-dynamic";
 
@@ -44,8 +45,21 @@ export async function GET(request: Request) {
     });
   }
 
-  // No resumable session is a normal outcome, not an error.
-  if (!data) return NextResponse.json({ resumable: null });
+  // The §4.1 greeting name, on the SAME request that resolves the session.
+  //
+  // §4.1: "the first-name welcome is required". It is returned here rather than
+  // from a second endpoint because this route is already called on the exact
+  // screen that renders the greeting, and this caller reached it by consuming a
+  // verification token — so the name is gated on `verifiedFirstNameForParticipant`,
+  // the same evidence the completion path uses. §15: "Do not use a name before it
+  // has been reliably associated with the participant." An unverified participant
+  // gets null, and the greeting must then say something that is not a name.
+  const firstName = await verifiedFirstNameForParticipant(db, participantId).catch(() => null);
+
+  // No resumable session is a normal outcome, not an error. The name is still
+  // returned: a verified participant with no session in progress is exactly the
+  // §4.1 "Ready to see what has changed?" case.
+  if (!data) return NextResponse.json({ resumable: null, firstName });
 
   return NextResponse.json({
     resumable: {
@@ -54,5 +68,6 @@ export async function GET(request: Request) {
       currentPosition: data.current_position,
       lastActivityAt: data.last_activity_at,
     },
+    firstName,
   });
 }

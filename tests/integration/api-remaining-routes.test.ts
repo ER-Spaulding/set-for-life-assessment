@@ -54,20 +54,65 @@ function fakeDb(tables: Record<string, unknown> = {}, insertError: { code?: stri
 
   const makeSelect = (table: string) => {
     const rows = tables[table];
-    const single = Array.isArray(rows) ? null : rows ?? null;
-    const list = Array.isArray(rows) ? rows : rows ? [rows] : [];
+
+    // `eq` FILTERS. It used to be a passthrough that ignored its arguments,
+    // which meant the fake could not represent the difference between "this
+    // table is empty" and "this table has rows, none of which match" — and a
+    // route that correctly filtered and one that ignored its own WHERE clause
+    // returned identical results. That is not a stub being loose; it is a stub
+    // that cannot fail the thing under test. (Concretely: a §15 gate test
+    // passed against a route that had the gate removed.)
+    //
+    // Filtering makes the fake stricter, so this is checked against the 19
+    // existing tests in this file rather than assumed safe.
+    let filtered: unknown = rows;
+    const applyEq = (col: string, val: unknown) => {
+      const src = Array.isArray(filtered) ? filtered : filtered ? [filtered] : [];
+      const kept = src.filter(
+        (r) => (r as Record<string, unknown> | null)?.[col] === val,
+      );
+      filtered = kept.length === 0 ? null : kept.length === 1 ? kept[0] : kept;
+      return chain;
+    };
+
+    // `.not(col, "is", null)` — "this column is not null". A real filter, and
+    // it has to be: the §15 gate uses it, and without an implementation here
+    // the call throws, the route's `.catch(() => null)` swallows it, and the
+    // test sees `firstName: null` — the same value the CORRECT code produces.
+    // A missing method made the fake agree with the bug.
+    const applyNot = (col: string, _op: string, val: unknown) => {
+      const src = Array.isArray(filtered) ? filtered : filtered ? [filtered] : [];
+      const kept = src.filter(
+        (r) => (r as Record<string, unknown> | null)?.[col] !== val,
+      );
+      filtered = kept.length === 0 ? null : kept.length === 1 ? kept[0] : kept;
+      return chain;
+    };
+
     const chain: Record<string, unknown> = {};
     const passthrough = () => chain;
     Object.assign(chain, {
       select: passthrough,
-      eq: passthrough,
+      eq: applyEq,
+      not: applyNot,
       order: passthrough,
       limit: passthrough,
       match: passthrough,
-      maybeSingle: () => Promise.resolve({ data: single, error: null }),
-      single: () => Promise.resolve({ data: single, error: null }),
+      maybeSingle: () =>
+        Promise.resolve({
+          data: Array.isArray(filtered) ? (filtered[0] ?? null) : filtered ?? null,
+          error: null,
+        }),
+      single: () =>
+        Promise.resolve({
+          data: Array.isArray(filtered) ? (filtered[0] ?? null) : filtered ?? null,
+          error: null,
+        }),
       then: (resolve: (v: unknown) => unknown) =>
-        Promise.resolve({ data: list, error: null }).then(resolve),
+        Promise.resolve({
+          data: Array.isArray(filtered) ? filtered : filtered ? [filtered] : [],
+          error: null,
+        }).then(resolve),
     });
     return chain;
   };
@@ -163,10 +208,21 @@ describe("GET /api/session/resumable — existence and position only, never answ
     const { db } = fakeDb({
       assessment_sessions: {
         session_id: "s-1",
+        // `participant_id` is required now that the fake honours `.eq()`. The
+        // route filters sessions by participant, so a seed without it does not
+        // match — which is correct behaviour, and this seed was previously
+        // relying on the filter being ignored.
+        participant_id: PID,
         status: "in_progress",
         current_position: 7,
         last_activity_at: "2026-09-30T00:00:00Z",
       },
+      participant_contacts: {
+        participant_id: PID,
+        contact_type: "email",
+        verified_at: "2026-09-30T00:00:00Z",
+      },
+      participants: { participant_id: PID, first_name: "Alicia" },
     });
     const { GET } = await bind("@/app/api/session/resumable/route", db);
     const res = await GET(
@@ -192,7 +248,67 @@ describe("GET /api/session/resumable — existence and position only, never answ
     const body = await res.json();
     console.log("  none ->", res.status, JSON.stringify(body));
     expect(res.status).toBe(200);
-    expect(body).toEqual({ resumable: null });
+    // `firstName` was added 2026-10-01 for Addendum 02 §4.1's greeting. It is
+    // null here because this fake has no verified contact — which is the
+    // correct behaviour, not a placeholder: the greeting must omit the name
+    // rather than substitute one. The §15 gate itself is covered by
+    // tests/integration/returning-greeting.test.ts.
+    expect(body).toEqual({ resumable: null, firstName: null });
+  });
+
+  it("the greeting name is gated on verification, not merely returned", async () => {
+    // The §4.1 fix could be defeated by returning `participants.first_name`
+    // unconditionally — the participant HAS a name, it is just unverified.
+    // §15: "Do not use a name before it has been reliably associated with the
+    // participant." Entry is not verification.
+    //
+    // THE FIRST VERSION OF THIS TEST WAS A FALSE GREEN and is worth recording.
+    // It faked `participant_contacts: null` and asserted firstName === null —
+    // which passed on the MUTATED code too, because the fake also had
+    // `participants: null`, so an unconditional read returns null as well. The
+    // test could not tell "the gate withheld it" from "there was nothing to
+    // read". A test that passes on both the correct and the broken
+    // implementation proves nothing.
+    //
+    // So the participant row IS present with a name, and the ONLY reason to
+    // withhold it is the missing verified contact. Now the two implementations
+    // give different answers, and the difference is the assertion.
+    const NAMED = "4d5e6f70-1a2b-3c4d-5e6f-708192a3b4c5";
+    const { db } = fakeDb({
+      assessment_sessions: null,
+      participants: { participant_id: NAMED, first_name: "Alicia" },
+      participant_contacts: null, // no verified contact row — the only gate
+    });
+    const { GET } = await bind("@/app/api/session/resumable/route", db);
+    const res = await GET(new Request(`http://x/api/session/resumable?participantId=${NAMED}`));
+    const body = await res.json();
+    console.log("  name present but unverified ->", JSON.stringify(body));
+    expect(
+      body.firstName,
+      "the participant row carries a name, but no verified contact exists — §15 forbids using it",
+    ).toBe(null);
+  });
+
+  it("...and returns it once the contact IS verified", async () => {
+    // The other half. Without this, a route that never returns a name at all
+    // would satisfy the test above, and §4.1's required first-name welcome
+    // would be silently absent — which is exactly the state the greeting
+    // defect was found in.
+    const NAMED = "4d5e6f70-1a2b-3c4d-5e6f-708192a3b4c5";
+    const { db } = fakeDb({
+      assessment_sessions: null,
+      participants: { participant_id: NAMED, first_name: "Alicia" },
+      participant_contacts: {
+        participant_id: NAMED,
+        contact_type: "email",
+        verified_at: "2026-10-01T00:00:00Z",
+      },
+    });
+    const { GET } = await bind("@/app/api/session/resumable/route", db);
+    const res = await GET(new Request(`http://x/api/session/resumable?participantId=${NAMED}`));
+    const body = await res.json();
+    console.log("  verified contact ->", JSON.stringify(body));
+    expect(body.firstName, "a verified participant must be greeted by name").toBe("Alicia");
   });
 
   it("rejects a missing or malformed participant id", async () => {

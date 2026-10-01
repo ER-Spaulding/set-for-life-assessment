@@ -20,14 +20,27 @@ export function ResumeCard({
   onContinue,
   onStartNew,
 }: {
-  firstName: string;
+  /**
+   * The participant's first name, or null when it is not verified.
+   *
+   * NOT `firstName || "there"`. That fallback shipped, and because the caller's
+   * state was never populated it fired for every participant — every returning
+   * participant was greeted "Welcome back, there." A placeholder that occupies
+   * the name slot reads as a name and satisfies nobody: §4.1 asks for a
+   * first-name welcome, and a wrong greeting is worse than no name at all.
+   *
+   * When the name is null the heading simply omits it, which is still warm and
+   * still true.
+   */
+  firstName: string | null;
   inProgress: { responsesSaved: number; total: number } | null;
   onContinue: () => void;
   onStartNew: () => void;
 }) {
+  const name = firstName?.trim() ? `, ${firstName.trim()}` : "";
   const heading = inProgress
-    ? `Welcome back, ${firstName}. You have an assessment in progress.`
-    : `Welcome back, ${firstName}. Ready to see what has changed?`;
+    ? `Welcome back${name}. You have an assessment in progress.`
+    : `Welcome back${name}. Ready to see what has changed?`;
 
   const primary =
     "px-8 py-4 font-serif transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-evergreen";

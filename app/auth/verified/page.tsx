@@ -57,8 +57,15 @@ function VerifiedInner() {
             sessionId: string;
             currentPosition: number;
           } | null;
+          firstName?: string | null;
         };
         if (!alive) return;
+        // §4.1's first-name welcome. Null for an unverified participant, and the
+        // card then greets without a name rather than substituting a placeholder
+        // — see ResumeCard.
+        if (typeof data.firstName === "string" && data.firstName.trim()) {
+          setFirstName(data.firstName.trim());
+        }
         if (data.resumable) {
           setSessionId(data.resumable.sessionId);
           // §8A: "17 of 31 responses saved" — factual, no percentage-to-goal.
@@ -129,7 +136,13 @@ function VerifiedInner() {
   return (
     <main className="surface-ivory flex min-h-screen w-full items-center justify-center px-6 py-16 sm:px-10 lg:px-16">
       <ResumeCard
-        firstName={firstName || "there"}
+        // Passed as-is. The previous `firstName || "there"` fallback produced
+        // "Welcome back, there." for EVERY returning participant, because
+        // `firstName` was initialized to "" and never populated — a defective
+        // greeting that read as a name and satisfied nobody. §4.1 wants a
+        // first-name welcome; when there is no verified name, ResumeCard drops
+        // the name rather than filling the slot.
+        firstName={firstName || null}
         inProgress={inProgress}
         onContinue={() => {
           if (sessionId) router.push(`/assessment/${sessionId}`);
