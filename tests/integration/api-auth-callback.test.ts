@@ -42,9 +42,19 @@ function realToken(purpose: string, contact: string, expiresAt: number): string 
     .digest("hex");
 }
 
-function link(params: Record<string, string>): Request {
+/**
+ * A redemption request.
+ *
+ * `asJson` mirrors what a non-browser caller sends. The route now REDIRECTS a
+ * browser (a participant clicking the emailed link must land on a page, not on
+ * raw JSON) and returns JSON only when the caller asks for it — so tests that
+ * assert on the body must opt in, exactly as an API client would.
+ */
+function link(params: Record<string, string>, asJson = true): Request {
   const qs = new URLSearchParams(params).toString();
-  return new Request(`http://x/auth/callback?${qs}`);
+  return new Request(`http://x/auth/callback?${qs}`, {
+    headers: asJson ? { accept: "application/json" } : {},
+  });
 }
 
 const FUTURE = Date.now() + 10 * 60 * 1000;
@@ -54,6 +64,8 @@ interface CallOpts {
   /** Sequential results for the participant_contacts lookups (first, re-lookup). */
   contactRows?: Array<Record<string, unknown> | null>;
   insertContactError?: { code?: string } | null;
+  /** Ask for JSON (API caller). Default true; false exercises the browser path. */
+  asJson?: boolean;
 }
 
 async function call(params: Record<string, string>, opts: CallOpts = {}) {
@@ -117,7 +129,7 @@ async function call(params: Record<string, string>, opts: CallOpts = {}) {
   const { serviceClient } = await import("@/lib/db/client");
   vi.mocked(serviceClient).mockReturnValue(db as never);
   const { GET } = await import("@/app/auth/callback/route");
-  const res = await GET(link(params));
+  const res = await GET(link(params, opts.asJson ?? true));
   return {
     res,
     body: await res.json().catch(() => null),
@@ -201,6 +213,9 @@ describe("no duplicate participant records (PRD §23.1)", () => {
       newParticipant: false,
     });
     expect(written).toHaveLength(0);
+    // The participant id must also be handed to the browser as a cookie, so
+    // the flow can create a session without the id in client-readable storage.
+    expect(res.headers.get("set-cookie") ?? "").toContain("sfl_pid=existing-pid");
   });
 
   it("a new email creates exactly one participant + one verified contact", async () => {
@@ -210,6 +225,7 @@ describe("no duplicate participant records (PRD §23.1)", () => {
     console.log("  new ->", res.status, JSON.stringify(body));
     console.log("  writes:", JSON.stringify(written));
     expect(res.status).toBe(201);
+    expect(res.headers.get("set-cookie") ?? "").toContain("sfl_pid=new-pid");
     expect(body).toEqual({
       verified: true,
       participantId: "new-pid",
@@ -244,5 +260,33 @@ describe("no duplicate participant records (PRD §23.1)", () => {
       newParticipant: false,
     });
     expect(orphanDeleted).toBe("new-pid");
+  });
+});
+
+describe("a BROWSER clicking the emailed link lands on a page, not on JSON", () => {
+  it("redirects (303) to the verified page and sets the participant cookie", async () => {
+    // Before this, clicking a verification link showed the participant
+    // `{"verified":true,...}` — which reads as a broken product. The redirect
+    // preserves the guarantee that the id is only ever issued as a result of
+    // redeeming a server-verified link.
+    const { res } = await call(goodParams("new"), { contactRows: [null], asJson: false });
+    const location = res.headers.get("location") ?? "";
+    console.log("  browser ->", res.status, location);
+    expect(res.status).toBe(303);
+    expect(location).toContain("/auth/verified");
+    expect(location).toContain("participantId=");
+    expect(res.headers.get("set-cookie") ?? "").toContain("sfl_pid=");
+  });
+
+  it("an EXPIRED link still refuses in both modes (410)", async () => {
+    // The redirect must not become a way around expiry. Asserted for the
+    // browser path specifically, since that is the new branch.
+    const params = goodParams("new");
+    params.expiresAt = String(Date.now() - 1000);
+    params.token = realToken("new", EMAIL, Number(params.expiresAt));
+    const { res } = await call(params, { contactRows: [null], asJson: false });
+    console.log("  expired browser ->", res.status);
+    expect(res.status).toBe(410);
+    expect(res.headers.get("set-cookie")).toBeNull();
   });
 });

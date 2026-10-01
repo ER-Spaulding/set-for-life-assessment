@@ -36,6 +36,52 @@ function tokensEqual(a: string, b: string): boolean {
   return ba.length === bb.length && timingSafeEqual(ba, bb);
 }
 
+/**
+ * The participant id is kept in an httpOnly cookie so the assessment flow can
+ * create a session without the id living in client-readable storage or in the
+ * URL. Set ONLY here, as the result of redeeming a verified link.
+ *
+ * `sameSite: "lax"` so it survives the top-level navigation from the email
+ * client; `secure` in production only, because localhost is http.
+ */
+const PID_COOKIE = "sfl_pid";
+const PID_COOKIE_MAX_AGE = 60 * 60 * 24 * 30; // 30 days
+
+/**
+ * Respond to a successful redemption.
+ *
+ * A BROWSER CLICKING THE EMAIL LINK must land on a page, not on raw JSON —
+ * that was the behaviour before, and a participant clicking a verification
+ * link and seeing `{"verified":true,...}` reads as a broken product. An API
+ * caller that asks for JSON still gets JSON.
+ *
+ * The cookie is set in BOTH cases: the redirect needs it, and a JSON consumer
+ * driving the flow benefits from it too.
+ */
+function redemptionResponse(request: Request, participantId: string, isNew: boolean) {
+  const wantsJson = (request.headers.get("accept") ?? "").includes("application/json");
+  const cookieName = PID_COOKIE;
+  const cookieValue =
+    `${cookieName}=${participantId}; Path=/; Max-Age=${PID_COOKIE_MAX_AGE}; SameSite=Lax; HttpOnly` +
+    (process.env.NODE_ENV === "production" ? "; Secure" : "");
+
+  if (wantsJson) {
+    const res = NextResponse.json(
+      { verified: true, participantId, newParticipant: isNew },
+      { status: isNew ? 201 : 200 },
+    );
+    res.headers.append("set-cookie", cookieValue);
+    return res;
+  }
+
+  const res = NextResponse.redirect(
+    new URL(`/auth/verified?participantId=${encodeURIComponent(participantId)}`, request.url),
+    303,
+  );
+  res.headers.append("set-cookie", cookieValue);
+  return res;
+}
+
 export async function GET(request: Request) {
   if (!isDatabaseConfigured()) {
     return NextResponse.json(
@@ -128,11 +174,11 @@ export async function GET(request: Request) {
       .from("participant_contacts")
       .update({ verified_at: nowIso })
       .eq("contact_id", (existing as { contact_id: string }).contact_id);
-    return NextResponse.json({
-      verified: true,
-      participantId: (existing as { participant_id: string }).participant_id,
-      newParticipant: false,
-    });
+    return redemptionResponse(
+      request,
+      (existing as { participant_id: string }).participant_id,
+      false,
+    );
   }
 
   // New email → exactly one participant + one verified contact.
@@ -169,11 +215,11 @@ export async function GET(request: Request) {
         .eq("normalized_value", contact)
         .maybeSingle();
       if (winner) {
-        return NextResponse.json({
-          verified: true,
-          participantId: (winner as { participant_id: string }).participant_id,
-          newParticipant: false,
-        });
+        return redemptionResponse(
+          request,
+          (winner as { participant_id: string }).participant_id,
+          false,
+        );
       }
     }
     return NextResponse.json(
@@ -182,8 +228,5 @@ export async function GET(request: Request) {
     );
   }
 
-  return NextResponse.json(
-    { verified: true, participantId: pid, newParticipant: true },
-    { status: 201 },
-  );
+  return redemptionResponse(request, pid, true);
 }

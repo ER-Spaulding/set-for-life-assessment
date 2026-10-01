@@ -1,69 +1,78 @@
-import Image from "next/image";
+// UIUX §8 S01 — Arrival / Opening.
+//
+// "Editorial statement + concise purpose + Begin My Assessment."
+//
+// This is the participant's first impression and §25 sets the register:
+// "premium editorial rather than generic SaaS quiz". So: a large Playfair
+// declaration, a short reason to continue, and one action. No feature list, no
+// testimonial, no urgency, no countdown.
+//
+// ALLURA APPEARS ONCE, on the closing brand line, per the font rule that it is
+// reserved for "short handwritten brand accents" and never body copy. A single
+// accent is what makes it read as a signature rather than decoration.
+//
+// This is a server component: it renders no state and needs no client bundle.
+
+import Link from "next/link";
 
 export default function Home() {
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert h-5 w-[100px]"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the{" "}
-            <code className="rounded bg-black/[.06] px-1.5 py-0.5 font-mono text-[0.9em] dark:bg-white/[.08]">
-              page.tsx
-            </code>{" "}
-            file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
-        </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
+    <main className="surface-ivory flex min-h-screen w-full flex-col px-6 py-16 sm:px-10 lg:px-16">
+      <div className="mx-auto w-full max-w-[1080px]">
+        <p
+          className="font-display text-evergreen"
+          style={{ fontSize: "20px", lineHeight: "26px" }}
+        >
+          Set for Life
+        </p>
+        <div className="mt-3 w-full border-t border-blush" aria-hidden="true" />
+
+        <h1
+          className="mt-20 font-display text-evergreen"
+          style={{ fontSize: "var(--type-t01-size)", lineHeight: "var(--type-t01-line)" }}
+        >
+          A clearer picture of where you stand.
+        </h1>
+
+        <p
+          className="prose-measure mt-10 font-serif text-obsidian"
+          style={{ fontSize: "var(--type-t07-size)", lineHeight: "var(--type-t07-line)" }}
+        >
+          Thirty-one questions about how you see, direct, and prepare with your
+          money. At the end you receive a Financial Snapshot — a written
+          account of what your answers show, in plain language.
+        </p>
+
+        <p
+          className="prose-measure mt-6 font-body text-obsidian"
+          style={{ fontSize: "18px", lineHeight: "29px" }}
+        >
+          There are no right answers, and nothing here is a test. Your responses
+          are saved as you go, so you can stop and return.
+        </p>
+
+        <div className="mt-16">
+          <Link
+            href="/assessment/start"
+            className="inline-block bg-evergreen px-10 py-5 font-serif text-ivory transition-colors hover:bg-evergreen/90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-evergreen"
+            style={{
+              fontSize: "var(--type-t13-size)",
+              lineHeight: "var(--type-t13-line)",
+              borderRadius: "2px",
+              minHeight: "56px",
+            }}
           >
-            <Image
-              className="dark:invert h-[14px] w-4"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={14}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
+            Begin My Assessment
+          </Link>
         </div>
-      </main>
-    </div>
+
+        <p
+          className="mt-24 font-script text-rose"
+          style={{ fontSize: "var(--type-t15-size)", lineHeight: "var(--type-t15-line)" }}
+        >
+          Set for Life
+        </p>
+      </div>
+    </main>
   );
 }
