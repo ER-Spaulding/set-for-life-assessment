@@ -244,4 +244,39 @@ describe("§9 placement resolves consistently", () => {
     console.log("  MM05 says:", JSON.stringify(body.slice(0, 60) + "..."));
     expect(body).toMatch(/four more questions/i);
   });
+
+  it("every moment lands on the item its own config names", () => {
+    // `afterItemId` is DERIVED, not authoritative: `moneyMomentPlacements()`
+    // reads `afterDiagnosticIndex` and resolves it against the administered
+    // order (lib/ui/questions.ts:174). Nothing in app/, lib/ or components/
+    // reads `afterItemId` at all.
+    //
+    // Because it is dead data, it can rot silently — and if a future reader
+    // trusts it over the index, they will "fix" a placement that was never
+    // broken. (It nearly caught me: MM02 declares afterItemId "Q3" for
+    // position 10, which reads as an error until you know the instrument is
+    // administered in a shuffled order.)
+    //
+    // This test makes the two fields agree, so the config cannot be read two
+    // ways. If the instrument order changes, this fails and tells you which
+    // label went stale.
+    const bank = JSON.parse(
+      readFileSync(resolve(repo, "config/assessment-v1.0.json"), "utf8"),
+    ) as { questions: Array<{ internal_id: string; external_order?: number }> };
+
+    const administered = [...bank.questions]
+      .sort((a, b) => (a.external_order ?? 0) - (b.external_order ?? 0))
+      .map((q) => q.internal_id);
+
+    for (const m of shipped()) {
+      const resolved = administered[m.placement.afterDiagnosticIndex - 1];
+      console.log(
+        `  ${m.id}: index ${m.placement.afterDiagnosticIndex} -> ${resolved} (config labels it ${m.placement.afterItemId})`,
+      );
+      expect(
+        resolved,
+        `${m.id}.placement.afterItemId (${m.placement.afterItemId}) does not match the item at index ${m.placement.afterDiagnosticIndex} (${resolved}) — one of the two is stale`,
+      ).toBe(m.placement.afterItemId);
+    }
+  });
 });
