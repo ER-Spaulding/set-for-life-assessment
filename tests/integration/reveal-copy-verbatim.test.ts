@@ -33,25 +33,63 @@ import { resolve } from "node:path";
  */
 
 const repo = resolve(__dirname, "../..");
-const ADDEMDUM = resolve(
-  "/Users/erspaulding/Downloads",
-  "Set_for_Life_PRD_ADDENDUM_01_Results_Synthesis_and_Financial_Snapshot_FINAL_v1.1.md",
-);
+const DOWNLOADS = "/Users/erspaulding/Downloads";
+const STEM = "Set_for_Life_PRD_ADDENDUM_01_Results_Synthesis_and_Financial_Snapshot_FINAL_v1.1";
+
+/**
+ * Where the authoritative source may be found, in order of preference.
+ *
+ * `(1)` IS A REAL VARIANT THAT APPEARS HERE. Restoring or re-downloading this
+ * document produces a Finder-deduplicated "…(1).md". Both copies have been
+ * verified byte-identical (same sha256) to the file the reveal was built
+ * against, so accepting either is safe — but if they ever DIVERGE, the first
+ * match wins silently and a wrong string could pass. The equality check below
+ * is what makes that impossible: whichever file is read, its content must
+ * still produce the exact strings the reveal ships.
+ */
+const CANDIDATES = [
+  resolve(DOWNLOADS, `${STEM}.md`),
+  resolve(DOWNLOADS, `${STEM} (1).md`),
+  resolve("/Users/erspaulding/.Trash", `${STEM}.md`),
+];
+
+/**
+ * WHY THE .docx IS DELIBERATELY NOT A CANDIDATE HERE — though it IS the more
+ * original artifact.
+ *
+ * The extraction patterns below are MARKDOWN patterns: they key on `**FRAME 1**`
+ * and on copy following a heading on the next line. A .docx has no `**` markers,
+ * and its text runs concatenate across section boundaries — the CTA extracts as
+ * "SEE MY FINANCIAL PICTURE ->4.3 Motio", welded to the following heading. So
+ * the docx is not reliably machine-extractable with these patterns.
+ *
+ * This was MEASURED, not assumed. A docx branch was written, wired in, and then
+ * actually exercised by pointing the candidate list at the .docx alone — where
+ * it failed 2 of 13 tests. A fallback that cannot run is worse than no fallback,
+ * because it advertises coverage it does not provide. It was removed rather than
+ * shipped green-by-absence.
+ *
+ * The docx WAS cross-checked by hand for the code points that matter (the ASCII
+ * `->`, the three ASCII dots, frame 3's single sentence), and it agrees with the
+ * .md. The .md is the extraction source; the docx is corroboration.
+ */
 
 /** Read the authoritative source, or fail loudly — never skip. */
 function addendum(): string {
-  if (!existsSync(ADDEMDUM)) {
+  const found = CANDIDATES.filter((p) => existsSync(p));
+  if (found.length === 0) {
     // Deliberately a failure, not a skip. A verbatim guard that silently passes
     // when it cannot find its source is worse than no guard: it reports safety
-    // it did not check. If this fires, restore the addendum to ~/Downloads.
+    // it did not check. If this fires, restore the addendum rather than deleting
+    // this test — it is the only thing checking locked copy against its source.
     throw new Error(
-      `Addendum 01 v1.1 not found at ${ADDEMDUM}. This guard verifies locked ` +
-        `participant-facing copy against the authoritative source; it cannot ` +
-        `run without it. Restore the document (it may have been moved to ` +
-        `~/.Trash) rather than deleting this test.`,
+      `Addendum 01 v1.1 not found. Looked in:\n  ${CANDIDATES.join("\n  ")}\n` +
+        `This guard verifies locked participant-facing copy against its ` +
+        `authoritative source; it cannot run without it. The document may have ` +
+        `been moved to ~/.Trash.`,
     );
   }
-  return readFileSync(ADDEMDUM, "utf8");
+  return readFileSync(found[0], "utf8");
 }
 
 function extract(pattern: RegExp): string {
