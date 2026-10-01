@@ -38,6 +38,7 @@ import {
   deriveEvidenceConfidence,
   loadConfidenceDerivation,
 } from "../assessment/evidence-chain";
+import { assembleSnapshotPayload } from "../assessment/snapshot-payload";
 import type {
   EvidenceConfidence,
   SignalId,
@@ -480,6 +481,61 @@ export async function completeSession(sessionId: string): Promise<CompletionResu
     if (tErr) throw new Error(`session: tensions ${tErr.message}`);
   }
 
+  // ---- assemble and PERSIST the Snapshot payload (Addendum 01 §3, §5) ----
+  //
+  // ORDER MATTERS: the payload is written BEFORE the session flips to
+  // 'completed'. The immutability triggers fire on completion, so writing
+  // afterwards would be rejected — and a completed session with no stored
+  // Snapshot would be exactly the state §5 forbids, where the web page and the
+  // PDF each recompute and can disagree.
+  //
+  // A failure here must not leave the session half-completed, so the payload
+  // write happens first and the status update only follows on success.
+  const payload = assembleSnapshotPayload({
+    versions: {
+      assessment: PINNED_VERSION,
+      questionBank: PINNED_VERSION,
+      scoring: PINNED_VERSION,
+      narrative: PINNED_VERSION,
+      report: PINNED_VERSION,
+    },
+    signals: scored.signals,
+    tensionCodes,
+    classifierTags: Object.values(tags).flat(),
+    activationSelections: {
+      A1: letterOf(codesFor("A1")[0] ?? ""),
+      A2: letterOf(codesFor("A2")[0] ?? ""),
+      A3: letterOf(codesFor("A3")[0] ?? ""),
+      A4: letterOf(codesFor("A4")[0] ?? ""),
+    },
+    openingB: items["OPEN_B"] ?? null,
+    q16Selections: codesFor("Q16"),
+    signalMeans: Object.fromEntries(
+      (Object.keys(scored.signals) as SignalId[]).map((s) => [
+        s,
+        scored.signals[s].value ?? 0,
+      ]),
+    ),
+    perceptionGapConfig: (cfg as Record<string, unknown>)["perception_gap"],
+    moveSubsignals: scored.moveSubsignals as unknown as Record<string, number | null>,
+  });
+
+  const { error: snapErr } = await db.from("snapshots").insert({
+    session_id: sessionId,
+    report_version: PINNED_VERSION,
+    // Both columns carry the SAME object: `payload_json` is the current name
+    // (Addendum §15) and `rendered_payload_json` is retained for readers that
+    // predate the migration. Writing one and not the other would make the two
+    // names disagree, which is the drift this whole layer exists to prevent.
+    payload_json: payload,
+    rendered_payload_json: payload,
+    assessment_version: PINNED_VERSION,
+    question_bank_version: PINNED_VERSION,
+    scoring_config_version: PINNED_VERSION,
+    narrative_version: PINNED_VERSION,
+  });
+  if (snapErr) throw new Error(`session: snapshot ${snapErr.message}`);
+
   const { error: upErr } = await db
     .from("assessment_sessions")
     .update({ status: "completed", completed_at: nowIso })
@@ -508,57 +564,80 @@ export async function loadSnapshot(sessionId: string) {
   if (sErr) throw new Error(`session: ${sErr.message}`);
   if (!session || session.status !== "completed") return null;
 
-  // The schema's column names — see the completion insert for the full note.
-  // `special_state` is NOT on this table; the off-ladder states are read from
-  // `overrides` below, which is where they are written.
-  const { data: signals, error: gErr } = await db
-    .from("computed_signals")
-    .select("signal_id, raw_value, state")
-    .eq("session_id", sessionId);
-  if (gErr) throw new Error(`session: ${gErr.message}`);
+  // READ THE PERSISTED PAYLOAD — do not recompute (Addendum 01 §3, §5).
+  //
+  // This method used to re-derive the whole Snapshot from computed_signals,
+  // overrides and tensions on every read. §5 forbids that: the web results and
+  // the PDF "must use the same completed, immutable snapshot_payload", and a
+  // payload rebuilt on each read can drift from the one a PDF was generated
+  // against — a config recalibration between two visits would silently change
+  // what a participant's own report says.
+  //
+  // `payload_json` is the current column; `rendered_payload_json` is read as a
+  // fallback for any row written before the migration added the former.
+  const { data: snapshot, error: nErr } = await db
+    .from("snapshots")
+    .select("snapshot_id, payload_json, rendered_payload_json, report_version, generated_at")
+    .eq("session_id", sessionId)
+    .maybeSingle();
+  if (nErr) throw new Error(`session: ${nErr.message}`);
 
-  const { data: overrides, error: oErr } = await db
-    .from("overrides")
-    .select("override_code, payload")
-    .eq("session_id", sessionId);
-  if (oErr) throw new Error(`session: ${oErr.message}`);
-
-  const { data: tensions, error: tErr } = await db
-    .from("tensions")
-    .select("tension_code")
-    .eq("session_id", sessionId);
-  if (tErr) throw new Error(`session: ${tErr.message}`);
-
-  const codes = (tensions ?? []).map((t: { tension_code: string }) => t.tension_code);
-
-  // signal -> off-ladder (special) state, from the overrides payloads.
-  const specialBySignal = new Map<string, string>();
-  for (const row of (overrides ?? []) as Array<{
-    override_code: string;
-    payload: { signal?: unknown; display_state?: unknown } | null;
-  }>) {
-    const signal = row.payload?.signal;
-    if (typeof signal === "string") specialBySignal.set(signal, row.override_code);
+  // A completed session with no stored Snapshot means completion was
+  // interrupted between the payload write and the status flip — should be
+  // unreachable given the write order, but reported rather than papered over
+  // with a live recompute, which is exactly the behaviour §5 prohibits.
+  if (!snapshot) {
+    throw new Error(
+      `session: completed session ${sessionId} has no stored Snapshot payload`,
+    );
   }
 
+  const payload = (snapshot.payload_json ?? snapshot.rendered_payload_json) as {
+    signals?: Array<{
+      signal: string;
+      state: string | null;
+      specialState: string | null;
+      displayState: string | null;
+      narrativeKey: string | null;
+    }>;
+    connections?: Array<{ code: string; narrativeKey: string }>;
+    attentionAreas?: string[];
+    nullFinding?: boolean;
+  } | null;
+
+  if (!payload) {
+    throw new Error(
+      `session: Snapshot ${snapshot.snapshot_id} has a null payload`,
+    );
+  }
+
+  const signals = payload.signals ?? [];
+  const connectionCodes = (payload.connections ?? []).map((c) => c.code);
+
   return {
-    sessionId,
-    signals: (signals ?? []).map(
-      (s: { signal_id: string; state: string | null }) => {
-        const special = specialBySignal.get(s.signal_id) ?? null;
-        return {
-          signal: s.signal_id,
-          // The renderable state: the special state when one applies.
-          state: special ?? s.state,
-          narrativeKey: special
-            ? `special_signal_states.${special}`
-            : `signal_states.${s.signal_id}.${s.state}`,
-        };
-      },
-    ),
-    tensionCodes: codes,
-    connectionKeys: codes,
-    attentionArea: selectAttentionArea(codes as never),
+    snapshotId: snapshot.snapshot_id,
+    reportVersion: snapshot.report_version,
+    generatedAt: snapshot.generated_at,
+
+    // The renderable view of each signal, straight from the stored payload.
+    signals: signals.map((s) => ({
+      signal: s.signal,
+      state: s.displayState ?? s.state,
+      narrativeKey: s.narrativeKey,
+    })),
+
+    // Kept under both names for the existing web renderer; they are the same
+    // list by construction (§24 keeps the codes, which are also the library
+    // keys, away from the participant-facing copy).
+    tensionCodes: connectionCodes,
+    connectionKeys: connectionCodes,
+
+    attentionArea: payload.attentionAreas?.[0] ?? "KEEP_OBSERVING",
+    attentionAreas: payload.attentionAreas ?? [],
+
+    // The full payload is available for the PDF renderer and the richer web
+    // modules; the flat fields above remain for the current consumer.
+    payload,
   };
 }
 

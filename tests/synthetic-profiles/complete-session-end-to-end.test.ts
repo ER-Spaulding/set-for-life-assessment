@@ -50,6 +50,10 @@ interface Captured {
   computedSignals: Array<Record<string, unknown>>;
   tensions: Array<Record<string, unknown>>;
   overrides: Array<Record<string, unknown>>;
+  /** The persisted Snapshot payload (Addendum 01 §3/§5). */
+  snapshot: Record<string, unknown> | null;
+  /** Order of operations, so the payload-before-completion contract is testable. */
+  writes: string[];
   sessionUpdate: Record<string, unknown> | null;
 }
 
@@ -58,6 +62,8 @@ function fakeDb(rows: Array<{ item_id: string; option_code: string }>) {
     computedSignals: [],
     tensions: [],
     overrides: [],
+    snapshot: null,
+    writes: [],
     sessionUpdate: null,
   };
 
@@ -74,6 +80,7 @@ function fakeDb(rows: Array<{ item_id: string; option_code: string }>) {
         return {
           upsert: (payload: Array<Record<string, unknown>>) => {
             captured.computedSignals = payload;
+            captured.writes.push("computed_signals");
             return Promise.resolve({ error: null });
           },
         };
@@ -82,6 +89,7 @@ function fakeDb(rows: Array<{ item_id: string; option_code: string }>) {
         return {
           upsert: (payload: Array<Record<string, unknown>>) => {
             captured.tensions = payload;
+            captured.writes.push("tensions");
             return Promise.resolve({ error: null });
           },
         };
@@ -90,6 +98,16 @@ function fakeDb(rows: Array<{ item_id: string; option_code: string }>) {
         return {
           upsert: (payload: Array<Record<string, unknown>>) => {
             captured.overrides = payload;
+            captured.writes.push("overrides");
+            return Promise.resolve({ error: null });
+          },
+        };
+      }
+      if (table === "snapshots") {
+        return {
+          insert: (payload: Record<string, unknown>) => {
+            captured.snapshot = payload;
+            captured.writes.push("snapshots");
             return Promise.resolve({ error: null });
           },
         };
@@ -98,6 +116,7 @@ function fakeDb(rows: Array<{ item_id: string; option_code: string }>) {
         const q = {
           update: (payload: Record<string, unknown>) => {
             captured.sessionUpdate = payload;
+            captured.writes.push("assessment_sessions");
             return q;
           },
           eq: () => Promise.resolve({ error: null }),
@@ -321,6 +340,101 @@ describe("completeSession end to end — the activation fix reaches the persiste
     expect(result.missing).toEqual(["Q25"]);
     // The server-authority gate (PRD §23.5): nothing is written.
     expect(captured.computedSignals).toEqual([]);
+    expect(captured.sessionUpdate).toBeNull();
+  });
+});
+
+describe("Snapshot payload is persisted at completion (Addendum 01 §3, §5)", () => {
+  it("writes a snapshot row carrying the assembled payload", async () => {
+    const { captured } = await run({ Q11: "Q11_A" });
+    const snap = captured.snapshot as Record<string, unknown> | null;
+    console.log("  snapshot columns:", JSON.stringify(Object.keys(snap ?? {})));
+    expect(snap).not.toBeNull();
+    expect(snap!.payload_json).toBeTruthy();
+    // Both columns must hold the SAME object, or the two names drift.
+    expect(snap!.payload_json).toEqual(snap!.rendered_payload_json);
+    // Version pinning (§3).
+    expect(snap!.report_version).toBe("1.0");
+    expect(snap!.assessment_version).toBe("1.0");
+    expect(snap!.question_bank_version).toBe("1.0");
+    expect(snap!.scoring_config_version).toBe("1.0");
+    expect(snap!.narrative_version).toBe("1.0");
+  });
+
+  it("the payload carries all six signals with resolvable narrative keys", async () => {
+    const { captured } = await run({});
+    const payload = captured.snapshot!.payload_json as {
+      signals: Array<{ signal: string; narrativeKey: string | null }>;
+    };
+    console.log("  payload signals:", JSON.stringify(payload.signals.map((s) => [s.signal, s.narrativeKey])));
+    expect(payload.signals).toHaveLength(6);
+    for (const s of payload.signals) {
+      expect(s.narrativeKey, `${s.signal} must carry a key`).toBeTruthy();
+      const ok = s.narrativeKey!.startsWith("special_signal_states.")
+        || /^signal_states\.[A-Z]+\.[S][1-5]$/.test(s.narrativeKey!);
+      expect(ok, `bad key shape: ${s.narrativeKey}`).toBe(true);
+    }
+  });
+
+  it("a capacity override reaches the payload as a special state", async () => {
+    const { captured } = await run({ Q11: "Q11_A" });
+    const payload = captured.snapshot!.payload_json as {
+      signals: Array<{ signal: string; specialState: string | null; narrativeKey: string | null }>;
+      bigPicture: { template: string };
+    };
+    const direct = payload.signals.find((s) => s.signal === "DIRECT")!;
+    console.log("  DIRECT in payload:", JSON.stringify(direct));
+    expect(direct.specialState).toBe("DIRECT_CAPACITY_LIMITED");
+    expect(direct.narrativeKey).toBe("special_signal_states.DIRECT_CAPACITY_LIMITED");
+    // §12.2: capacity context precedes agency criticism.
+    expect(payload.bigPicture.template).toBe("CAPACITY_FIRST");
+  });
+
+  it("activation is four separate dimensions with no aggregate (§11, §17)", async () => {
+    const { captured } = await run({ A1: "A1_D", A2: "A2_C", A3: "A3_E", A4: "A4_A" });
+    const payload = captured.snapshot!.payload_json as {
+      activation: Record<string, string>;
+    };
+    console.log("  payload activation:", JSON.stringify(payload.activation));
+    expect(Object.keys(payload.activation).sort()).toEqual(["A1", "A2", "A3", "A4"]);
+    expect(payload.activation).not.toHaveProperty("score");
+    expect(payload.activation).not.toHaveProperty("average");
+    expect(payload.activation.A1).toBe("HIGH");
+    expect(payload.activation.A4).toBe("LOW");
+  });
+
+  it("the payload is written BEFORE the session flips to completed", async () => {
+    // ORDER IS LOAD-BEARING. The immutability triggers fire on completion, so a
+    // payload written afterwards would be rejected — leaving a completed
+    // session with no stored Snapshot, which is exactly the state §5 forbids.
+    const { captured } = await run({});
+    const w = captured.writes;
+    console.log("  write order:", JSON.stringify(w));
+    expect(w.indexOf("snapshots")).toBeGreaterThan(-1);
+    expect(w.indexOf("snapshots")).toBeLessThan(w.indexOf("assessment_sessions"));
+  });
+
+  it("does NOT complete when the snapshot write fails", async () => {
+    // A half-completed session is worse than a failed one: the participant
+    // would have a 'completed' assessment with no stored interpretation.
+    const { db, captured } = (() => {
+      const rows = storedRows({});
+      const base = fakeDb(rows);
+      const realFrom = base.db.from.bind(base.db);
+      base.db.from = ((t: string) => {
+        if (t === "snapshots") {
+          return { insert: () => Promise.resolve({ error: { message: "boom" } }) };
+        }
+        return realFrom(t);
+      }) as never;
+      return base;
+    })();
+    const { serviceClient } = await import("@/lib/db/client");
+    vi.mocked(serviceClient).mockReturnValue(db as never);
+    await expect(
+      completeSession("11111111-2222-3333-4444-555555555555"),
+    ).rejects.toThrow(/snapshot/);
+    // The session must NOT have been marked complete.
     expect(captured.sessionUpdate).toBeNull();
   });
 });
