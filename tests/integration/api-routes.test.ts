@@ -111,7 +111,27 @@ describe("POST /api/session/[id]/complete — server owns completion (PRD §23.5
     const body = await res.json();
 
     expect(res.status).toBe(200);
-    expect(body).toEqual({ complete: true, sessionId: "s-1" });
+    // `firstName` is part of the response because the synthesis reveal renders
+    // its approved completion line with it (Addendum 02 v1.1 §3.2/§15). An
+    // undefined name must surface as an explicit null rather than vanishing,
+    // so the client can tell "no verified identity" from a malformed payload.
+    expect(body).toEqual({ complete: true, sessionId: "s-1", firstName: null });
+  });
+
+  it("passes a verified first name through to the reveal", async () => {
+    // The positive case. Without this, the assertion above would pass on a
+    // route that hardcoded null and the reveal would never personalize.
+    completeSession.mockResolvedValue({
+      sessionId: "s-1",
+      complete: true,
+      firstName: "Avery",
+    });
+    const { POST } = await import("@/app/api/session/[id]/complete/route");
+    const res = await POST(new Request("http://x", { method: "POST" }), ctx("s-1"));
+    const body = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(body.firstName).toBe("Avery");
   });
 
   it("returns 503 when the database is not configured", async () => {

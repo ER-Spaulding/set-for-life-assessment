@@ -178,6 +178,20 @@ export interface CompletionResult {
   missing?: string[];
   present?: number;
   required?: number;
+  /**
+   * The participant's first name, ONLY when their identity is verified.
+   *
+   * Addendum 02 v1.1 §3.2/§15: use a first name "once a first name is known and
+   * verified/associated with the correct participant", and "Do not use a name
+   * before it has been reliably associated with the participant."
+   *
+   * So this is gated on `participant_contacts.verified_at` for a verified email
+   * — the same evidence the identity flow itself uses — and is `null` otherwise.
+   * A participant who has not completed email verification gets no name, and the
+   * reveal renders its approved sentence without the name prefix. There is no
+   * separate "recognized" concept here and none is invented.
+   */
+  firstName?: string | null;
 }
 
 /**
@@ -542,7 +556,59 @@ export async function completeSession(sessionId: string): Promise<CompletionResu
     .eq("session_id", sessionId);
   if (upErr) throw new Error(`session: complete ${upErr.message}`);
 
-  return { sessionId, complete: true };
+  // Resolved AFTER completion succeeds, and never fatal: a missing name is a
+  // cosmetic loss on the reveal, while throwing here would fail a completed
+  // assessment over a greeting. Addendum 02 §3.2 gates the name on verified
+  // association, so an unverified participant gets null by design.
+  const firstName = await verifiedFirstName(db, sessionId).catch(() => null);
+
+  return { sessionId, complete: true, firstName };
+}
+
+/**
+ * The participant's first name, but ONLY when their identity is verified.
+ *
+ * Addendum 02 v1.1 §3.2: use a first name "once a first name is known and
+ * verified/associated with the correct participant"; §15: "Do not use a name
+ * before it has been reliably associated with the participant."
+ *
+ * "Reliably associated" is read from the data model the identity flow already
+ * maintains: a `participant_contacts` row of type email with a non-null
+ * `verified_at`. That is the same evidence the verification callback itself
+ * writes, so this introduces no second notion of verification.
+ *
+ * Deliberately narrow: the name is NOT returned for an unverified participant
+ * even though `participants.first_name` is populated at entry. Entry is not
+ * verification, and §15 forbids the greeting until verification exists.
+ */
+async function verifiedFirstName(
+  db: ReturnType<typeof serviceClient>,
+  sessionId: string,
+): Promise<string | null> {
+  const { data: session } = await db
+    .from("assessment_sessions")
+    .select("participant_id")
+    .eq("session_id", sessionId)
+    .maybeSingle();
+  const participantId = (session as { participant_id?: string } | null)?.participant_id;
+  if (!participantId) return null;
+
+  const { data: contact } = await db
+    .from("participant_contacts")
+    .select("verified_at")
+    .eq("participant_id", participantId)
+    .eq("contact_type", "email")
+    .not("verified_at", "is", null)
+    .maybeSingle();
+  if (!contact) return null;
+
+  const { data: participant } = await db
+    .from("participants")
+    .select("first_name")
+    .eq("participant_id", participantId)
+    .maybeSingle();
+  const name = (participant as { first_name?: string } | null)?.first_name?.trim();
+  return name && name.length > 0 ? name : null;
 }
 
 /**

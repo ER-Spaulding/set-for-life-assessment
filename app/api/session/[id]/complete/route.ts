@@ -56,5 +56,13 @@ export async function POST(
     );
   }
 
-  return NextResponse.json({ complete: true, sessionId: result.sessionId });
+  // `firstName` is the participant's own name, returned only when their
+  // identity is verified (Addendum 02 v1.1 §3.2/§15) so the synthesis reveal
+  // can render its approved completion line. It is null far more often than
+  // not, and the reveal drops the name rather than substituting anything.
+  return NextResponse.json({
+    complete: true,
+    sessionId: result.sessionId,
+    firstName: result.firstName ?? null,
+  });
 }
