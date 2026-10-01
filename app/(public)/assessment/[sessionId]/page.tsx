@@ -231,7 +231,7 @@ export default function SessionPage() {
     }
 
     // Last question answered — hand off to completion.
-    router.push(`/assessment/${sessionId}/complete`);
+    router.push(`/assessment/${sessionId}/profile`);
   }, [persist, index, showTransition, router, sessionId, shownMoments]);
 
   /** Leaving a Money Moment: record it as seen, then decide what comes next. */
@@ -249,7 +249,7 @@ export default function SessionPage() {
       }
       if (!advance) return;
       if (index + 1 < REQUIRED_QUESTION_COUNT) setIndex(index + 1);
-      else router.push(`/assessment/${sessionId}/complete`);
+      else router.push(`/assessment/${sessionId}/profile`);
     },
     [moment, participantId, claimed, index, router, sessionId],
   );
