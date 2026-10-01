@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { loadQ18Cutoffs } from "@/lib/assessment/overrides";
+import { loadTensionThresholds } from "@/lib/assessment/tensions";
 
 /**
  * Q18 capacity-modifier cutoff parsing — PRD §13.7.
@@ -37,15 +38,25 @@ describe("PRD §13.7 — Q18 modifier cutoffs load from config", () => {
     // If the FIRST-match-number bug regressed, this would read 17 (from "Q17").
     expect(cutoffs.directionHighAtOrAbove).toBe(4.0);
     expect(cutoffs.alignmentLowAtOrBelow).toBe(2);
-    expect(cutoffs.capacityLowAtOrBelow).toBe(2.5);
+    // 2.59 — harmonised 2026-10-01 with the tension engine's capacity_low and
+    // with the approved S2 band ceiling (1.80-2.59). It read 2.5 here while the
+    // tension engine used 2.59, leaving a (2.5, 2.59] gap where a participant
+    // was capacity-limited for one rule and not the other.
+    expect(cutoffs.capacityLowAtOrBelow).toBe(2.59);
+
+    // The property that would have caught the original defect: this loader and
+    // the tension engine must read the SAME number, not merely two defensible
+    // ones. Boundaries are covered in tests/unit/capacity-low-boundary.test.ts.
+    const tt = loadTensionThresholds(scoringCfg);
+    expect(cutoffs.capacityLowAtOrBelow).toBe(tt["capacity_low"].n);
   });
 
   it("preserves decimal precision — never truncates a float cutoff", () => {
     // Guards a second, subtler bug: Number(m[0]) takes the first CHARACTER of
-    // the matched string, so "2.5" silently became 2 and "4.0" became 4. Both
-    // would quietly loosen the §13.7 gates without any error surfacing.
+    // the matched string, so "2.59" would silently become 2 and "4.0" become 4.
+    // Both would quietly loosen the §13.7 gates without any error surfacing.
     const c = loadQ18Cutoffs(scoringCfg);
-    expect(c.capacityLowAtOrBelow).toBe(2.5);
+    expect(c.capacityLowAtOrBelow).toBe(2.59);
     expect(c.capacityLowAtOrBelow).not.toBe(2);
     expect(Number.isInteger(c.capacityLowAtOrBelow)).toBe(false);
   });

@@ -424,7 +424,7 @@
       "condition": {
         "direction_clarity_high": "mean(Q17, Q19) >= 4.0",
         "alignment_low": "Q18 <= 2",
-        "capacity_low": "Capacity mean <= 2.5"
+        "capacity_low": "Capacity mean <= 2.59"
       },
       "_calibration_status": "ASSUMED_PENDING_OPERATOR_REVIEW",
       "effect": "Generate CLEAR_DESTINATION_CAPACITY_CONSTRAINED_ALIGNMENT rather than low-direction language; prefer AIM_CAPACITY_CONSTRAINED_ALIGNMENT as the AIM signal state."
@@ -571,10 +571,10 @@
         "S1",
         "S2"
       ],
-      "numeric": "Capacity mean <= 2.5",
+      "numeric": "Capacity mean <= 2.59",
       "value": "<= 2.59",
       "_calibration_status": "ASSUMED_PENDING_OPERATOR_REVIEW",
-      "_note": "Harmonised with signal_low (<= 2.59). Was 'None', which left a Capacity mean in (2.5, 2.59] classified as S2 'Limited Room' by the band table but NOT counted as capacity_low by the tension engine — so HIGH_DIRECTION_LOW_CAPACITY and the §13.7 Q18 modifier would not fire for a participant the report calls capacity-limited."
+      "_note": "Capacity mean <= 2.59, matching the approved S2 band (1.80-2.59) and signal_low. Harmonisation was applied to the tension engine first and the §13.7 Q18 override LAGGED at 2.5, leaving a (2.5, 2.59] gap where a participant was capacity-limited for one rule and not the other. Corrected 2026-10-01 by operator decision; both paths now read 2.59 from this config."
     },
     "pair_low_avg": {
       "value": "<= 2.5",
@@ -1157,7 +1157,7 @@
     },
     {
       "id": "A3",
-      "threshold": "Signal-level HIGH = S4-S5 (mean >= 3.40); LOW = S1-S2 (mean <= 2.59); capacity_low = mean <= 2.5; pair-low avg <= 2.5",
+      "threshold": "Signal-level HIGH = S4-S5 (mean >= 3.40); LOW = S1-S2 (mean <= 2.59); capacity_low = mean <= 2.59; pair-low avg <= 2.5",
       "rationale": "Derives tension-level high/low from the assumed state bands so one calibration change propagates."
     },
     {
@@ -1172,7 +1172,7 @@
     },
     {
       "id": "A6",
-      "threshold": "Q18 modifier: clarity mean(Q17,Q19) >= 4.0, Q18 <= 2, Capacity <= 2.5",
+      "threshold": "Q18 modifier: clarity mean(Q17,Q19) >= 4.0, Q18 <= 2, Capacity <= 2.59",
       "rationale": "Operationalizes §13.7 'high / low / low' with item_high, item_low, and capacity_low."
     },
     {

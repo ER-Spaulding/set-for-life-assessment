@@ -78,7 +78,8 @@ describe("PRD §29 TEST 11 — high direction / low capacity is capacity-constra
     console.log("  cutoffs:", JSON.stringify(q18cutoffs));
     expect(q18cutoffs.directionHighAtOrAbove).toBe(4.0);
     expect(q18cutoffs.alignmentLowAtOrBelow).toBe(2);
-    expect(q18cutoffs.capacityLowAtOrBelow).toBe(2.5);
+    // Harmonised to 2.59 on 2026-10-01 — see tests/unit/capacity-low-boundary.test.ts.
+    expect(q18cutoffs.capacityLowAtOrBelow).toBe(2.59);
     const fired = evaluateQ18CapacityModifier(
       { directionClarity: 5, q18Value: 1, capacityMean: 1 },
       q18cutoffs,
