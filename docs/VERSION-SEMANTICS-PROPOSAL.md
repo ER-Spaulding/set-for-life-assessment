@@ -124,6 +124,10 @@ from `PINNED_VERSION` (5 of them) and `interstitialVersion()` (1).
 export const PINNED_VERSION = "1.0";
 ```
 
+It is passed **five times** into `assembleSnapshotPayload` — assessment,
+questionBank, scoring, narrative, report. Only the sixth pin
+(`interstitial`) reads its config.
+
 The comment above it, already in the code, records the problem:
 
 > *"KNOWN LIMITATION, RECORDED RATHER THAN HIDDEN: this is a hardcoded literal,
@@ -132,8 +136,26 @@ The comment above it, already in the code, records the problem:
 > that produced the copy — and it would keep claiming "1.0" after a narrative
 > revision."*
 
-`interstitialVersion()` does it correctly — it reads `version` from
-`interstitial-v1.0.json`. The other five do not.
+**Where it is worse than that comment says.** A config-wide check shows three of
+these five configs *do* carry a `version` field already:
+
+| Config | `version` field? | Read anywhere? |
+|---|---|---|
+| `assessment-v1.0.json` | ✅ `"1.0"` | ⚠️ surfaced as `version` on the returned question bank, but **not** used for the Snapshot pin |
+| `scoring-v1.0.json` | ✅ `"1.0"` | ❌ not read |
+| `report-v1.0.json` | ✅ `"1.0"` | ❌ not read |
+| `narratives-v1.0.json` | ❌ absent | — |
+| `signal-state-vocabulary-v1.0.json` | ❌ absent | — |
+| `connection-statements-v1.0.json` | ❌ absent | — |
+| `interstitial-v1.0.json` | ✅ `"1.0"` | ✅ `interstitialVersion()` |
+
+So the fix is smaller than the comment implies **and** larger than a one-liner:
+three of the five could read their config today, two need a `version` field
+added, and none of that helps until the caller stops passing a literal.
+
+A repo-wide search for reads of a loaded config's `.version` finds exactly two
+sites — `lib/assessment/questions.ts:149` (which returns it but does not feed the
+pin) and `interstitialVersion()`. Everything else goes through `PINNED_VERSION`.
 
 **Consequence:** revise the narrative library, the scoring config, or the
 question bank, and every new Snapshot still records `"1.0"`. History and present
@@ -328,11 +350,14 @@ should land in the same change as the column.
 
 Deliberately out of scope, and each needs the operator:
 
-1. **D-1, the `PINNED_VERSION` literal.** Fixing it means giving
-   `scoring-v1.0.json`, `narratives-v1.0.json` and the question bank real
-   `version` fields, then reading them. That changes what "version" *means* for
-   five identifiers, which is the §D-7 decision the operator deferred. This
-   proposal adds the fourth identifier without touching those five.
+1. **D-1, the `PINNED_VERSION` literal.** The mechanical part is now measured:
+   three configs already carry a `version` field, two need one added, and the
+   caller must stop passing a literal. The part that is genuinely a product
+   judgment is what a version *means* once it is read — a hand-bumped label, or
+   a content hash over the config's bytes (which catches an edit made without a
+   bump, the silent failure mode here). That is the §D-7 decision the operator
+   deferred. This proposal adds the fourth identifier without touching those
+   five.
 
 2. **D-2, the dead env vars.** Delete them, or wire them up. Leaving them is the
    one option that is actively misleading.
