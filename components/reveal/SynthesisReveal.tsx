@@ -39,6 +39,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import { usePrefersReducedMotion } from "@/lib/ui/use-reduced-motion";
 import {
   FRAME_1,
   FRAME_2,
@@ -75,26 +76,6 @@ const CTA_ARROW = "->";
 const CTA_LABEL = REVEAL_CTA.endsWith(` ${CTA_ARROW}`)
   ? REVEAL_CTA.slice(0, -(CTA_ARROW.length + 1))
   : REVEAL_CTA;
-
-/**
- * §4.4: "Honor prefers-reduced-motion; reduced-motion uses crossfades/state
- * changes only."
- *
- * Lists all six questions around the center. Returns false on the server so the
- * first paint is the motionless composition, and upgrades on mount if the
- * participant has not asked for reduced motion.
- */
-function usePrefersReducedMotion(): boolean {
-  const [reduced, setReduced] = useState(true);
-  useEffect(() => {
-    const mq = window.matchMedia("(prefers-reduced-motion: reduce)");
-    const apply = () => setReduced(mq.matches);
-    apply();
-    mq.addEventListener("change", apply);
-    return () => mq.removeEventListener("change", apply);
-  }, []);
-  return reduced;
-}
 
 /**
  * The six positions, as grid cells around the center.
