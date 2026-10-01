@@ -45,8 +45,27 @@ import type {
   SignalState,
 } from "../assessment/types";
 
-/** The pinned asset versions a session records at creation (PRD §22.6). */
+/**
+ * The pinned asset versions a session records at creation (PRD §22.6).
+ *
+ * KNOWN LIMITATION, RECORDED RATHER THAN HIDDEN: this is a hardcoded literal,
+ * and `config/narratives-v1.0.json` has no `version` field to read. So a
+ * scenario's `narrative_version` is asserted from a constant, not from the
+ * config that produced the copy — and it would keep claiming "1.0" after a
+ * narrative revision. See docs/DECISIONS-REQUIRED.md §D-7. Changing what a
+ * version MEANS (real config fields vs a content hash) is an operator decision;
+ * until then the interstitial pin below reads its own config, which does carry
+ * a version, so that one cannot drift.
+ */
 export const PINNED_VERSION = "1.0";
+
+/** The interstitial (Money Moment) version — read from config, not hardcoded. */
+function interstitialVersion(): string {
+  const cfg = JSON.parse(
+    readFileSync(resolve(configDir(), "interstitial-v1.0.json"), "utf8"),
+  ) as { version?: unknown };
+  return typeof cfg.version === "string" ? cfg.version : PINNED_VERSION;
+}
 
 /** Option letters map low→high for the 1–5 profile items (PRD §9). */
 const LETTER_VALUES: Record<string, number> = { A: 1, B: 2, C: 3, D: 4, E: 5, F: 5 };
@@ -512,6 +531,9 @@ export async function completeSession(sessionId: string): Promise<CompletionResu
       scoring: PINNED_VERSION,
       narrative: PINNED_VERSION,
       report: PINNED_VERSION,
+      // §3.1: read from the interstitial config, so a Money Moment or reveal
+      // revision moves this pin with it rather than needing a code edit.
+      interstitial: interstitialVersion(),
     },
     signals: scored.signals,
     tensionCodes,
@@ -547,6 +569,9 @@ export async function completeSession(sessionId: string): Promise<CompletionResu
     question_bank_version: PINNED_VERSION,
     scoring_config_version: PINNED_VERSION,
     narrative_version: PINNED_VERSION,
+    // §3.1: the sixth pin. Same value the payload carries under
+    // versions.interstitial, written here so it is queryable without JSONB.
+    interstitial_version: interstitialVersion(),
   });
   if (snapErr) throw new Error(`session: snapshot ${snapErr.message}`);
 

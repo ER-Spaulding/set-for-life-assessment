@@ -65,6 +65,15 @@ export interface SnapshotPayload {
     scoring: string;
     narrative: string;
     report: string;
+    /**
+     * Addendum 01 v1.1 §3.1 requires pinning the INTERSTITIAL version alongside
+     * the other five. It is not bookkeeping: the Money Moments and the synthesis
+     * reveal are interstitial content, so without this pin a stored Snapshot
+     * cannot reproduce which pacing and which reveal the participant actually
+     * saw. A scenario that replayed under revised interstitial copy would look
+     * identical to one that did not.
+     */
+    interstitial: string;
   };
 
   signals: PayloadSignal[];

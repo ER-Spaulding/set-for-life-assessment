@@ -17,7 +17,17 @@ const cfg = JSON.parse(readFileSync(resolve(__dirname, "../../config/scoring-v1.
 const tables = loadScoringTables(cfg);
 const cutoffs = loadQ18Cutoffs(cfg);
 
-const VERSIONS = { assessment: "1.0", questionBank: "1.0", scoring: "1.0", narrative: "1.0", report: "1.0" };
+const VERSIONS = {
+  assessment: "1.0",
+  questionBank: "1.0",
+  scoring: "1.0",
+  narrative: "1.0",
+  report: "1.0",
+  // Addendum 01 v1.1 §3.1 requires this sixth pin. The type makes it
+  // non-optional, which is the point: a fixture cannot quietly omit a version
+  // the payload is required to carry.
+  interstitial: "1.0",
+};
 
 /**
  * Build the letter map the scorer actually receives.
@@ -187,5 +197,43 @@ describe("activation is four separate dimensions, never averaged (§11, §17)", 
     expect(Object.keys(p.activation).sort()).toEqual(["A1","A2","A3","A4"]);
     expect(p.activation).not.toHaveProperty("score");
     expect(p.activation).not.toHaveProperty("average");
+  });
+});
+
+describe("interstitial version pin (Addendum 01 v1.1 §3.1)", () => {
+  it("the payload carries all six pinned versions, including interstitial", () => {
+    // §3.1: "pin assessment, question-bank, scoring/config, narrative,
+    // interstitial, and report versions." The payload previously pinned five.
+    const r = assembleSnapshotPayload({
+      versions: VERSIONS,
+      signals: {} as never,
+      tensionCodes: [],
+      classifierTags: [],
+      activationSelections: { A1: "C", A2: "C", A3: "C", A4: "C" },
+      openingB: null, q16Selections: [], signalMeans: {},
+      perceptionGapConfig: cfg.perception_gap,
+      moveSubsignals: {},
+    } as never);
+
+    console.log("  payload versions:", JSON.stringify(r.versions));
+    expect(Object.keys(r.versions).sort()).toEqual(
+      ["assessment", "interstitial", "narrative", "questionBank", "report", "scoring"].sort(),
+    );
+    expect(r.versions.interstitial).toBe("1.0");
+  });
+
+  it("the interstitial config it pins is the one the Money Moments come from", () => {
+    // Guards the failure mode where the pin cites a version but nothing ties
+    // that version to the content actually shown. If the interstitial config
+    // is revised without its version moving, the pin silently lies — the same
+    // class of defect as §D-7's hardcoded narrative version.
+    const interstitial = JSON.parse(
+      readFileSync(resolve(__dirname, "../../config/interstitial-v1.0.json"), "utf8"),
+    ) as { version?: string; moneyMoments?: unknown[] };
+
+    console.log("  interstitial config version:", interstitial.version);
+    expect(typeof interstitial.version).toBe("string");
+    expect(interstitial.version).toBe(VERSIONS.interstitial);
+    expect(interstitial.moneyMoments).toHaveLength(5);
   });
 });

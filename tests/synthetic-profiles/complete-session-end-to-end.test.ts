@@ -359,6 +359,16 @@ describe("Snapshot payload is persisted at completion (Addendum 01 §3, §5)", (
     expect(snap!.question_bank_version).toBe("1.0");
     expect(snap!.scoring_config_version).toBe("1.0");
     expect(snap!.narrative_version).toBe("1.0");
+    // §3.1's sixth pin. Asserted on the ROW, not just the payload — the two are
+    // written from the same call, and a column that silently stopped being
+    // populated would otherwise go unnoticed because the payload still had it.
+    expect(snap!.interstitial_version).toBe("1.0");
+
+    // And the payload must agree with the column, or the two names drift.
+    const payload = snap!.payload_json as { versions: Record<string, string> };
+    expect(payload.versions.interstitial).toBe(snap!.interstitial_version);
+    console.log("  interstitial pin:", snap!.interstitial_version,
+      "| payload agrees:", payload.versions.interstitial === snap!.interstitial_version);
   });
 
   it("the payload carries all six signals with resolvable narrative keys", async () => {
