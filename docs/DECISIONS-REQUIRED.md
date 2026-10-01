@@ -257,7 +257,34 @@ unless you object.
 
 ---
 
-## Group 2 — SCORING CONFIGURATION (**all 46 are yours**)
+## Group 2 — SCORING CONFIGURATION
+
+> **CORRECTED 2026-10-01.** This heading said "**all 46 are yours**", and the
+> count does not reconcile. The config carries **48 `_calibration_status` keys**,
+> **47 of them on value-bearing entries** (the 48th marks a block, not a value).
+> Groups 2a–2g alone sum past 46. And several values below are **not decisions at
+> all** once traced against the code:
+>
+> - **Five have hardcoded twins in TypeScript, so editing the config does
+>   nothing** — `activation.level_bands`, `option_value_maps.profile_1_5`,
+>   `option_value_maps.Q18_profile_1_5`, plus two defaults. `LETTER_VALUES`
+>   (`lib/session/service.ts:71`) is the consequential one: it desynchronises
+>   item-level tension gates from signal averages on a single config edit.
+> - **Four are unreachable** — `item_mid` and `tension_thresholds.capacity_low`
+>   are loaded but named by no `threshold_ref`; `signal_high` and `signal_low` are
+>   never loaded at all.
+> - **Three are derivable** rather than judgement calls (`item_mid`,
+>   `extreme_states`, `middle_state`), and the 30 state bands are five boundaries
+>   × six identical copies — one decision, not thirty.
+> - **Group 1's six rows have no code behind them** (no PDF module, no storage
+>   call, no `pdf` dependency anywhere). They are build-order questions for
+>   unbuilt work, not configurable values.
+>
+> The traced inventory is `docs/SPEC-TRACE-46.md`. **Read that, not this section,
+> for what is actually yours to decide.** This section is kept as the record of
+> what was believed when it was written.
+
+Every value below carries `_calibration_status: ASSUMED_PENDING_OPERATOR_REVIEW`
 
 Every value below carries `_calibration_status: ASSUMED_PENDING_OPERATOR_REVIEW`
 and is **live at runtime** (§A). Grouped by what they control.
@@ -445,9 +472,17 @@ the pin from a content hash. Both are defensible; the second can't drift.
 
 **Genuinely yours, non-blocking:**
 2. **2a** state bands (30 values) — highest leverage; they ripple into three systems.
-3. **2b** tension thresholds — especially `capacity_low`, which is safety-relevant.
-4. **2c/2c-i** capacity override (3) — **contains a verified 2.5-vs-2.59 split between
-   two loaders, leaving a 0.09-wide hole in the §12.2 capacity protection.**
+3. **2b** tension thresholds — `item_high` / `item_low` / `pair_low_avg` only.
+   `capacity_low` is **DEAD on this side**: no trigger names it, so it is loaded
+   and never read. Resolved 2026-10-01 (harmonised to 2.59).
+4. ~~**2c/2c-i** capacity override (3) — contains a verified 2.5-vs-2.59 split
+   between two loaders.~~ **RETRACTED 2026-10-01.** There was no second loader.
+   `capacity_low` has exactly one reader — the override itself
+   (`lib/assessment/overrides.ts:121`) — and the two capacity tensions gate on
+   signal *states* (`ROOM ∈ [S1,S2]`), whose S2 band edge was already 2.59. The
+   gap was real but **single-path**, and it is fixed. **This item needs nothing
+   from the operator.** The "most emphatic finding" in this document was also its
+   most wrong.
 5. **2d** evidence-strength derivation (4) — decides how assertively the product
    speaks; likely legal weight.
 6. **2f** activation bands (3) — never exercised across full range.

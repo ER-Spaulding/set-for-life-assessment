@@ -156,17 +156,32 @@ S3 2.60–3.39 · S4 3.40–4.19 · S5 4.20–5.00`, uniform across signals.
 - **Needs you: YES, `capacity_low` especially.**
 
 **2c. Capacity override — 3 values.** `direction_clarity_high mean(Q17,Q19) >= 4.0`,
-`alignment_low Q18 <= 2`, `capacity_low <= 2.5`. When all three hold, the engine
+`alignment_low Q18 <= 2`, `capacity_low <= 2.59`. When all three hold, the engine
 generates `CLEAR_DESTINATION_CAPACITY_CONSTRAINED_ALIGNMENT`.
 
-- ⚠️ **Verified defect, still open:** `capacity_low` is **2.59** on the tension
-  path and **2.5** on this override path — two loaders, disagreeing by 0.09. A
-  participant whose capacity mean lands in `(2.5, 2.59]` is capacity-limited for
-  one rule and not the other. That is exactly the gap the config's own note says
-  it was closing. A dead `numeric` field still reads "2.5" while the live `value`
-  reads "2.59", and the dead one is what a future reader is likeliest to consult.
-- **I changed neither number** — harmonising them is a scoring decision.
-- **Needs you: YES**
+> **RESOLVED 2026-10-01, and the description above was partly wrong.** Both the
+> "still open" warning and the "I changed neither number" note that stood here
+> are superseded. The operator directed harmonisation to 2.59; it is implemented
+> with boundary tests at 2.49 / 2.50 / 2.59 / 2.60, mutation-proven.
+>
+> **More importantly, there was no "tension path".** A direct search finds exactly
+> one reader of `capacity_low` — `lib/assessment/overrides.ts:121`, this override.
+> The tension engine never reads the field: of the 21 `threshold_ref` uses in the
+> config, only `item_high`, `item_low` and `pair_low_avg` are ever named, and
+> `thresholdForRef` can only resolve a key some trigger names. The two capacity
+> tensions (`HIGH_DIRECTION_LOW_CAPACITY`, `HIGH_VISIBILITY_LOW_CAPACITY`) gate on
+> signal **states** — `ROOM ∈ [S1,S2]` — so their boundary comes from the S2 band
+> edge, which was already 2.59.
+>
+> So the (2.5, 2.59] gap was **real but single-path**, not a two-loader
+> divergence, and no participant was ever "capacity-limited for one rule and not
+> the other". This item is **less** urgent than this document argued, not more.
+> Its values above are corrected; the group now needs nothing from you.
+>
+> `tension_thresholds.capacity_low` is dead config — a tidiness issue with two
+> resolutions (wire it to the two capacity tensions so the boundary becomes
+> independently tunable, or delete it). Neither is a live scoring decision.
+> See `docs/SPEC-TRACE-46.md` §2b for the full evidence.
 
 **2d. Evidence-strength derivation — 4 values.** `extreme_states ["S1","S5"]`,
 `middle_state "S3"`, `strong_corroboration_min 2`, `moderate_corroboration_min 2`.
@@ -330,6 +345,8 @@ Options and a recommendation are in `docs/ANALYTICS.md` §6.
 ~~- No analytics destination is chosen and no event is emitted.~~ **Superseded
 2026-10-01** — the operator chose first-party and it is built (`docs/ANALYTICS.md`).
 Events now fire; retention is still undecided and still deliberate.
-- The `capacity_low` 2.5/2.59 split is left exactly as found.
+- ~~The `capacity_low` 2.5/2.59 split is left exactly as found.~~ **Superseded
+  2026-10-01** — harmonised to 2.59 on operator instruction, with boundary tests.
+  See §2c above: the "split" was one live reader plus one dead field.
 
 **Stopping here for your decisions, per instruction.**
