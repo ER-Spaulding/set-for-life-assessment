@@ -52,22 +52,38 @@ pre-existing participants are untouched (same creation timestamps).
 
 ## What is NOT complete
 
-Per your instruction, I am not calling the entry/pacing work complete. One
-acceptance criterion from §18 remains unimplemented:
+> **STATUS UPDATE 2026-10-01.** This section is retained for the record but its
+> central claim is now **out of date**. Analytics **is** implemented:
+> first-party in Supabase, per your decision of this date. See `docs/ANALYTICS.md`
+> for the event vocabulary, the payload allow-list, the access model, the
+> retained-but-undecided retention state, and a **verified** gap table showing
+> which events actually fire. The text below is what was true when written and is
+> left in place rather than quietly rewritten.
 
-**§16 ANALYTICS — not implemented at all.** No events are emitted anywhere. §18
+Per your instruction, I am not calling the entry/pacing work complete. At the
+time of writing, one acceptance criterion from §18 was unimplemented:
+
+**§16 ANALYTICS — was not implemented.** No events were emitted anywhere. §18
 lists "Analytics can compare start/completion/abandonment behavior" as done; it
-is not. The events named in §16 are: `opening_first_time_selected`,
+was not. The events named in §16 are: `opening_first_time_selected`,
 `opening_returning_selected`, `save_progress_offered`, `save_progress_selected`,
 `continue_without_saving_selected`, `identity_verification_started/completed/failed`,
 `returning_lookup_started/resolved/failed`, `money_moment_viewed/continued`,
 `abandonment point`, `resume point`, `assessment completion time`,
 `completion rate`.
 
+Note the naming divergence, which is resolved rather than ignored: the shipped
+vocabulary does not use `opening_first_time_selected` / `opening_returning_selected`.
+Opening A's answer is carried into the session as the real `OPEN_A` response, so
+the branch is already recorded as instrument data, and `assessment_started`
+carries `channel: "first_time"`. Emitting two more events for the same fact would
+have been duplication dressed as coverage. `docs/ANALYTICS.md` §2 maps each §16
+event name to what shipped.
+
 §16 also sets a constraint that shapes the implementation — *"Do not send raw
 financial answers to third-party analytics"* — and **does not specify a
 destination, retention period, or vendor**. That is a privacy decision, not an
-engineering one, so I have not chosen one. See **Part B, item 3**.
+engineering one. See **Part B, item 3**.
 
 ## Everything else, confirmed
 
@@ -293,7 +309,16 @@ funnel — not the kind of behavioural analytics a vendor earns its keep on. It
 also keeps the "no raw answers to third parties" constraint true by construction
 rather than by configuration.
 
-**Needs you: YES — destination and retention.**
+**RESOLVED 2026-10-01 — operator chose first-party in Supabase.** Built. See
+`docs/ANALYTICS.md`.
+
+**Still needs you: the RETENTION PERIOD only.** Your instruction was explicit —
+*"Do not silently invent a permanent retention period if the governing
+specification does not provide one"* — so `retain_until` is NULL on every row, no
+DEFAULT exists (a default would be a decision made by accident), nothing expires,
+and the undecided state is queryable through the `analytics_retention_status`
+view so a privacy review sees the number rather than discovering it later.
+Options and a recommendation are in `docs/ANALYTICS.md` §6.
 
 ---
 
@@ -301,7 +326,10 @@ rather than by configuration.
 
 - No calibration value is changed.
 - `PINNED_VERSION` and the config-version question are untouched.
-- No analytics destination is chosen and no event is emitted.
+
+~~- No analytics destination is chosen and no event is emitted.~~ **Superseded
+2026-10-01** — the operator chose first-party and it is built (`docs/ANALYTICS.md`).
+Events now fire; retention is still undecided and still deliberate.
 - The `capacity_low` 2.5/2.59 split is left exactly as found.
 
 **Stopping here for your decisions, per instruction.**
