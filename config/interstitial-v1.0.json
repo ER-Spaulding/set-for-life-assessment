@@ -1,0 +1,96 @@
+{
+  "version": "1.0",
+  "sourceDocument": "PRD ADDENDUM 02 - ENTRY, IDENTITY, ASSESSMENT PACING & MONEY MOMENTS, v1.1 FINAL BUILD AUTHORITY",
+  "sourceSection": "§9 LOCKED MONEY MOMENT PLACEMENTS & COPY",
+  "_placementNote": "§9 headers read 'AFTER DIAGNOSTIC Q5/Q10/Q15/Q20/Q25'. The presentation order is NOT numeric, so two readings were possible. This config uses the Nth-DIAGNOSTIC reading (even intervals: 20/15/10/5/0 diagnostics remaining across the five moments). Three independent checks confirm it, and the third is decisive because it comes from the locked copy itself rather than from inference: (1) the literal-item reading is non-monotonic — Q20 is presented BEFORE Q15, so MM04 would fire before MM03; (2) MM05's own header says 'BEFORE ACTIVATION', true only under this reading; (3) MM05's approved copy says 'Just four more questions before we bring everything together' — under this reading exactly 4 remain (the A1-A4 activation set), under the literal-item reading 10 remain.",
+  "moneyMoments": [
+    {
+      "id": "MM01",
+      "eyebrow": "MONEY MOMENT · 01 OF 05",
+      "placement": {
+        "afterDiagnosticIndex": 5,
+        "afterItemId": "Q5",
+        "beforeActivation": false
+      },
+      "milestoneLabel": "FIRST STRETCH COMPLETE",
+      "headline": "You don't have to solve anything right now.",
+      "body": [
+        "This isn't the part where you fix it, defend it, or explain it.",
+        "For now, just keep answering from where you are today."
+      ],
+      "cta": "KEEP GOING ->",
+      "internalPurpose": "permission and reduced test anxiety without implying that clarity, tracking, or another behavior is the desired answer."
+    },
+    {
+      "id": "MM02",
+      "eyebrow": "MONEY MOMENT · 02 OF 05",
+      "placement": {
+        "afterDiagnosticIndex": 10,
+        "afterItemId": "Q3",
+        "beforeActivation": false
+      },
+      "milestoneLabel": "KEEP GOING",
+      "headline": "Your financial life doesn't have to look like anybody else's to be worth understanding.",
+      "body": [
+        "Different life. Different responsibilities. Different starting point.",
+        "**Your picture gets to be your picture.**"
+      ],
+      "cta": "KEEP GOING ->",
+      "internalPurpose": "individuality and dignity without teaching a later financial behavior."
+    },
+    {
+      "id": "MM03",
+      "eyebrow": "MONEY MOMENT · 03 OF 05",
+      "placement": {
+        "afterDiagnosticIndex": 15,
+        "afterItemId": "Q11",
+        "beforeActivation": false
+      },
+      "milestoneLabel": "MORE THAN HALFWAY THROUGH THE DIAGNOSTIC QUESTIONS",
+      "headline": "Two things can be true at the same time.",
+      "body": [
+        "You can be proud of some financial choices and still want others to change.",
+        "You can have made progress and still have questions.",
+        "You don't have to turn your whole financial life into one verdict."
+      ],
+      "cta": "KEEP GOING ->",
+      "internalPurpose": "complexity without collapsing the participant into a good/bad financial identity."
+    },
+    {
+      "id": "MM04",
+      "eyebrow": "MONEY MOMENT · 04 OF 05",
+      "placement": {
+        "afterDiagnosticIndex": 20,
+        "afterItemId": "Q12",
+        "beforeActivation": false
+      },
+      "milestoneLabel": "ONE STRETCH LEFT",
+      "headline": "Some questions are easy to answer immediately. Others make you sit with them for a second.",
+      "body": [
+        "Both are useful.",
+        "You don't need a polished answer. You just need **your answer.**"
+      ],
+      "cta": "KEEP GOING ->",
+      "internalPurpose": "reflection and persistence without teaching fear, trust, professional-agency, or information-to-action responses."
+    },
+    {
+      "id": "MM05",
+      "eyebrow": "MONEY MOMENT · 05 OF 05",
+      "placement": {
+        "afterDiagnosticIndex": 25,
+        "afterItemId": "Q16",
+        "beforeActivation": true
+      },
+      "milestoneLabel": "FINAL FOUR",
+      "headline": "You've done a lot of honest looking.",
+      "body": [
+        "We're almost there.",
+        "Just four more questions before we bring everything together and show you what your responses reveal.",
+        "Don't change gears now. Answer these the same way you've answered everything else:",
+        "**from where you are today.**"
+      ],
+      "cta": "FINISH STRONG ->",
+      "internalPurpose": "completion energy without naming or defining Urgency, Readiness, Commitment, or Support Readiness before they are measured."
+    }
+  ]
+}
