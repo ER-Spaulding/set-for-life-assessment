@@ -964,9 +964,12 @@
     "code": "NO_MEANINGFUL_FRICTION_IDENTIFIED",
     "rule": "The engine must be able to return NO_MEANINGFUL_FRICTION_IDENTIFIED and must not invent a weakness.",
     "operationalization": {
-      "_notes": "The spec states the requirement but no numeric gate; this operationalization is ASSUMED for pilot calibration.",
-      "condition": "No other tension triggered AND every operating signal at S3 or above AND no meaningful contextual friction.",
-      "_calibration_status": "ASSUMED_PENDING_OPERATOR_REVIEW"
+      "_notes": "Operator-approved 2026-10-01 (Option 2). PRD §29 requires 'strong consistent evidence across all operating signals'; S3 alone is the DEVELOPING band ('Coming Into Focus', 'Developing Direction'), so all-S3 is not strong evidence. The gate therefore needs BOTH a floor (every signal at least S3) AND corroboration (enough signals actually at S4+). An all-S3 profile must produce neither a null finding nor a manufactured friction finding — it is a distinct third outcome.",
+      "condition": "No other tension triggered AND every operating signal at S3 or above AND at least min_signals_s4_or_above signals at S4 or above AND no meaningful contextual friction.",
+      "signal_floor": "S3",
+      "min_signals_s4_or_above": 3,
+      "_corroboration_note": "3 of 6 chosen so a simple majority must be genuinely clear. Two S4s among four developing areas reads as 'mostly still developing', which is the case the operator explicitly wants distinguishable from a real all-clear. Calibratable.",
+      "_calibration_status": "OPERATOR_APPROVED_2026_10_01"
     },
     "acceptance_anchor": "PRD §29 null-finding test: strong consistent evidence across all signals with no meaningful contextual friction.",
     "attention_area": "KEEP_OBSERVING",

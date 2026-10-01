@@ -251,7 +251,7 @@ check(
     ? `${attJson.length} keys agree`
     : `only-in-MD: ${diff(attMd, attJson).join(", ") || "—"}; only-in-JSON: ${diff(attJson, attMd).join(", ") || "—"}`,
 );
-const tplMd = [...narrativeMd.matchAll(/`(PRIMARY_FRICTION|CAPACITY_FIRST|NO_FRICTION)`/g)]
+const tplMd = [...narrativeMd.matchAll(/`(PRIMARY_FRICTION|CAPACITY_FIRST|NO_MEANINGFUL_FRICTION|DEVELOPING_PICTURE)`/g)]
   .map((m) => m[1])
   .filter((v, i, a) => a.indexOf(v) === i)
   .sort();

@@ -398,8 +398,9 @@
   },
   "big_picture_templates": {
     "PRIMARY_FRICTION": "{strength_sentence} {friction_sentence} {connection_sentence}",
-    "NO_FRICTION": "{strength_sentence} Across the assessment, no single area of friction clearly explains the rest of your financial picture. {connection_sentence}",
-    "CAPACITY_FIRST": "{strength_sentence} Your responses suggest that limited financial room deserves to be interpreted before questions of discipline or intentionality. {connection_sentence}"
+    "CAPACITY_FIRST": "{strength_sentence} Your responses suggest that limited financial room deserves to be interpreted before questions of discipline or intentionality. {connection_sentence}",
+    "NO_MEANINGFUL_FRICTION": "{strength_sentence} Nothing in your responses points to one area that needs to take center stage right now. Several parts of your financial picture may still be coming into focus. {connection_sentence}",
+    "DEVELOPING_PICTURE": "{strength_sentence} {connection_sentence}"
   },
   "language_strength": {
     "HIGH": "Your responses show…",

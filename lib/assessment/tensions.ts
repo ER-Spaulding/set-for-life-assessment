@@ -454,14 +454,57 @@ const STATE_RANK: Record<SignalState, number> = {
   S5: 5,
 };
 
-/** Every operating signal at S3 or above. */
+/** The six operating signals, in the canonical order used by the gates below. */
+const OPERATING_SIGNALS: SignalId[] = ['SEE', 'ROOM', 'DIRECT', 'PREPARE', 'AIM', 'MOVE'];
+
+/**
+ * Every operating signal at S3 or above — the FLOOR, not the whole gate.
+ *
+ * S3's approved narrative labels are the DEVELOPING band ("Coming Into Focus",
+ * "Some Direction", "Developing Direction"). Clearing this floor therefore means
+ * "nothing is weak", NOT "everything is strong".
+ */
 export function allSignalsS3OrAbove(
   states: Record<SignalId, SignalState>,
 ): boolean {
-  const signals: SignalId[] = ['SEE', 'ROOM', 'DIRECT', 'PREPARE', 'AIM', 'MOVE'];
-  return signals.every(
+  return OPERATING_SIGNALS.every(
     (s) => states[s] !== undefined && STATE_RANK[states[s]] >= 3,
   );
+}
+
+/** How many operating signals sit at S4 or above. */
+export function countSignalsS4OrAbove(
+  states: Record<SignalId, SignalState>,
+): number {
+  return OPERATING_SIGNALS.filter(
+    (s) => states[s] !== undefined && STATE_RANK[states[s]] >= 4,
+  ).length;
+}
+
+/**
+ * The corroboration half of the null-finding gate.
+ *
+ * WHY THIS EXISTS. The gate previously required only `allSignalsS3OrAbove`, so a
+ * profile developing everywhere (all six at S3) produced
+ * NO_MEANINGFUL_FRICTION_IDENTIFIED — indistinguishable, in the participant's
+ * report, from a profile genuinely clear at S4/S5. Verified by execution: an
+ * all-S3 profile and an all-S4 profile both returned the null code, the
+ * NO_FRICTION template, and the KEEP_OBSERVING attention area, with zero
+ * frictions rendered in either case.
+ *
+ * PRD §29 asks for "STRONG consistent evidence across all operating signals".
+ * S3 is the developing band, so all-S3 does not meet that bar.
+ *
+ * Operator decision 2026-10-01: NO_MEANINGFUL_FRICTION requires all six at S3+
+ * AND enough signals genuinely at S4+. All-S3 must produce NEITHER a null
+ * finding NOR a manufactured friction finding — it is a third outcome, and the
+ * participant must be able to tell it apart from a real all-clear.
+ */
+export function hasSufficientCorroboration(
+  states: Record<SignalId, SignalState>,
+  minSignalsAtS4: number,
+): boolean {
+  return countSignalsS4OrAbove(states) >= minSignalsAtS4;
 }
 
 function tagsOf(inputs: TensionInputs): string[] {
@@ -472,20 +515,56 @@ function fearOf(inputs: TensionInputs): boolean {
   return inputs.fearPresent === true;
 }
 
+/** Default corroboration requirement when a caller supplies no config. */
+export const DEFAULT_MIN_SIGNALS_S4 = 3;
+
 /**
- * Null-finding condition (config `null_finding.operationalization`):
- * no other tension triggered AND every operating signal at S3 or above
- * AND no meaningful contextual friction.
+ * Null-finding condition (config `null_finding.operationalization`).
+ *
+ * ALL FOUR must hold:
+ *   1. no other tension triggered;
+ *   2. every operating signal at S3 or above  (the floor);
+ *   3. at least `minSignalsAtS4` signals at S4 or above (the corroboration);
+ *   4. no meaningful contextual friction.
+ *
+ * Condition 3 is the operator-approved Option 2 change. Without it, a profile
+ * developing across all six dimensions was reported as having no meaningful
+ * friction — the report could not distinguish "nothing is wrong" from
+ * "everything is still forming".
  */
 export function isNullFinding(
   triggeredExcludingNull: TensionCode[],
   inputs: TensionInputs,
+  minSignalsAtS4: number = DEFAULT_MIN_SIGNALS_S4,
 ): boolean {
   return (
     triggeredExcludingNull.length === 0 &&
     allSignalsS3OrAbove(inputs.signalStates) &&
+    hasSufficientCorroboration(inputs.signalStates, minSignalsAtS4) &&
     !hasMeaningfulContextualFriction(tagsOf(inputs), fearOf(inputs))
   );
+}
+
+/**
+ * Read the corroboration threshold from the scoring config.
+ *
+ * Kept here rather than inline so the value stays calibratable (PRD §15:
+ * thresholds as configuration, never hard-coded literals) and so a malformed
+ * config fails loudly instead of silently falling back to a default that would
+ * change engine behaviour without anyone noticing.
+ */
+export function loadMinSignalsS4(scoringConfig: unknown): number {
+  const cfg = scoringConfig as Record<string, unknown> | null | undefined;
+  const nf = cfg?.['null_finding'] as Record<string, unknown> | undefined;
+  const op = nf?.['operationalization'] as Record<string, unknown> | undefined;
+  const raw = op?.['min_signals_s4_or_above'];
+
+  if (typeof raw !== 'number' || !Number.isInteger(raw) || raw < 0 || raw > 6) {
+    throw new Error(
+      `tensions.loadMinSignalsS4: null_finding.operationalization.min_signals_s4_or_above must be an integer 0-6, got ${JSON.stringify(raw)}`,
+    );
+  }
+  return raw;
 }
 
 // ---------------------------------------------------------------------------
@@ -555,7 +634,9 @@ export function evaluateTensions(
     }
   }
   if (triggered.length > 0) return triggered;
-  if (isNullFinding(triggered, inputs)) {
+  // The corroboration threshold comes from config (PRD §15), read here rather
+  // than defaulted, so the gate is calibratable without a code change.
+  if (isNullFinding(triggered, inputs, loadMinSignalsS4(scoringConfig))) {
     return [NULL_CODE as TensionCode];
   }
   return [];

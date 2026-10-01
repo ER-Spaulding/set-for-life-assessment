@@ -84,7 +84,37 @@ export interface SnapshotPayload {
    * finding), connection, capacity qualifier when applicable, closing pointer.
    */
   bigPicture: {
-    template: 'PRIMARY_FRICTION' | 'NO_FRICTION' | 'CAPACITY_FIRST';
+    /**
+     * FOUR outcomes, not three.
+     *
+     * `DEVELOPING_PICTURE` is the third outcome the Option 2 gate made
+     * necessary. Once NO_MEANINGFUL_FRICTION began requiring corroborating S4+
+     * evidence, an all-S3 profile (developing everywhere, nothing weak, nothing
+     * strong) stopped qualifying for it — but no tension fires for it either, so
+     * it has no friction to report. It must be neither of the other two:
+     *
+     *   PRIMARY_FRICTION      something fired; there IS friction to name.
+     *   NO_MEANINGFUL_FRICTION corroborated clear; safe to say nothing needs
+     *                          center stage.
+     *   DEVELOPING_PICTURE     nothing weak, nothing strong. No friction to
+     *                          name, but NOT an all-clear either.
+     *   CAPACITY_FIRST         capacity override precedes everything (§12.2).
+     *
+     * Collapsing DEVELOPING_PICTURE into PRIMARY_FRICTION would render a
+     * friction template with zero friction items — the silent fall-through the
+     * operator's regression list requires to fail. Collapsing it into
+     * NO_MEANINGFUL_FRICTION would tell a developing participant everything is
+     * fine, which is the over-claim the whole decision exists to prevent.
+     *
+     * NOTE ON THE PERSISTED NAME: historical payloads store the literal
+     * 'NO_FRICTION'. That string is retained as a readable alias by renderers;
+     * see BIG_PICTURE_TEMPLATE_ALIASES below.
+     */
+    template:
+      | 'PRIMARY_FRICTION'
+      | 'NO_MEANINGFUL_FRICTION'
+      | 'DEVELOPING_PICTURE'
+      | 'CAPACITY_FIRST';
     /** Ordered parts; each is an approved-copy key. */
     parts: string[];
   };
@@ -240,20 +270,62 @@ export function signalNarrativeKey(
 }
 
 /**
+ * Historical template names that may appear in already-persisted payloads.
+ *
+ * WHY THIS EXISTS. Snapshots are APPEND-ONLY. Every payload written before the
+ * Option 2 change stores the literal string 'NO_FRICTION'. Renaming the concept
+ * does not and cannot rewrite those rows, so a renderer that resolved only the
+ * new name would fail to render every historical report. This alias map is the
+ * compatibility shim the operator asked to be reported before any persisted
+ * contract changed — it is the report, in code: resolve BOTH names, and the
+ * rename stays safe without a migration.
+ */
+export const BIG_PICTURE_TEMPLATE_ALIASES: Record<string, string> = Object.freeze({
+  NO_FRICTION: 'NO_MEANINGFUL_FRICTION',
+});
+
+/** Resolve a template name from storage, mapping any historical alias forward. */
+export function resolveBigPictureTemplate(
+  stored: string | null | undefined,
+): string | null {
+  if (!stored) return null;
+  return BIG_PICTURE_TEMPLATE_ALIASES[stored] ?? stored;
+}
+
+/**
  * Which big-picture template applies (Addendum §11, §12.1, §12.2).
  *
- * CAPACITY_FIRST takes precedence over PRIMARY_FRICTION: §12.2 requires that
- * when capacity overrides apply, "ROOM/capacity context appears BEFORE agency
- * criticism". A capacity-constrained participant shown a friction-led
- * narrative first would read as criticism of discipline when the constraint is
- * available margin — precisely the confusion §29 test 10 exists to prevent.
+ * CAPACITY_FIRST takes precedence over the others: §12.2 requires that when
+ * capacity overrides apply, "ROOM/capacity context appears BEFORE agency
+ * criticism". A capacity-constrained participant shown a friction-led narrative
+ * first would read as criticism of discipline when the constraint is available
+ * margin — precisely the confusion §29 test 10 exists to prevent.
+ *
+ * THE FOUR-WAY BRANCH, and why the third arm is not optional:
+ *
+ *   capacity override  -> CAPACITY_FIRST
+ *   corroborated clear -> NO_MEANINGFUL_FRICTION
+ *   friction found     -> PRIMARY_FRICTION
+ *   neither            -> DEVELOPING_PICTURE
+ *
+ * The last arm is the case Option 2 created. An all-S3 profile has no tension
+ * (`frictions.length === 0`) and no longer qualifies as a null finding, so
+ * without this branch it would take PRIMARY_FRICTION and render a friction
+ * template with nothing in it. `frictions.length` is therefore part of the
+ * decision rather than a downstream detail: the template must never claim
+ * friction that does not exist, and must never claim an all-clear that was not
+ * corroborated.
  */
 export function selectBigPictureTemplate(args: {
   nullFinding: boolean;
   capacityConstrained: boolean;
+  /** How many friction findings will actually render. 0 = nothing to name. */
+  frictionCount?: number;
 }): SnapshotPayload['bigPicture']['template'] {
   if (args.capacityConstrained) return 'CAPACITY_FIRST';
-  if (args.nullFinding) return 'NO_FRICTION';
+  if (args.nullFinding) return 'NO_MEANINGFUL_FRICTION';
+  // No friction to name AND no corroborated all-clear: the developing case.
+  if (args.frictionCount === 0) return 'DEVELOPING_PICTURE';
   return 'PRIMARY_FRICTION';
 }
 
@@ -381,7 +453,13 @@ export function assembleSnapshotPayload(input: AssembleInput): SnapshotPayload {
 
   // ---- big picture (§11) ----
   const bigPicture = assembleBigPicture({
-    template: selectBigPictureTemplate({ nullFinding, capacityConstrained }),
+    template: selectBigPictureTemplate({
+      nullFinding,
+      capacityConstrained,
+      // The rendered count, not the triggered count: a code that produced no
+      // renderable key must not make the template claim friction.
+      frictionCount: frictions.filter((f) => f.narrativeKey).length,
+    }),
     signals,
     connections,
     frictions,
@@ -493,7 +571,16 @@ export function assembleBigPicture(args: {
   if (strongest?.narrativeKey) parts.push(strongest.narrativeKey);
 
   // 2. one approved friction sentence, unless the null finding holds (§12.1).
-  if (args.template !== 'NO_FRICTION' && args.frictions.length > 0) {
+  //
+  // The template guard carries BOTH non-friction outcomes, not just the null
+  // one. DEVELOPING_PICTURE is a distinct third state, but it shares this
+  // property with NO_MEANINGFUL_FRICTION: neither has friction to name. Writing
+  // only the null check here would have let a developing profile emit friction
+  // copy — the precise over-claim Option 2 exists to prevent.
+  const hasNoFrictionToName =
+    args.template === 'NO_MEANINGFUL_FRICTION' ||
+    args.template === 'DEVELOPING_PICTURE';
+  if (!hasNoFrictionToName && args.frictions.length > 0) {
     parts.push(args.frictions[0].narrativeKey ?? '');
   }
 

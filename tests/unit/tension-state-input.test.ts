@@ -42,11 +42,21 @@ const midItems = () => {
   return items;
 };
 
-const evalWith = (aimState: string, items = midItems()) =>
+/**
+ * Evaluate with AIM set to `aimState`, and — when `othersState` is given —
+ * every other signal set to that state too.
+ *
+ * `othersState` exists because the null finding is no longer a function of one
+ * signal: since the operator-approved Option 2 gate it needs corroborating S4+
+ * evidence across the profile. Varying AIM alone can only ever produce one
+ * corroborating signal, which is below the bar, so a caller wanting the null
+ * outcome must say what the rest of the profile looks like.
+ */
+const evalWith = (aimState: string, items = midItems(), othersState = "S3") =>
   evaluateTensions(
     {
       signalStates: Object.fromEntries(
-        SIGNALS.map((s) => [s, s === "AIM" ? aimState : "S3"]),
+        SIGNALS.map((s) => [s, s === "AIM" ? aimState : othersState]),
       ) as never,
       items,
       activation: { A1: "MID", A2: "MID", A3: "MID", A4: "MID" } as never,
@@ -60,8 +70,22 @@ describe("PRD §15 — tension rules match the S-ladder state", () => {
   it("produces the null finding when no rule matches and no friction is present", () => {
     // "No rule matched" must never surface as an EMPTY list, which would read
     // as "render no friction section" instead of "nothing to report".
-    expect(evalWith("S4")).toEqual(["NO_MEANINGFUL_FRICTION_IDENTIFIED"]);
-    expect(evalWith("S5")).toEqual(["NO_MEANINGFUL_FRICTION_IDENTIFIED"]);
+    //
+    // The profile must be CORROBORATED, not merely non-weak. Under the
+    // operator-approved Option 2 gate (2026-10-01) the null finding needs all
+    // six signals at S3+ AND enough of them at S4+. This helper previously
+    // varied AIM alone, leaving the other five at S3 — one corroborating
+    // signal, which is now correctly insufficient. `evalWith` takes the
+    // corroborating states so the test can express the profile it means.
+    expect(evalWith("S4", midItems(), "S4")).toEqual(["NO_MEANINGFUL_FRICTION_IDENTIFIED"]);
+    expect(evalWith("S5", midItems(), "S5")).toEqual(["NO_MEANINGFUL_FRICTION_IDENTIFIED"]);
+  });
+
+  it("does NOT produce the null finding for a merely developing profile", () => {
+    // All six at S3: nothing weak, nothing strong. The third outcome Option 2
+    // introduced — and the reason "no rule matched" can no longer be assumed to
+    // mean "nothing to report".
+    expect(evalWith("S3")).toEqual([]);
   });
 
   it("demonstrates the defect this guards against: a special state matches nothing", () => {

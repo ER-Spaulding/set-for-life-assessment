@@ -37,8 +37,18 @@ const itemsAt = (overrides: Record<string, number>): Record<string, number> => {
  * — omitting it makes the evaluator throw a TypeError rather than return false,
  * so it is always supplied here.
  */
-const baseInputs = (items: Record<string, number>) => ({
-  signalStates: Object.fromEntries(SIGNALS.map((s) => [s, "S3"])) as never,
+/**
+ * A profile that clears the null-finding gate, so "nothing fired" tests can
+ * observe the null outcome.
+ *
+ * Defaults to S4 across the board rather than S3. Under the operator-approved
+ * Option 2 gate (2026-10-01) the null finding requires all six signals at S3+
+ * AND enough at S4+, so an all-S3 default can no longer reach it — the tests
+ * below that mutate a config value and expect the null code beforehand would
+ * otherwise be asserting against a profile that never qualified.
+ */
+const baseInputs = (items: Record<string, number>, state = "S4") => ({
+  signalStates: Object.fromEntries(SIGNALS.map((s) => [s, state])) as never,
   items,
   activation: { A1: "MID", A2: "MID", A3: "MID", A4: "MID" } as never,
   tags: [] as string[],

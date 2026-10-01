@@ -107,14 +107,41 @@ describe("PRD §15 — every approved tension is reachable", () => {
 
 describe("PRD §18.3 — the null finding", () => {
   it("is returned when nothing triggers and there is no contextual friction", () => {
-    const out = evaluate({});
+    // CORROBORATED evidence, not merely non-weak. Under the operator-approved
+    // Option 2 gate (2026-10-01) the null finding requires all six signals at S3
+    // or above AND enough of them genuinely at S4+. The default all-S3 profile
+    // this test previously passed now correctly yields [] — that is the change,
+    // not a regression: §29 asks for "STRONG consistent evidence across all
+    // operating signals", and S3 is the developing band.
+    const out = evaluate({
+      signalStates: { SEE: "S4", ROOM: "S4", DIRECT: "S4", PREPARE: "S4", AIM: "S4", MOVE: "S4" },
+    });
     expect(out).toEqual(["NO_MEANINGFUL_FRICTION_IDENTIFIED"]);
   });
 
-  it("never invents a weakness — an untouched profile yields no friction code", () => {
+  it("is NOT returned for an all-S3 profile — developing is not strong", () => {
+    // The case the whole decision is about. Nothing is weak, so no friction
+    // fires; nothing is corroborated strong, so no all-clear either.
     const out = evaluate({});
-    const frictionCodes = out.filter((c) => c !== "NO_MEANINGFUL_FRICTION_IDENTIFIED");
-    expect(frictionCodes).toEqual([]);
+    expect(out).toEqual([]);
+  });
+
+  it("never invents a weakness — an untouched profile yields no friction code", () => {
+    // Checked at BOTH ends of the gate, because the §18.3 promise ("must not
+    // invent a weakness") has to hold whichever outcome the profile earns: a
+    // corroborated-clear profile and a merely-developing one must both come back
+    // with zero friction codes. The developing case is the one that could most
+    // easily go wrong — it is the state Option 2 introduced, and the tempting
+    // mistake is to convert it into a friction finding.
+    for (const [label, probe] of [
+      ["corroborated clear", { signalStates: { SEE: "S4", ROOM: "S4", DIRECT: "S4", PREPARE: "S4", AIM: "S4", MOVE: "S4" } }],
+      ["developing (all S3)", {}],
+    ] as Array<[string, Probe]>) {
+      const out = evaluate(probe);
+      const frictionCodes = out.filter((c) => c !== "NO_MEANINGFUL_FRICTION_IDENTIFIED");
+      console.log(`  ${label}: codes=${JSON.stringify(out)}`);
+      expect(frictionCodes, `${label} must invent no weakness`).toEqual([]);
+    }
   });
 
   it("fear present suppresses the null finding", () => {

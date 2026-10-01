@@ -120,7 +120,7 @@ describe("capacity precedes friction (Addendum §12.2)", () => {
     expect(selectBigPictureTemplate({ nullFinding: false, capacityConstrained: false }))
       .toBe("PRIMARY_FRICTION");
     expect(selectBigPictureTemplate({ nullFinding: true, capacityConstrained: false }))
-      .toBe("NO_FRICTION");
+      .toBe("NO_MEANINGFUL_FRICTION");
   });
 
   it("a capacity override is detected from the scorer's own specialState", () => {
@@ -151,7 +151,7 @@ describe("perception gap records WHY it is absent (§12.3, §18)", () => {
 });
 
 describe("null finding does not manufacture friction (§12.1)", () => {
-  it("NO_FRICTION template when the engine returns the null code", () => {
+  it("NO_MEANINGFUL_FRICTION template when the engine returns the null code", () => {
     const r = assembleSnapshotPayload({
       versions: VERSIONS,
       signals: {} as never,
@@ -164,7 +164,7 @@ describe("null finding does not manufacture friction (§12.1)", () => {
     });
     console.log("  nullFinding:", r.nullFinding, "| template:", r.bigPicture.template);
     expect(r.nullFinding).toBe(true);
-    expect(r.bigPicture.template).toBe("NO_FRICTION");
+    expect(r.bigPicture.template).toBe("NO_MEANINGFUL_FRICTION");
     // No friction language manufactured.
     expect(r.frictions).toHaveLength(0);
   });
