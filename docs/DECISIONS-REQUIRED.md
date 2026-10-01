@@ -1,7 +1,15 @@
 # Decisions Required — Set for Life Financial Assessment
 
 **Prepared:** 2026-10-01 · **Author:** build orchestrator
-**Status:** THREE ITEMS AWAITING OPERATOR DECISION. Nothing in this document has been encoded.
+**Status:** PARTIALLY RESOLVED — see the superseded-item notes inline. What remains open is the calibration set (§D items 1 and 4) and the version-identity question (§D-7); see `docs/VERSION-SEMANTICS-PROPOSAL.md`.
+
+> **Later the same day.** Two of the three items here were decided and built —
+> §B (the null-finding rule: operator approved Option 2 with Option 3's honest
+> copy) and the Set for Life Number (§C-adjacent; the field the table below
+> called "does not exist" now does). Analytics was decided as first-party and
+> built. Each affected line is marked inline rather than silently rewritten,
+> because the value of this document is the record of what was uncalibrated at
+> the time — not a tidy summary of the present.
 
 This document exists because three classes of unresolved decision were in danger of
 becoming **implicit defaults** — values that are used at runtime, that shape what a
@@ -407,8 +415,8 @@ rather than pick a winner. Your call.
 | Entrance motion | feel | 250–450ms, no spatial under reduced-motion | NO — §12 |
 | Milestone labels | progress language | §13's five phrases | NO — suggested by §13 |
 | Save My Progress placement | friction | after MM01 only | NO — §3 |
-| Analytics event set | pilot learning | §16's list | **YES** — §16 names events but not retention; a privacy/legal choice |
-| Grease the Wheel number | returning lookup | **field does not exist** | **YES — schema + product (§C)** |
+| Analytics event set | pilot learning | §16's list | **RESOLVED 2026-10-01** — first-party in Supabase, built (`docs/ANALYTICS.md`). Retention alone is still open. |
+| Set for Life Number | returning lookup | **BUILT 2026-10-01** — Crockford Base32 `XXXX-XXXX` with a check character, DB-generated, stable per participant, lookup-only (never authentication) | NO — decided and implemented. Participant-facing label is "Your Set for Life Number"; the internal "Grease the Wheel" term never reaches a participant. |
 
 ---
 
