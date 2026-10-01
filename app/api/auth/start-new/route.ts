@@ -14,7 +14,7 @@
 
 import { NextResponse } from "next/server";
 import { normaliseEmail, verificationStartedBody, issueVerificationToken } from "@/lib/auth";
-import { isDatabaseConfigured } from "@/lib/db/client";
+import { sendVerificationEmail } from "@/lib/email/verification";
 
 export const dynamic = "force-dynamic";
 
@@ -39,13 +39,36 @@ export async function POST(request: Request) {
   // Mint the token regardless of whether the participant exists. The token is
   // what the email carries; the lookup that decides "new" vs "existing" happens
   // at redemption, after verification proves ownership.
-  const { token } = issueVerificationToken(email, "email", "new");
+  const { token, payload } = issueVerificationToken(email, "email", "new");
+  const expiresAt = payload.expiresAt;
 
-  if (isDatabaseConfigured()) {
-    // Sending is handled by the reminder/CRM layer. Deliberately not attempted
-    // here: a send failure must not change the response, or the response time
-    // would leak whether an address is known.
-  }
+  // SEND THE VERIFICATION LINK.
+  //
+  // Two properties this must preserve, both from §7.3:
+  //
+  //  1. The RESULT of the send never changes the response. `sendVerificationEmail`
+  //     returns a result rather than throwing, and the value is deliberately
+  //     discarded here — an unconfigured key or a provider rejection must look
+  //     identical to success from outside, or the endpoint becomes an oracle.
+  //
+  //  2. The send happens for EVERY accepted address, whether or not a participant
+  //     record exists. This route mints a token unconditionally and never queries
+  //     participant records, so there is nothing to branch on.
+  //
+  // `await`ed rather than fire-and-forget: on a serverless runtime an unawaited
+  // promise can be killed when the response returns, silently dropping the mail.
+  // The timing this costs is the same for every caller, so it leaks nothing.
+  await sendVerificationEmail({
+    to: email,
+    purpose: "new",
+    contact: email,
+    contactType: "email",
+    expiresAt,
+    token,
+  }).catch(() => {
+    // Belt-and-braces: sendVerificationEmail already returns rather than
+    // throws, but a failure here must never surface to the caller.
+  });
 
   // Identical body for every outcome. `token` is returned only in non-production
   // so local flows can be exercised; production relies on the emailed link.

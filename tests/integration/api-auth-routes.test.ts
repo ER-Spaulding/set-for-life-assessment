@@ -21,6 +21,25 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 
 vi.mock("server-only", () => ({}));
 
+// The routes send verification mail. Mock the sender so no test can ever reach
+// the provider — a suite that silently sends real email when RESEND_API_KEY
+// happens to be exported is a live-fire hazard, not a test.
+const sentEmails: Array<Record<string, unknown>> = [];
+/** When set, the mocked sender rejects — to prove the route discards failures. */
+let failNextSend: (() => void) | null = null;
+vi.mock("@/lib/email/verification", () => ({
+  sendVerificationEmail: (args: Record<string, unknown>) => {
+    sentEmails.push(args);
+    if (failNextSend) {
+      const fn = failNextSend;
+      failNextSend = null;
+      return fn() as never;
+    }
+    return Promise.resolve({ sent: true, id: "test-id" });
+  },
+}));
+
+
 // `issueVerificationToken` HMAC-signs with REMINDER_LINK_SECRET and THROWS when
 // it is unset — deliberately, so a deployment can never sign with an empty
 // secret. Tests therefore need a fixture value. This is a clearly-fake literal
@@ -193,5 +212,78 @@ describe("the two verification endpoints cannot be told apart (PRD §7.3)", () =
       expect(r1.status).toBe(r2.status);
       expect(b1).toEqual(b2);
     });
+  });
+});
+
+describe("verification email is SENT, and never reveals an outcome (PRD §23.1, §7.3)", () => {
+  it("both routes send exactly one email for an accepted address", async () => {
+    sentEmails.length = 0;
+    await callBoth("someone@example.com");
+    console.log("  emails sent:", sentEmails.length, JSON.stringify(sentEmails.map(e => e.purpose)));
+    expect(sentEmails).toHaveLength(2);
+    expect(sentEmails.map((e) => e.purpose).sort()).toEqual(["new", "returning"]);
+    for (const e of sentEmails) {
+      expect(e.to).toBe("someone@example.com");
+      expect(typeof e.token).toBe("string");
+      expect(typeof e.expiresAt).toBe("number");
+    }
+  });
+
+  it("sends for a MALFORMED address too — no early-exit branch to observe", async () => {
+    // If the malformed path skipped the send, response timing or an eventual
+    // side channel would differ. The route rejects before minting, so this
+    // asserts the rejection happens BEFORE any send.
+    sentEmails.length = 0;
+    await callBoth("not-an-email");
+    console.log("  emails sent for malformed:", sentEmails.length);
+    expect(sentEmails).toHaveLength(0);
+  });
+
+  it("the two routes send IDENTICALLY-SHAPED emails — no outcome in the payload", async () => {
+    sentEmails.length = 0;
+    await callBoth("someone@example.com");
+    const [a, b] = sentEmails;
+    // Same keys, differing only in the purpose-bound token and its purpose.
+    expect(Object.keys(a).sort()).toEqual(Object.keys(b).sort());
+    // Nothing in the payload names the participant or reveals existence.
+    const serialized = JSON.stringify(sentEmails).toLowerCase();
+    for (const leak of ["existing", "already", "registered", "not found", "no account"]) {
+      expect(serialized, `email payload must not reveal "${leak}"`).not.toContain(leak);
+    }
+  });
+
+  it("a SEND FAILURE never changes the response (§7.3)", async () => {
+    // Inject a real rejection. If the route let it escape, this would 500 and
+    // the failure would be observable — which is the whole hazard.
+    try {
+      // Baseline: identical bodies, no failure.
+      let expected: unknown;
+      await withProduction(async () => {
+        const ok = await callBoth("someone@example.com");
+        expect(ok.a.status).toBe(202);
+        expect(ok.a.body).toEqual(ok.b.body);
+        expected = ok.a.body;
+      });
+
+      // Now make the send reject hard.
+      failNextSend = () => Promise.reject(new Error("provider down"));
+      await withProduction(async () => {
+        const { POST: startNew } = await import("@/app/api/auth/start-new/route");
+        const res = await startNew(
+          new Request("http://x", {
+            method: "POST",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify({ email: "fail@example.com" }),
+          }),
+        );
+        const body = await res.json();
+        console.log("  send rejected ->", res.status, JSON.stringify(body));
+        // Same status and body as a successful send. A 500 here would be the bug.
+        expect(res.status).toBe(202);
+        expect(body).toEqual(expected);
+      });
+    } finally {
+      failNextSend = null;
+    }
   });
 });

@@ -15,7 +15,7 @@
 
 import { NextResponse } from "next/server";
 import { normaliseEmail, verificationStartedBody, issueVerificationToken } from "@/lib/auth";
-import { isDatabaseConfigured } from "@/lib/db/client";
+import { sendVerificationEmail } from "@/lib/email/verification";
 
 export const dynamic = "force-dynamic";
 
@@ -35,11 +35,23 @@ export async function POST(request: Request) {
     );
   }
 
-  const { token } = issueVerificationToken(email, "email", "returning");
+  const { token, payload } = issueVerificationToken(email, "email", "returning");
+  const expiresAt = payload.expiresAt;
 
-  if (isDatabaseConfigured()) {
-    // Same non-action as start-new, for the same timing reason.
-  }
+  // Send, identically to start-new — see that route for the full reasoning.
+  // The result is discarded: a send failure must not change the response, or
+  // the pair would stop being indistinguishable (§7.3). Awaited so the message
+  // is not dropped when the serverless invocation ends.
+  await sendVerificationEmail({
+    to: email,
+    purpose: "returning",
+    contact: email,
+    contactType: "email",
+    expiresAt,
+    token,
+  }).catch(() => {
+    /* failure must never surface to the caller */
+  });
 
   return NextResponse.json(
     {
