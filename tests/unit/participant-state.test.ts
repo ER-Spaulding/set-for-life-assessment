@@ -6,6 +6,7 @@ import {
   PREFER_NOT_TO_SAY,
   normalizeJurisdiction,
   jurisdictionName,
+  isDeclined,
 } from "@/lib/profile/jurisdiction";
 
 /**
@@ -101,14 +102,41 @@ describe("ZERO EFFECT on the engine — asserted structurally, not promised", ()
   it("does not add an instrument item — the 31 is unchanged", () => {
     const assessment = JSON.parse(
       readFileSync(resolve(repo, "config/assessment-v1.0.json"), "utf8"),
-    ) as { opening: unknown[]; questions: unknown[]; activation: unknown[] };
+    ) as {
+      opening: unknown[];
+      questions: unknown[];
+      activation: unknown[];
+      demographics: Array<Record<string, unknown>>;
+    };
     const total =
       assessment.opening.length + assessment.questions.length + assessment.activation.length;
-    console.log("  instrument items:", total);
+    console.log(
+      "  instrument items:",
+      total,
+      "| demographics (separate step):",
+      assessment.demographics.length,
+    );
     expect(total).toBe(31);
-    // And nothing named like this field was added to the instrument.
-    const ids = JSON.stringify(assessment);
-    expect(ids).not.toMatch(/state_code|jurisdiction/i);
+
+    // The State item lives in `demographics`, which is a SEPARATE non-diagnostic
+    // step and does not count toward the 31 — the same place D1-D3 live.
+    const d4 = assessment.demographics.find((d) => d["internal_id"] === "D4");
+    expect(d4, "D4 must exist in the demographics step").toBeTruthy();
+    expect(d4!["diagnostic"]).toBe(false);
+    expect(d4!["required"]).toBe(false);
+    expect(d4!["required_for_completion"]).toBe(false);
+
+    // It must not have become a scored instrument item. An earlier version of
+    // this test scanned the WHOLE config for /state_code|jurisdiction/i, which
+    // now trips on D4's own legitimate `options_source: "jurisdictions"` — the
+    // check was too broad to distinguish a leak from the field itself. Scope is
+    // the scored groups, which is where a leak would actually matter.
+    const scored = JSON.stringify({
+      opening: assessment.opening,
+      questions: assessment.questions,
+      activation: assessment.activation,
+    });
+    expect(scored).not.toMatch(/state_code|jurisdiction/i);
   });
 
   it("the route writes no response row and no consent row", () => {
@@ -122,12 +150,25 @@ describe("ZERO EFFECT on the engine — asserted structurally, not promised", ()
 });
 
 describe("declining never generates an inference", () => {
-  it("normalises a decline to null, which is what the column stores", () => {
-    expect(normalizeJurisdiction(PREFER_NOT_TO_SAY)).toBeNull();
+  it("normalises a decline to the SENTINEL, not null (operator 2026-10-01)", () => {
+    // "'Prefer not to say' remains an explicit valid response, not null."
+    // A refusal and an unanswered field are different facts; collapsing them
+    // would make a decline indistinguishable from missing data.
+    expect(normalizeJurisdiction(PREFER_NOT_TO_SAY)).toBe(PREFER_NOT_TO_SAY);
+    expect(isDeclined(normalizeJurisdiction(PREFER_NOT_TO_SAY))).toBe(true);
+  });
+
+  it("keeps 'not asked' distinct from 'declined'", () => {
+    // Empty / absent means the participant has not answered yet — which must not
+    // be recorded as a refusal they never made.
     expect(normalizeJurisdiction("")).toBeNull();
     expect(normalizeJurisdiction("   ")).toBeNull();
     expect(normalizeJurisdiction(null)).toBeNull();
     expect(normalizeJurisdiction(undefined)).toBeNull();
+    // ...and the two are genuinely different values.
+    expect(normalizeJurisdiction("")).not.toBe(normalizeJurisdiction(PREFER_NOT_TO_SAY));
+    expect(isDeclined(null)).toBe(false);
+    expect(isDeclined(normalizeJurisdiction(""))).toBe(false);
   });
 
   it("null is a first-class value, not a gap the schema complains about", () => {

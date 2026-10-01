@@ -98,23 +98,44 @@ export const JURISDICTIONS: ReadonlyArray<{ code: string; name: string; kind: "s
 const CODES = new Set(JURISDICTIONS.map((j) => j.code));
 
 /**
- * The value a participant sends when they decline.
+ * The stored value when a participant declines.
  *
- * A SENTINEL rather than an omitted field, so the UI can distinguish "chose not
- * to say" from "has not been asked" — the two are different states and the
- * second must not be recorded as the first. It normalises to NULL, which is the
- * value that means "declined" in the database.
+ * OPERATOR DECISION 2026-10-01: "'Prefer not to say' remains an explicit valid
+ * response, not null."
+ *
+ * So the decline is a VALUE, not an absence. That distinction is the whole point:
+ * a NULL column cannot distinguish "the participant was asked and declined" from
+ * "the participant was never asked", and those are different facts. Collapsing
+ * them would make a refusal indistinguishable from missing data — and would let
+ * a later backfill quietly convert one into the other.
+ *
+ * It also matches D1–D3 in the instrument config, where every demographic item
+ * carries its own explicit "Prefer not to say" option rather than relying on an
+ * empty answer.
+ *
+ * This string is NOT a jurisdiction code and cannot be mistaken for one: the
+ * `jurisdictions` table has no such row, and the foreign key would reject it if
+ * someone tried to store it as a code. Persisting it therefore requires the
+ * explicit carve-out below rather than happening by accident.
  */
 export const PREFER_NOT_TO_SAY = "PREFER_NOT_TO_SAY";
 
 /**
- * Normalise a submitted value to a jurisdiction code, or null when declined.
+ * Normalise a submitted value.
  *
- * Returns `undefined` for a value that is neither a real jurisdiction nor the
- * decline sentinel — the caller must treat that as a validation failure rather
- * than storing something. Returning `null` for bad input would silently record
- * a typo as a refusal, which would corrupt exactly the data this field exists to
- * collect.
+ *   a jurisdiction code -> that code ("CA")
+ *   a decline           -> PREFER_NOT_TO_SAY  (an explicit value, NOT null)
+ *   an empty submission -> null                (not asked; not a refusal)
+ *   anything else       -> undefined           (invalid; caller must reject)
+ *
+ * The empty case is deliberately distinct from the decline. A blank field means
+ * the participant has not answered yet, which must not be recorded as a refusal
+ * they never made; the UI sends the explicit sentinel only when they choose it.
+ *
+ * Returning `null` for invalid input would silently record a typo as missing
+ * data, and returning PREFER_NOT_TO_SAY for it would record a refusal that never
+ * happened. Both corrupt the field this exists to collect, so invalid input
+ * returns `undefined` and the caller 400s.
  */
 export function normalizeJurisdiction(raw: unknown): string | null | undefined {
   if (raw === null || raw === undefined) return null;
@@ -122,10 +143,15 @@ export function normalizeJurisdiction(raw: unknown): string | null | undefined {
 
   const trimmed = raw.trim();
   if (trimmed === "") return null;
-  if (trimmed === PREFER_NOT_TO_SAY) return null;
+  if (trimmed === PREFER_NOT_TO_SAY) return PREFER_NOT_TO_SAY;
 
   const upper = trimmed.toUpperCase();
   return CODES.has(upper) ? upper : undefined;
+}
+
+/** True when the stored value is an explicit decline rather than a jurisdiction. */
+export function isDeclined(value: string | null | undefined): boolean {
+  return value === PREFER_NOT_TO_SAY;
 }
 
 /** Display name for a code, or null when unknown. */

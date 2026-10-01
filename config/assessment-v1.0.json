@@ -1252,6 +1252,28 @@
       "internal_construct": null,
       "feeds": null,
       "scoring_behavior": "no_diagnostic_effect"
+    },
+    {
+      "internal_id": "D4",
+      "section_label": "D4 State / jurisdiction",
+      "type": "single_select",
+      "required": false,
+      "required_for_completion": false,
+      "diagnostic": false,
+      "prompt": "What state do you currently live in?",
+      "supporting_copy": "This helps us understand where the Set for Life community is growing and, when appropriate, connect you with support available in your area.",
+      "options_source": "jurisdictions",
+      "options": [
+        {
+          "code": "D4_PREFER_NOT_TO_SAY",
+          "label": "Prefer not to say"
+        }
+      ],
+      "internal_construct": null,
+      "feeds": null,
+      "scoring_behavior": "no_diagnostic_effect",
+      "_placement": "Demographics/Profile step, alongside D1-D3. NOT the front door, NOT a Money Moment, NOT the Snapshot cover, and nothing that implies it affects the Money Picture.",
+      "_note": "The jurisdiction options come from the controlled `jurisdictions` table via lib/profile/jurisdiction.ts rather than being duplicated here, so the selector, the API validation and the DB constraint cannot drift. 'Prefer not to say' is an EXPLICIT option, matching D1-D3, so a decline is a recorded choice rather than an absent value."
     }
   ],
   "spec_notes": [

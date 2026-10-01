@@ -96,6 +96,8 @@ export async function POST(request: Request) {
   }
 
   // Echo the STORED value, not the submitted one, so the client renders what is
-  // actually on the record rather than what it hoped to write.
+  // actually on the record rather than what it hoped to write. A decline comes
+  // back as the explicit sentinel, never as null: the participant made a choice
+  // and the response should say so (operator 2026-10-01).
   return NextResponse.json({ state: normalized }, { status: 200 });
 }
