@@ -26,8 +26,11 @@ describe("test harness", () => {
       cfg.opening.length + cfg.questions.length + cfg.activation.length;
     // PRD §8: 31 = Opening A + Opening B + Q1-Q25 + A1-A4
     expect(required).toBe(31);
-    // PRD §8: demographics are separate from diagnostic completion
-    expect(cfg.demographics).toHaveLength(3);
+    // PRD §8: demographics are separate from diagnostic completion. The exact
+    // count is NOT asserted — the step gained D4 (State/jurisdiction) by
+    // operator decision, and pinning a literal here tested the number rather
+    // than the separation the spec actually requires.
+    expect(cfg.demographics.length).toBeGreaterThan(0);
     expect(required + cfg.demographics.length).not.toBe(31);
   });
 });

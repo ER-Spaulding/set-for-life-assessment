@@ -19,11 +19,16 @@ const scoring = JSON.parse(
 );
 
 describe("demographics (PRD §8, §29 test 7)", () => {
-  it("covers D1–D3, each offering a 'Prefer not to say' option (PRD §8)", () => {
+  it("covers D1–D4, each offering a 'Prefer not to say' option (PRD §8)", () => {
+    // D4 = State/jurisdiction, added 2026-10-01 by operator decision and placed
+    // in this step rather than the front door, a Money Moment, or the Snapshot
+    // cover. It belongs here because this is where the other optional,
+    // non-diagnostic profile questions live.
     expect(cfg.demographics.map((d: { internal_id: string }) => d.internal_id)).toEqual([
       "D1",
       "D2",
       "D3",
+      "D4",
     ]);
     for (const d of cfg.demographics) {
       const hasOptOut = d.options.some(
@@ -31,6 +36,22 @@ describe("demographics (PRD §8, §29 test 7)", () => {
       );
       expect(hasOptOut).toBe(true);
     }
+  });
+
+  it("D4 is profile data with the same non-diagnostic shape as D1–D3", () => {
+    // The State question must not quietly become a scored item. It is optional,
+    // non-diagnostic, not required for completion, and feeds no construct — the
+    // same contract every other item in this step honours.
+    const d4 = cfg.demographics.find((d: { internal_id: string }) => d.internal_id === "D4");
+    expect(d4, "D4 must exist").toBeTruthy();
+    expect(d4.required).toBe(false);
+    expect(d4.required_for_completion).toBe(false);
+    expect(d4.diagnostic).toBe(false);
+    expect(d4.internal_construct).toBeNull();
+    expect(d4.feeds).toBeNull();
+    expect(d4.scoring_behavior).toBe("no_diagnostic_effect");
+    // Its jurisdiction options come from the controlled list, not a copy.
+    expect(d4.options_source).toBe("jurisdictions");
   });
 
   it("carries no scoring/classifier/signal weight (PRD §8, §29 test 7)", () => {

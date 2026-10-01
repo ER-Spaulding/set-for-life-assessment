@@ -67,11 +67,24 @@ describe("question bank (PRD §8–§9)", () => {
   });
 
   it("keeps demographics separate from the 31 (PRD §8)", () => {
-    expect(cfg.demographics).toHaveLength(3);
+    // The COUNT is deliberately not asserted. What §8 requires is that the
+    // demographics step is separate from diagnostic completion and does not
+    // contribute to the 31 — a fixed length of 3 both overstated the rule and
+    // broke when D4 (State/jurisdiction) was added to this step by operator
+    // decision. Testing the separation is the point; testing the number was not.
     const required =
       cfg.opening.length + cfg.questions.length + cfg.activation.length;
     expect(required).toBe(31);
+    expect(cfg.demographics.length).toBeGreaterThan(0);
     expect(required + cfg.demographics.length).not.toBe(31);
+    // And none of them is a scored item.
+    for (const d of cfg.demographics as Array<{
+      required_for_completion: boolean;
+      diagnostic: boolean;
+    }>) {
+      expect(d.required_for_completion).toBe(false);
+      expect(d.diagnostic).toBe(false);
+    }
   });
 
   it("uses each external_order 1–25 exactly once (PRD §9)", () => {
