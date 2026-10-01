@@ -64,6 +64,19 @@ export function verificationUrl(args: {
   token: string;
   firstName?: string;
   lastName?: string;
+  /**
+   * Addendum 02 v1.1 §14 — the provisional participant this link should CLAIM.
+   *
+   * Present only on the Save My Progress path. Without it the callback sees an
+   * unknown email and creates a SECOND participant, orphaning the provisional
+   * row and every answer already stored against it — the duplication §14
+   * explicitly forbids.
+   *
+   * Safe in a link: it identifies WHICH row to claim, and the token is what
+   * proves the requester is entitled to claim it. Possessing the id alone grants
+   * nothing.
+   */
+  claimParticipantId?: string;
 }): string {
   const q = new URLSearchParams({
     purpose: args.purpose,
@@ -74,6 +87,7 @@ export function verificationUrl(args: {
   });
   if (args.firstName) q.set("firstName", args.firstName);
   if (args.lastName) q.set("lastName", args.lastName);
+  if (args.claimParticipantId) q.set("claimParticipantId", args.claimParticipantId);
   return `${appUrl()}/auth/callback?${q.toString()}`;
 }
 

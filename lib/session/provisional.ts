@@ -148,3 +148,28 @@ export async function claimProvisionalParticipant(args: {
 
   return { claimed: true };
 }
+
+/**
+ * Does this email already belong to a DIFFERENT participant?
+ *
+ * Used by the claim route to refuse rather than merge. Read-only and separate
+ * from `claimProvisionalParticipant` so the route can answer the participant
+ * BEFORE sending a verification link — telling someone "saved!" and then failing
+ * to attach their identity would be worse than asking them to use another
+ * address up front.
+ */
+export async function queryIfEmailBelongsToAnother(
+  participantId: string,
+  email: string,
+): Promise<boolean> {
+  const db = serviceClient();
+  const { data } = await db
+    .from("participant_contacts")
+    .select("participant_id")
+    .eq("contact_type", "email")
+    .eq("normalized_value", email.trim().toLowerCase())
+    .maybeSingle();
+
+  const ownerId = (data as { participant_id?: string } | null)?.participant_id;
+  return Boolean(ownerId && ownerId !== participantId);
+}

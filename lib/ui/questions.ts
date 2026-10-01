@@ -17,6 +17,7 @@
 // silently widening what participants can see.
 
 import rawBank from "../../config/assessment-v1.0.json";
+import interstitialConfig from "../../config/interstitial-v1.0.json";
 
 /** A single answer option, as a participant sees it. */
 export interface UiOption {
@@ -144,4 +145,41 @@ export function maxSelections(type: string): number {
 /** True when the item takes more than one selection. */
 export function isMultiSelect(type: string): boolean {
   return maxSelections(type) > 1;
+}
+
+// ---------------------------------------------------------------------------
+// Money Moment placement (Addendum 02 v1.1 §9)
+// ---------------------------------------------------------------------------
+
+/**
+ * Which sequence index each Money Moment follows, derived from the placement
+ * recorded in `config/interstitial-v1.0.json`.
+ *
+ * DERIVED HERE RATHER THAN HARD-CODED, so the two cannot drift: the config says
+ * "after the Nth diagnostic question", the diagnostic order lives in the
+ * assessment config, and this resolves one against the other. If the instrument
+ * order ever changes, the Money Moments move with it instead of landing between
+ * the wrong questions.
+ *
+ * Returns a map of sequence index -> moment id: the moment is shown AFTER the
+ * question at that index has been answered.
+ */
+export function moneyMomentPlacements(): Record<number, string> {
+  const diagnosticOrder = [...QUESTION_BANK.questions]
+    .sort((a, b) => (a.external_order ?? 0) - (b.external_order ?? 0))
+    .map((q) => q.internal_id);
+
+  const out: Record<number, string> = {};
+  for (const m of interstitialConfig.moneyMoments) {
+    const afterItem = diagnosticOrder[m.placement.afterDiagnosticIndex - 1];
+    if (!afterItem) continue; // a placement beyond the diagnostic set is ignored
+    const seqIndex = QUESTION_SEQUENCE.findIndex((q) => q.internal_id === afterItem);
+    if (seqIndex >= 0) out[seqIndex] = m.id;
+  }
+  return out;
+}
+
+/** Milestone label for a moment (§13), or undefined. */
+export function moneyMomentLabel(momentId: string): string | undefined {
+  return interstitialConfig.moneyMoments.find((m) => m.id === momentId)?.milestoneLabel;
 }

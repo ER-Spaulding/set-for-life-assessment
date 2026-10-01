@@ -92,5 +92,22 @@
       "cta": "FINISH STRONG ->",
       "internalPurpose": "completion energy without naming or defining Urgency, Readiness, Commitment, or Support Readiness before they are measured."
     }
-  ]
+  ],
+  "saveMyProgress": {
+    "_source": "Addendum 02 v1.1 §3.1 Optional Save My Progress copy",
+    "_placement": "Offered after Money Moment 01 (§3.4). Optional — 'Keep Going Without Saving' continues in the current session without interruption.",
+    "headline": "Want to make sure you don't lose your progress?",
+    "body": [
+      "Save your assessment so you can come back if you need to step away."
+    ],
+    "primaryCta": "SAVE MY PROGRESS",
+    "secondaryCta": "KEEP GOING WITHOUT SAVING",
+    "_note": "Do not frame identity collection as the price of admission (§3.1). The participant has already been answering; this offers a way to not lose that, and declining costs nothing they have not already been given.",
+    "keepNumber": {
+      "_source": "Operator decision 2026-10-01",
+      "label": "Your Set for Life Number",
+      "instructions": "Keep this number. It helps us find your Set for Life record when you return.",
+      "_note": "Must not overstate the number as a security credential (operator, 2026-10-01). It is a lookup aid; verification is what protects the record."
+    }
+  }
 }

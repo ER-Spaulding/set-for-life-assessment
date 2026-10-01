@@ -153,6 +153,49 @@ export async function GET(request: Request) {
   const nowIso = new Date().toISOString();
   const db = serviceClient();
 
+  // ---- Save My Progress: CLAIM the provisional participant (§14) ----
+  //
+  // Checked BEFORE the create-new branch below, and that ordering is the whole
+  // point. A participant who answered five questions anonymously and then chose
+  // Save My Progress has a provisional row holding their session and every
+  // response so far. Without this branch the email would be unknown, the code
+  // below would create a SECOND participant, and the provisional row — with all
+  // their answers — would be orphaned. §14: "attach/claim the current
+  // provisional participant/session WITHOUT duplicating responses."
+  //
+  // The claim id says WHICH row; the token check above is what proves the
+  // requester may claim it, so possessing the id alone grants nothing.
+  const claimId = (q.get("claimParticipantId") ?? "").trim();
+  if (claimId && /^[0-9a-f-]{36}$/i.test(claimId)) {
+    const { claimProvisionalParticipant } = await import("@/lib/session/provisional");
+    const result = await claimProvisionalParticipant({
+      participantId: claimId,
+      firstName,
+      lastName,
+      email: contact,
+    });
+
+    // A conflict is NOT merged. §5 forbids automatic merging, so if the address
+    // already belongs to someone else the participant is sent back to choose a
+    // different address rather than having two people's records silently folded
+    // together.
+    if (!result.claimed) {
+      return NextResponse.redirect(
+        new URL("/assessment/start?claimConflict=1", request.url),
+        303,
+      );
+    }
+
+    // Stamp the contact verified — the click just proved ownership of it.
+    await db
+      .from("participant_contacts")
+      .update({ verified_at: nowIso })
+      .eq("contact_type", "email")
+      .eq("normalized_value", contact);
+
+    return redemptionResponse(request, claimId, false);
+  }
+
   // Existing email contact → reuse its participant (never a duplicate).
   // Refresh verified_at: the click just proved current ownership of the address.
   const { data: existing, error: lErr } = await db

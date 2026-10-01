@@ -25,8 +25,12 @@ import {
   REQUIRED_QUESTION_COUNT,
   isMultiSelect,
   maxSelections,
+  moneyMomentPlacements,
+  moneyMomentLabel,
   type UiQuestion,
 } from "@/lib/ui/questions";
+import { MoneyMoment } from "@/components/assessment/MoneyMoment";
+import { SaveMyProgress } from "@/components/identity/SaveMyProgress";
 import { QuestionFrame } from "@/components/assessment/QuestionFrame";
 import { SingleSelectCard } from "@/components/assessment/SingleSelectCard";
 import { MultiSelectCard } from "@/components/assessment/MultiSelectCard";
@@ -36,6 +40,15 @@ import { TransitionScreen } from "@/components/assessment/TransitionScreen";
 const ACTIVATION_FIRST_INDEX = QUESTION_SEQUENCE.findIndex((q) =>
   q.internal_id.startsWith("A"),
 );
+
+/**
+ * Money Moment placements, resolved from config (Addendum 02 v1.1 §9).
+ * Keyed by the sequence index the moment FOLLOWS.
+ */
+const MONEY_MOMENTS = moneyMomentPlacements();
+
+/** §3.4: Save My Progress is offered after Money Moment 01. */
+const SAVE_PROGRESS_AFTER = "MM01";
 
 export default function SessionPage() {
   const params = useParams<{ sessionId: string }>();
@@ -47,6 +60,25 @@ export default function SessionPage() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showTransition, setShowTransition] = useState(false);
+  /**
+   * The Money Moment currently being shown, if any (Addendum 02 v1.1 §9).
+   *
+   * `shownMoments` tracks which have already been seen, because §12 requires
+   * that back/forward correction must NOT repeatedly force an already-viewed
+   * Money Moment. A moment is an interstitial, not a gate — re-showing it on
+   * every pass through the same question would turn a pacing beat into an
+   * obstacle.
+   */
+  const [moment, setMoment] = useState<string | null>(null);
+  const [shownMoments, setShownMoments] = useState<Record<string, true>>({});
+  /** §3.4: the optional Save My Progress offer, after MM01. */
+  const [showSavePrompt, setShowSavePrompt] = useState(false);
+  const [claimed, setClaimed] = useState(false);
+  const [sflNumber, setSflNumber] = useState<string | null>(null);
+  const [claimSending, setClaimSending] = useState(false);
+  const [claimError, setClaimError] = useState<string | null>(null);
+  /** The provisional participant id, read from sessionStorage. */
+  const [participantId, setParticipantId] = useState<string | null>(null);
   // Answers already persisted, so going Back does not lose them visually.
   const [saved, setSaved] = useState<Record<string, string[]>>({});
   const [loading, setLoading] = useState(true);
@@ -89,6 +121,20 @@ export default function SessionPage() {
       alive = false;
     };
   }, [sessionId]);
+
+  // Read the provisional identity written by /assessment/start. Absent for a
+  // returning participant, who arrives with an identity already.
+  useEffect(() => {
+    try {
+      const raw = window.sessionStorage.getItem("sfl_provisional");
+      if (!raw) return;
+      const parsed = JSON.parse(raw) as { participantId?: string; sflNumber?: string };
+      if (parsed.participantId) setParticipantId(parsed.participantId);
+      if (parsed.sflNumber) setSflNumber(parsed.sflNumber);
+    } catch {
+      /* private mode or first load: the Save prompt simply will not offer */
+    }
+  }, []);
 
   // Load the current question's stored selection whenever the index changes.
   useEffect(() => {
@@ -162,6 +208,17 @@ export default function SessionPage() {
     const ok = await persist();
     if (!ok) return;
 
+    // ---- §9: a Money Moment follows this question ----
+    // Checked BEFORE advancing, because the moment belongs between this question
+    // and the next. §12: "do not repeatedly force an already-viewed Money Moment
+    // during ordinary back/forward correction", so a moment already seen is
+    // skipped on a second pass rather than shown again.
+    const due = MONEY_MOMENTS[index];
+    if (due && !shownMoments[due]) {
+      setMoment(due);
+      return;
+    }
+
     // §8 S07: the activation transition, shown once, immediately before A1–A4.
     if (index === ACTIVATION_FIRST_INDEX && !showTransition) {
       setShowTransition(true);
@@ -175,7 +232,63 @@ export default function SessionPage() {
 
     // Last question answered — hand off to completion.
     router.push(`/assessment/${sessionId}/complete`);
-  }, [persist, index, showTransition, router, sessionId]);
+  }, [persist, index, showTransition, router, sessionId, shownMoments]);
+
+  /** Leaving a Money Moment: record it as seen, then decide what comes next. */
+  const leaveMoment = useCallback(
+    (advance = true) => {
+      const id = moment;
+      setMoment(null);
+      if (id) setShownMoments((prev) => ({ ...prev, [id]: true }));
+
+      // §3.4: Save My Progress is offered immediately after Money Moment 01 —
+      // after the participant has momentum, not before they have seen anything.
+      if (advance && id === SAVE_PROGRESS_AFTER && participantId && !claimed) {
+        setShowSavePrompt(true);
+        return;
+      }
+      if (!advance) return;
+      if (index + 1 < REQUIRED_QUESTION_COUNT) setIndex(index + 1);
+      else router.push(`/assessment/${sessionId}/complete`);
+    },
+    [moment, participantId, claimed, index, router, sessionId],
+  );
+
+  /** §3.1: collect identity and send the verification link. */
+  const claim = useCallback(
+    async (firstName: string, email: string) => {
+      if (!participantId) return;
+      setClaimSending(true);
+      setClaimError(null);
+      try {
+        const res = await fetch("/api/participant/claim", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ participantId, firstName, email }),
+        });
+        if (res.status === 409) {
+          const data = (await res.json().catch(() => null)) as
+            | { error?: { message?: string } }
+            | null;
+          setClaimError(
+            data?.error?.message ??
+              "That email is already connected to a different record.",
+          );
+          return;
+        }
+        if (!res.ok) {
+          setClaimError("We could not send the link just now. Please try again.");
+          return;
+        }
+        setClaimed(true);
+      } catch {
+        setClaimError("We could not send the link just now. Please try again.");
+      } finally {
+        setClaimSending(false);
+      }
+    },
+    [participantId],
+  );
 
   if (loading) {
     return (
@@ -200,6 +313,35 @@ export default function SessionPage() {
           This assessment could not be loaded.
         </p>
       </main>
+    );
+  }
+
+  // ---- §9: a Money Moment is showing ----
+  if (moment) {
+    return (
+      <MoneyMoment
+        momentId={moment}
+        milestoneLabel={moneyMomentLabel(moment)}
+        progress={`${index + 1} of ${REQUIRED_QUESTION_COUNT} answered`}
+        onContinue={() => leaveMoment(true)}
+      />
+    );
+  }
+
+  // ---- §3.4: Save My Progress, offered after MM01 ----
+  if (showSavePrompt) {
+    return (
+      <SaveMyProgress
+        sflNumber={sflNumber}
+        claimed={claimed}
+        sending={claimSending}
+        error={claimError}
+        onKeepGoing={() => {
+          setShowSavePrompt(false);
+          leaveMoment(true);
+        }}
+        onClaim={(firstName, email) => void claim(firstName, email)}
+      />
     );
   }
 

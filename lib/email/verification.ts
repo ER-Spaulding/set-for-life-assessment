@@ -35,6 +35,8 @@ export interface VerificationEmailArgs {
   token: string;
   firstName?: string;
   lastName?: string;
+  /** §14: the provisional participant this link claims, when saving progress. */
+  claimParticipantId?: string;
 }
 
 /** How long the link is good for, in whole minutes, for the copy. */
