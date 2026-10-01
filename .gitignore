@@ -43,3 +43,7 @@ next-env.d.ts
 
 # Vitest cache
 .vitest/
+
+# 320px QA run artifacts — screenshots and report are regenerated, not source.
+# The README explains how to produce them.
+tests/qa/artifacts/

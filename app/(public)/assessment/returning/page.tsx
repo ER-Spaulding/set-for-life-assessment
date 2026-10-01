@@ -225,13 +225,25 @@ export default function ReturningPage() {
             </>
           ) : null}
 
+          {/*
+            TAP TARGET. This rendered at 38x28px — measured, not guessed, by the
+            320px device harness (tests/qa/viewport-320.mjs), which failed this
+            route on its first run. A 28px-tall control is a control a thumb
+            misses, and this one is the ONLY way off a dead-end screen.
+
+            The fix is padding plus the same 56px minimum the primary buttons
+            use, rather than a larger font: the visual weight of a secondary
+            action should stay secondary while its HIT AREA does not. `inline-flex`
+            + `max-w-full` keeps it from overflowing at 320px, and the text is
+            free to wrap onto two lines rather than being clipped.
+          */}
           <button
             type="button"
             onClick={() =>
               stage === "lookup" ? router.push("/assessment/start") : setStage("lookup")
             }
-            className="mt-10 font-serif text-rose underline-offset-4 hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-evergreen"
-            style={{ fontSize: "20px", lineHeight: "28px" }}
+            className="mt-10 inline-flex max-w-full items-center rounded-sm px-3 py-4 font-serif text-rose underline-offset-4 hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-evergreen"
+            style={{ fontSize: "20px", lineHeight: "28px", minHeight: "56px" }}
           >
             {stage === "lookup" ? "Back" : "Try a different number"}
           </button>

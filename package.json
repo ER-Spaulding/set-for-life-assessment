@@ -10,7 +10,8 @@
     "test": "node tests/unit/copy-library-consistency.mjs && vitest run",
     "test:watch": "vitest",
     "typecheck": "tsc --noEmit",
-    "test:guards": "node tests/unit/copy-library-consistency.mjs"
+    "test:guards": "node tests/unit/copy-library-consistency.mjs",
+    "qa:320": "node tests/qa/viewport-320.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.117.2",
