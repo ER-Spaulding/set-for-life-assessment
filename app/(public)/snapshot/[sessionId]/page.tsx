@@ -140,8 +140,21 @@ export default function SnapshotPage() {
         </h1>
       </header>
 
-      {/* S13 — operating profile. One block per signal, each from approved copy. */}
-      <Section title="Your Financial Operating Profile">
+      {/*
+        S13 — the participant-facing Money Picture. One block per signal, each
+        from approved copy.
+
+        THE TITLE WAS "Your Financial Operating Profile", which Addendum 01 v1.1
+        §2.1–2.2 supersedes: the participant-facing methodology is **The Set for
+        Life Money Picture™**, and the six constructs are "the technical/scoring
+        architecture underneath the participant experience" — not a name to show
+        anyone. Presenting them as an "operating profile" named the internal
+        model as though it were the participant's deliverable.
+
+        Each block's label now comes from §2.4's six human questions, so the
+        heading and the labels agree.
+      */}
+      <Section title="Your Set for Life Money Picture">
         <div className="flex flex-col gap-16">
           {snapshot.signals.map((s) => {
             const copy = resolveNarrative(s.narrativeKey);

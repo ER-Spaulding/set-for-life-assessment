@@ -80,16 +80,53 @@ export function resolveNarrative(key: string): SignalStateCopy | null {
 }
 
 /**
- * The participant-facing label for a signal.
+ * The participant-facing label for a signal — one of §2.4's six human questions.
  *
- * The API returns the internal id (SEE, ROOM, …), which happens to be the
- * participant-facing label on this instrument — the spec names the signals
- * that way deliberately (§13, "participant-friendly labels"). Kept as a
- * function so a future divergence has one place to change.
+ * The API still returns the internal id (SEE, ROOM, …), because that is what the
+ * payload keys on. This is the translation layer between the diagnostic
+ * vocabulary and what a participant reads.
  */
 export function signalLabel(signal: string): string {
-  return signal;
+  return SIGNAL_QUESTION_LABEL[signal] ?? "";
 }
+
+/**
+ * The six participant-facing questions — Addendum 01 v1.1 §2.4.
+ *
+ * THIS REPLACES RETURNING THE RAW INTERNAL CODE. `signalLabel` used to be
+ * `return signal`, so every results screen rendered SEE / ROOM / DIRECT /
+ * PREPARE / AIM / MOVE to the participant. The comment defending that claimed
+ * the spec "names the signals that way deliberately (§13, participant-friendly
+ * labels)" — but those are the INTERNAL diagnostic constructs, and v1.1 §2.2 is
+ * explicit that they are the "technical/scoring architecture underneath the
+ * participant experience", listed separately from the branded methodology.
+ *
+ * §2.4 supplies the actual presentation language: six human questions, and the
+ * spec states its own scope — "These questions are presentation language. They
+ * do not change scoring." So this is a labelling layer with no effect on the
+ * payload, the signals, or any interpretation.
+ *
+ * VERBATIM from §2.4, including the second-person phrasing. Unknown keys return
+ * an EMPTY STRING rather than the raw code: an internal identifier reaching a
+ * participant is the thing §24 forbids, so a missing label must render nothing.
+ */
+const SIGNAL_QUESTION_LABEL: Record<string, string> = {
+  // §2.4.1 — What is visible and understandable about your financial life right now?
+  SEE: "What can you see?",
+  // §2.4.2 — How much financial margin or flexibility exists after life and
+  // current obligations are handled?
+  ROOM: "How much room do you have?",
+  // §2.4.3 — How intentionally can you direct the money and choices that are
+  // actually available to you?
+  DIRECT: "How are you making decisions?",
+  // §2.4.4 — How able is your financial life to absorb disruption and recover?
+  PREPARE: "How prepared are you for disruption?",
+  // §2.4.5 — How clearly do today's financial decisions connect to the future
+  // you want?
+  AIM: "Where are you headed?",
+  // §2.4.6 — What happens when financial information reaches you?
+  MOVE: "What happens after you know?",
+};
 
 /** Resolve a tension code to its approved connection statement. */
 export function resolveConnection(code: string): ConnectionCopy | null {

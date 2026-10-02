@@ -52,7 +52,7 @@
       "order": 3,
       "prd_ref": "§20 Screen/Page 3",
       "uiux_ref": "S13",
-      "title": "Financial Operating Profile",
+      "title": "Your Set for Life Money Picture",
       "title_source": "structural",
       "conditional": false,
       "feeds": {
@@ -75,7 +75,8 @@
           "SPECIAL.*"
         ]
       },
-      "notes": "Participant-friendly operating labels SEE / ROOM / DIRECT / PREPARE / AIM / MOVE (PRD §20.1). Descriptive state labels only — no raw 1–5 values, no scores, no gauges."
+      "notes": "Participant-friendly operating labels SEE / ROOM / DIRECT / PREPARE / AIM / MOVE (PRD §20.1). Descriptive state labels only — no raw 1–5 values, no scores, no gauges.",
+      "_title_note": "Renamed 2026-10-01. Was 'Financial Operating Profile', which Addendum 01 v1.1 2.1-2.2 supersedes: the participant-facing methodology is The Set for Life Money Picture (TM), and the six signal constructs are the technical architecture UNDERNEATH the participant experience, not a name to show anyone. Section id kept as 'operating-profile' so renderers and refs do not break."
     },
     {
       "id": "strengths",
