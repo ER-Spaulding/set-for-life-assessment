@@ -309,6 +309,24 @@ That is a **latent divergence**: correct today, wrong the first time anyone
 calibrates the scale, which is exactly what the operator is being asked to do in
 §3. Worth fixing regardless of any calibration choice.
 
+**Verified after the first draft of this section, because "latent" is a claim
+that needed testing rather than asserting.** `F` options DO exist in the
+instrument — seven items offer one (Q1, Q9, Q12, Q16, Q21, D1, D3) — so the
+question was whether any of them reaches an item-level gate. It does not:
+resolving every `item_gte` / `item_lte` / `avg_lte.items` reference in the config
+gives 13 gated items — Q4, Q5, Q6, Q13, Q14, Q15, Q17, Q19, Q20, Q22, Q23, Q24,
+Q25 — and **every one of them offers only A–E**. Zero overlap with the
+F-bearing set.
+
+The one F-bearing item with a scoring meaning, Q12, is handled deliberately:
+`Q12_F` ("There usually isn't enough flexibility in my finances to free up money")
+is the capacity answer, and it is routed to the **override** path
+(`overrides.Q12_F` → `DIRECT_CAPACITY_LIMITED`) rather than to a numeric value.
+The config's `q12: {Q12_F: null}` excludes it from the average on purpose, and
+the reader looks it up **by letter**, so the letter path is consistent there too.
+
+So this is confirmed latent, not live. Reported as such.
+
 Note this is a *different* finding from `activation.level_bands`, where the
 config is unread and the code is authoritative — there the config is simply
 inert. Here both copies are live and they disagree about which letters exist.
