@@ -169,11 +169,16 @@ describe("production callers DERIVE activation from the participant's answers (t
   });
 
   it("both callers build activation through levelsForActivation from A1–A4", () => {
+    // The call now takes an OPTIONAL second argument (the config's letter
+    // bands), so the old `levelsForActivation({...})` regex — which required the
+    // closing paren immediately after the object — stopped matching. That is a
+    // formatting change, not a behavioural one, so this asserts the INTENT: the
+    // four dimensions are passed, and the result is used.
     for (const [name, src] of [
       ["lib/session/service.ts", serviceSrc],
       ["app/api/internal/test-harness/run/route.ts", harnessSrc],
     ] as const) {
-      const call = src.match(/levelsForActivation\(\{([\s\S]{0,200}?)\}\)/);
+      const call = src.match(/levelsForActivation\(([\s\S]{0,400}?)\);/);
       expect(call, `${name} must call levelsForActivation`).not.toBeNull();
       for (const item of ["A1", "A2", "A3", "A4"]) {
         expect(call![1], `${name} must derive ${item}`).toContain(item);

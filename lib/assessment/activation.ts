@@ -30,37 +30,86 @@ export type ActivationLevels = {
   A4: ActivationLevel;
 };
 
-/** Option letters collapsing to each level (config `activation.level_bands`). */
-const LOW_LETTERS = ['A', 'B'];
-const MID_LETTERS = ['C'];
-const HIGH_LETTERS = ['D', 'E'];
+/**
+ * Option letters collapsing to each level — the SHIPPED DEFAULT.
+ *
+ * These were frozen constants while `config.activation.level_bands` sat unread
+ * beside them: the same three bands, stated twice, with only one copy live. So a
+ * calibration edit to the config changed nothing, and the config read as a
+ * control that was not one.
+ *
+ * `levelForOption` now accepts the config's bands, and these are the fallback
+ * for callers that have no config to hand (the pure-function tests, and the
+ * acceptance harness). Production passes the config — see `levelsForActivation`
+ * below, and its call sites in `snapshot-payload.ts` and `service.ts`.
+ *
+ * SHAPE CHANGE, not a value change: A/B / C / D-E are identical in both places,
+ * so no participant's level moves. What changes is that editing the config now
+ * moves them.
+ */
+export const DEFAULT_LEVEL_BANDS: Record<ActivationLevel, string[]> = {
+  LOW: ['A', 'B'],
+  MID: ['C'],
+  HIGH: ['D', 'E'],
+};
+
+/** Validate a config-supplied bands object, or fall back to the default. */
+export function resolveLevelBands(
+  bands: { LOW?: unknown; MID?: unknown; HIGH?: unknown } | undefined,
+): Record<ActivationLevel, string[]> {
+  const pick = (key: ActivationLevel): string[] => {
+    const raw = bands?.[key];
+    if (
+      Array.isArray(raw) &&
+      raw.length > 0 &&
+      raw.every((x) => typeof x === 'string' && x.length === 1)
+    ) {
+      return raw.map((x) => (x as string).toUpperCase());
+    }
+    return DEFAULT_LEVEL_BANDS[key];
+  };
+  return { LOW: pick('LOW'), MID: pick('MID'), HIGH: pick('HIGH') };
+}
 
 /**
  * Collapse one selected option to its activation level.
  * Accepts full option ids ("A1_D") or bare letters ("D").
  * Throws on an unrecognised option — never silently defaults.
+ *
+ * `bands` comes from `config.activation.level_bands`; omit it to use the
+ * shipped default. An option that matches NO band still throws, which is the
+ * behaviour a config error should produce — a participant whose answer falls
+ * outside every band is a real fault, not something to absorb.
  */
-export function levelForOption(option: string): ActivationLevel {
+export function levelForOption(
+  option: string,
+  bands: Record<ActivationLevel, string[]> = DEFAULT_LEVEL_BANDS,
+): ActivationLevel {
   const letter = option.includes('_') ? option.split('_').pop()! : option;
   const upper = letter.toUpperCase();
-  if (LOW_LETTERS.includes(upper)) return 'LOW';
-  if (MID_LETTERS.includes(upper)) return 'MID';
-  if (HIGH_LETTERS.includes(upper)) return 'HIGH';
+  if (bands.LOW.includes(upper)) return 'LOW';
+  if (bands.MID.includes(upper)) return 'MID';
+  if (bands.HIGH.includes(upper)) return 'HIGH';
   throw new Error(`Unknown activation option: ${option}`);
 }
 
 /**
  * Map the four A1–A4 selections to four separate levels.
  * Returns a keyed object of four — never a scalar, never an average.
+ *
+ * `bands` is optional and defaults to the shipped bands, so existing callers
+ * keep working unchanged. Production callers pass
+ * `resolveLevelBands(cfg.activation?.level_bands)` so the config is what decides.
  */
 export function levelsForActivation(
   selections: Record<ActivationKey, string>,
+  bands: Record<ActivationLevel, string[]> = DEFAULT_LEVEL_BANDS,
 ): ActivationLevels {
   return {
-    A1: levelForOption(selections.A1),
-    A2: levelForOption(selections.A2),
-    A3: levelForOption(selections.A3),
-    A4: levelForOption(selections.A4),
+    A1: levelForOption(selections.A1, bands),
+    A2: levelForOption(selections.A2, bands),
+    A3: levelForOption(selections.A3, bands),
+    A4: levelForOption(selections.A4, bands),
   };
 }
 

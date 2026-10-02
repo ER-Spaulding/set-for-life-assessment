@@ -271,6 +271,11 @@ crown one.
 
 ## 4. A defect class the decision table missed entirely
 
+> **STATUS 2026-10-01: FIXED, except where noted.** The operator approved the
+> correction — *"configuration must either genuinely control behavior or cease
+> pretending to be configurable."* Three of the five twins below are now wired or
+> removed; the remaining two are marked. See §4a for what changed.
+
 The table's central promise was: *"Changing any of them changes
 participant-facing output with no code change."* **For five values that is
 false** — the code carries its own literal copy, and the config copy is inert.
@@ -278,11 +283,47 @@ Editing the config does nothing.
 
 | Config key | Config value | Hardcoded twin | Effect of editing config |
 |---|---|---|---|
-| `activation.level_bands` | `["A","B"] / ["C"] / ["D","E"]` | `lib/assessment/activation.ts:34–36` | **none** — `levelForOption` never reads config |
-| `option_value_maps.profile_1_5` | `{A:1…E:5}` | `lib/session/service.ts:71` `LETTER_VALUES` | **none** for item-level gates |
-| `option_value_maps.Q18_profile_1_5` | `{A:1…E:5}` | same `LETTER_VALUES` | **none** for item-level gates |
-| `min_signals_s4_or_above` | `3` | `lib/assessment/tensions.ts:519` `DEFAULT_MIN_SIGNALS_S4` | none in production — a *default parameter* only |
-| `capacity_low` (tension side) | `<= 2.59` | — | none; unreferenced (§2b correction) |
+| `activation.level_bands` | `["A","B"] / ["C"] / ["D","E"]` | `lib/assessment/activation.ts:34–36` | ~~**none**~~ **FIXED** — config is now passed in; the literals are a fallback |
+| `option_value_maps.profile_1_5` | `{A:1…E:5}` | `lib/session/service.ts:71` `LETTER_VALUES` | ~~**none** for item-level gates~~ **FIXED** — twin deleted, config authoritative |
+| `option_value_maps.Q18_profile_1_5` | `{A:1…E:5}` | same `LETTER_VALUES` | ~~**none** for item-level gates~~ **FIXED** — same change |
+| `min_signals_s4_or_above` | `3` | `lib/assessment/tensions.ts:519` `DEFAULT_MIN_SIGNALS_S4` | none in production — a *default parameter*, `evaluateTensions` passes config explicitly. **Left as-is**: it is a fallback, not a shadow. |
+| `capacity_low` (tension side) | `<= 2.59` | — | none; unreferenced (§2b correction). **Left as dead, now labelled.** |
+
+### 4a. What was fixed, and the live defect found underneath
+
+**`LETTER_VALUES` was worse than a twin — it was scoring a capacity answer as
+high agency.** The config maps the override options to `null` to *exclude* them
+(`q11: {"Q11_A": null}`, `q12: {"Q12_F": null}`). The hardcoded map invented
+`F: 5`, the **highest** value. So a participant answering Q12_F — *"There usually
+isn't enough flexibility in my finances to free up money"* — had that recorded as
+strong agency evidence. `Q11_A` was wrong too, scoring 1 for the same kind of
+answer.
+
+The damage landed in corroboration: `confidenceFor()` counts a signal's
+contributing items with `items[q] !== undefined`, and its comment claimed an item
+that "maps to null … is correctly absent from `items`, so it cannot corroborate".
+That was false. The inflated count feeds evidence confidence, which selects the
+HIGH / MODERATE / LIMITED verb of participant-facing sentences.
+
+**No live session was affected** — the four stored participants answered only
+Q11_B/C and Q12_C/D — but every future participant answering Q12_F was.
+
+The resolution logic moved to `lib/assessment/option-values.ts`, a **pure**
+module. It had to: `service.ts` opens with `import "server-only"`, so
+`numericItems` could not be imported by a plain test at all. The function deciding
+what an answer is *worth* was untestable in isolation — and a mutated version that
+ignored its arguments passed the entire suite.
+
+**`activation.level_bands`** is now passed through `resolveLevelBands`, with the
+old constants kept as `DEFAULT_LEVEL_BANDS` for callers that have no config. Both
+are `A/B, C, D/E`, so **no participant's level moves** — what changes is that a
+calibration edit now moves them.
+
+**`min_signals_s4_or_above`'s `DEFAULT_MIN_SIGNALS_S4`** is deliberately left.
+It is a default *parameter*, and `evaluateTensions` passes the config value
+explicitly at the call site. Removing it would make the function unusable without
+config for no gain. It is a fallback, not a shadow — the distinction matters, and
+it is the reason this one is not a defect.
 
 **`LETTER_VALUES` is the one to watch — but it is a latent trap, not a live
 divergence, and the difference matters.** Verified against the current config:

@@ -3,6 +3,11 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { loadScoringTables } from "@/lib/assessment/scoring";
 import { numericItems } from "@/lib/assessment/option-values";
+import {
+  DEFAULT_LEVEL_BANDS,
+  levelForOption,
+  resolveLevelBands,
+} from "@/lib/assessment/activation";
 
 /**
  * CONFIG IS AUTHORITATIVE — a change to configuration must reach every consumer.
@@ -158,54 +163,76 @@ describe("editing the config propagates to every consumer", () => {
   });
 });
 
-describe("activation bands are the other hardcoded twin", () => {
-  it("activation.ts still hardcodes the letter bands, and they still match config", () => {
-    // Recorded rather than fixed silently: this is a KNOWN twin. The config key
-    // `activation.level_bands` is read by nothing. Either wire it or drop it —
-    // but while it exists, the two must not drift.
-    const act = readFileSync(resolve(repo, "lib/assessment/activation.ts"), "utf8");
+describe("activation bands are now driven by config, not a hardcoded twin", () => {
+  it("activation.ts carries a DEFAULT that matches the shipped config", () => {
+    // The bands used to be three frozen literals (LOW_LETTERS / MID_LETTERS /
+    // HIGH_LETTERS) with `config.activation.level_bands` sitting unread beside
+    // them. Now the config is passed in and the literals are only a fallback,
+    // so a config edit actually moves the levels.
+    //
+    // The default must still equal the shipped config, or a caller that omits
+    // bands (the pure tests, the acceptance harness) would score differently
+    // from production.
     const cfg = loadConfig();
     const bands = (cfg.activation as { level_bands: Record<string, string[]> }).level_bands;
 
-    const grab = (name: string): string[] => {
-      const m = act.match(new RegExp(`const ${name}\\s*=\\s*\\[([^\\]]*)\\]`));
-      if (!m) throw new Error(`${name} not found in activation.ts`);
-      return m[1].split(",").map((s) => s.trim().replace(/['"]/g, "")).filter(Boolean);
-    };
-
-    const codeBands = {
-      LOW: grab("LOW_LETTERS"),
-      MID: grab("MID_LETTERS"),
-      HIGH: grab("HIGH_LETTERS"),
-    };
-    console.log(`  code: ${JSON.stringify(codeBands)}`);
-    console.log(`  cfg : ${JSON.stringify({ LOW: bands.LOW, MID: bands.MID, HIGH: bands.HIGH })}`);
-
-    expect(codeBands.LOW, "activation LOW band drifted from config").toEqual(bands.LOW);
-    expect(codeBands.MID, "activation MID band drifted from config").toEqual(bands.MID);
-    expect(codeBands.HIGH, "activation HIGH band drifted from config").toEqual(bands.HIGH);
+    expect(DEFAULT_LEVEL_BANDS.LOW).toEqual(bands.LOW);
+    expect(DEFAULT_LEVEL_BANDS.MID).toEqual(bands.MID);
+    expect(DEFAULT_LEVEL_BANDS.HIGH).toEqual(bands.HIGH);
+    console.log(`  default == config: ${JSON.stringify(DEFAULT_LEVEL_BANDS)}`);
   });
 
-  it("config activation.level_bands is read by no production code (known dead)", () => {
-    // Pinned so that wiring it — which would be an improvement — fails this and
-    // forces the documentation to be updated rather than quietly going stale.
-    const files = [
-      "lib/assessment/activation.ts",
-      "lib/assessment/scoring.ts",
-      "lib/assessment/tensions.ts",
-      "lib/session/service.ts",
-    ];
-    const readers = files.filter((f) => {
-      const code = readFileSync(resolve(repo, f), "utf8")
-        .replace(/\/\*[\s\S]*?\*\//g, "")
-        .replace(/^\s*\/\/.*$/gm, "");
-      return /level_bands/.test(code);
-    });
-    console.log(`  level_bands readers: ${readers.join(", ") || "(none)"}`);
+  it("a CHANGED config band changes the resolved activation level", () => {
+    // THE POINT OF THE WHOLE CHANGE. Under the old code this was impossible:
+    // editing `level_bands` changed nothing, because a literal decided.
+    const shipped = resolveLevelBands(undefined);
+    expect(levelForOption("C", shipped), "precondition: C is MID").toBe("MID");
+
+    // Move C into the HIGH band, as a calibration edit might.
+    //
+    // NOTE: MID is deliberately given a real value rather than an empty array.
+    // An empty band is treated as malformed and falls back to the default
+    // `["C"]` (see the next test), so `{MID: []}` would leave C as MID and this
+    // assertion would fail for a reason that has nothing to do with the wiring.
+    // The first version of this test made exactly that mistake.
+    const edited = resolveLevelBands({ LOW: ["A"], MID: ["B"], HIGH: ["C", "D", "E"] });
+    console.log(`  edited bands: ${JSON.stringify(edited)}`);
     expect(
-      readers,
-      "activation.level_bands gained a reader — update SPEC-TRACE-46.md §4 and this test",
-    ).toEqual([]);
+      levelForOption("C", edited),
+      "the config band was ignored — levelForOption is not consuming its argument",
+    ).toBe("HIGH");
+    expect(levelForOption("B", edited)).toBe("MID");
+    expect(levelForOption("A", edited)).toBe("LOW");
+  });
+
+  it("an empty or malformed config band falls back rather than collapsing", () => {
+    // A config that omits MID must not silently make C unclassifiable and throw
+    // for every participant who answered C.
+    const degraded = resolveLevelBands({ LOW: [], MID: undefined, HIGH: ["Z"] });
+    console.log(`  degraded -> ${JSON.stringify(degraded)}`);
+    expect(degraded.MID, "an empty MID band must fall back, not vanish").toEqual(["C"]);
+    expect(levelForOption("C", degraded)).toBe("MID");
+    // And a valid band is still honoured alongside the fallback.
+    expect(degraded.HIGH).toEqual(["Z"]);
+  });
+
+  it("production callers pass the config bands through", () => {
+    // The wiring half. A resolver that nothing calls is the same dead config in
+    // a new costume.
+    const service = readFileSync(resolve(repo, "lib/session/service.ts"), "utf8");
+    const payload = readFileSync(resolve(repo, "lib/assessment/snapshot-payload.ts"), "utf8");
+    console.log(
+      `  service.ts calls resolveLevelBands: ${/resolveLevelBands\(/.test(service)}`,
+    );
+    console.log(
+      `  snapshot-payload.ts calls resolveLevelBands: ${/resolveLevelBands\(/.test(payload)}`,
+    );
+    expect(service, "lib/session/service.ts does not resolve config bands").toMatch(
+      /resolveLevelBands\(/,
+    );
+    expect(payload, "snapshot-payload.ts does not resolve config bands").toMatch(
+      /resolveLevelBands\(/,
+    );
   });
 });
 

@@ -27,7 +27,11 @@ import {
   evaluatePerceptionGap,
   PerceptionGapMethodUnspecifiedError,
 } from './perception-gap';
-import { activationPatterns, levelsForActivation } from './activation';
+import {
+  activationPatterns,
+  levelsForActivation,
+  resolveLevelBands,
+} from './activation';
 import type { ActivationLevels } from './activation';
 
 // ---------------------------------------------------------------------------
@@ -204,6 +208,16 @@ export interface AssembleInput {
 
   /** The config's `perception_gap` block. */
   perceptionGapConfig: unknown;
+
+  /**
+   * The config's `activation.level_bands` block, if the caller supplies it.
+   *
+   * Optional so existing callers keep working: omitting it falls back to the
+   * shipped bands, which are identical today. Supplying it makes the config
+   * authoritative — which is the point, since `level_bands` previously sat
+   * unread beside a hardcoded copy of itself.
+   */
+  activationLevelBands?: { LOW?: unknown; MID?: unknown; HIGH?: unknown };
 
   /** MOVE's contextual subsignals, straight from the scorer. */
   moveSubsignals: Record<string, number | null>;
@@ -423,12 +437,15 @@ export function assembleSnapshotPayload(input: AssembleInput): SnapshotPayload {
   const { perceptionGap, perceptionGapStatus } = resolvePerceptionGap(input);
 
   // ---- activation ----
-  const activation = levelsForActivation({
-    A1: input.activationSelections.A1,
-    A2: input.activationSelections.A2,
-    A3: input.activationSelections.A3,
-    A4: input.activationSelections.A4,
-  });
+  const activation = levelsForActivation(
+    {
+      A1: input.activationSelections.A1,
+      A2: input.activationSelections.A2,
+      A3: input.activationSelections.A3,
+      A4: input.activationSelections.A4,
+    },
+    resolveLevelBands(input.activationLevelBands),
+  );
   const patterns = activationPatterns(activation);
   const activationPatternNames = (
     Object.keys(patterns) as Array<keyof typeof patterns>

@@ -117,17 +117,33 @@ describe("dead config entries stay declared as dead", () => {
 });
 
 describe("config values with hardcoded twins are declared as such", () => {
-  it("activation.level_bands is shadowed by literals in activation.ts", () => {
-    const act = source("lib/assessment/activation.ts").replace(/\/\/.*|\/\*[\s\S]*?\*\//g, "");
-    expect(act, "activation.ts now reads level_bands — the 'inert config' finding is obsolete").not.toMatch(
-      /level_bands/,
-    );
-    expect(act, "the hardcoded letter bands are gone").toMatch(/const LOW_LETTERS/);
-    expect(act).toMatch(/const MID_LETTERS/);
-    expect(act).toMatch(/const HIGH_LETTERS/);
+  it("activation.level_bands is now WIRED, not shadowed", () => {
+    // This test used to assert that activation.ts hardcoded the bands and never
+    // read config — i.e. it documented the inert config rather than failing on
+    // it. The operator's instruction was that "configuration must either
+    // genuinely control behavior or cease pretending to be configurable", so the
+    // key was wired instead. The old assertion would now fail, correctly.
+    const act = source("lib/assessment/activation.ts").replace(
+      /\/\*[\s\S]*?\*\//g,
+      "",
+    ).replace(/^\s*\/\/.*$/gm, "");
 
-    // And the literals must still match the config, or the shadowing is a bug
-    // rather than a redundancy.
+    // The default remains (callers without config still work) ...
+    expect(act, "the default bands must exist for config-less callers").toMatch(
+      /DEFAULT_LEVEL_BANDS/,
+    );
+    // ... but the resolver exists, and production passes config into it.
+    expect(act, "resolveLevelBands is gone — the config would be inert again").toMatch(
+      /export function resolveLevelBands/,
+    );
+    const service = source("lib/session/service.ts");
+    expect(
+      service,
+      "service.ts no longer passes config bands — activation.level_bands would be inert again",
+    ).toMatch(/resolveLevelBands\(/);
+
+    // And the default must equal the shipped config, or config-less callers
+    // would score differently from production.
     const bands = (config.activation as { level_bands: Record<string, string[]> }).level_bands;
     expect(bands.LOW).toEqual(["A", "B"]);
     expect(bands.MID).toEqual(["C"]);

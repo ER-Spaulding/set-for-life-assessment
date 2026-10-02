@@ -550,21 +550,24 @@
     },
     "item_mid": {
       "value": "= 3",
-      "meaning": "mixed"
+      "meaning": "mixed",
+      "_unused": "LOADED BUT UNREFERENCED. loadTensionThresholds parses this (it has a 'value' string), but no trigger names it in a threshold_ref, and thresholdForRef can only resolve a key some trigger names. It is also DERIVABLE rather than calibratable: on a 1-5 integer scale with item_low at <= 2 and item_high at >= 4, 3 is the only value left. Kept because the PRD describes a 'mixed' band in prose; editing it changes nothing."
     },
     "signal_high": {
       "states": [
         "S4",
         "S5"
       ],
-      "numeric": "mean >= 3.4"
+      "numeric": "mean >= 3.4",
+      "_unused": "NEVER LOADED. This entry has no 'value' string, so loadTensionThresholds skips it before parsing (typeof value !== 'string'). Band membership is already expressed by signals.<SIG>.states, which the engine reads. This is the same fact stated twice, in a form nothing consumes."
     },
     "signal_low": {
       "states": [
         "S1",
         "S2"
       ],
-      "numeric": "mean <= 2.59"
+      "numeric": "mean <= 2.59",
+      "_unused": "NEVER LOADED — same as signal_high: no 'value' string, so the loader skips it. See signals.<SIG>.states for the live band definitions."
     },
     "capacity_low": {
       "states": [
@@ -574,7 +577,7 @@
       "numeric": "Capacity mean <= 2.59",
       "value": "<= 2.59",
       "_calibration_status": "ASSUMED_PENDING_OPERATOR_REVIEW",
-      "_note": "Capacity mean <= 2.59, matching the approved S2 band (1.80-2.59) and signal_low. Harmonisation was applied to the tension engine first and the §13.7 Q18 override LAGGED at 2.5, leaving a (2.5, 2.59] gap where a participant was capacity-limited for one rule and not the other. Corrected 2026-10-01 by operator decision; both paths now read 2.59 from this config."
+      "_note": "Capacity mean <= 2.59, matching the approved S2 band (1.80-2.59) and signal_low. The §13.7 override LAGGED at 2.5 after an earlier harmonisation, leaving a (2.5, 2.59] gap; corrected 2026-10-01 by operator decision. NOTE: an earlier version of this note claimed the value was wrong on TWO paths (a 'tension engine' path and the override). That was incorrect. THIS FIELD IS DEAD on the tension side: no trigger references it via threshold_ref, so loadTensionThresholds parses it and nothing ever resolves it. The §13.7 override (overrides.Q18_capacity_modifier.condition.capacity_low) is the ONLY reader, and it is the one the correction changed. The two capacity tensions (HIGH_DIRECTION_LOW_CAPACITY, HIGH_VISIBILITY_LOW_CAPACITY) gate on signal states (ROOM in [S1,S2]), so their boundary is the S2 band edge, not this field. See docs/CORRECTION-capacity-low.md and docs/SPEC-TRACE-46.md 2b."
     },
     "pair_low_avg": {
       "value": "<= 2.5",
@@ -999,7 +1002,10 @@
       "_prd_section": "§19.1",
       "_notes": "Operationalizes the three prose bands above into a deterministic, config-driven rule (PRD §15: thresholds as configuration, never hard-coded literals). The spec states the three tiers and the language each selects, but specifies NO numeric derivation — every value here is ASSUMED and must be calibrated during pilot. Read by lib/assessment/evidence-chain.ts deriveEvidenceConfidence(). Changing these values changes engine behaviour with no code change.",
       "_calibration_status": "ASSUMED_PENDING_OPERATOR_REVIEW",
-      "extreme_states": ["S1", "S5"],
+      "extreme_states": [
+        "S1",
+        "S5"
+      ],
       "middle_state": "S3",
       "strong_corroboration_min": 2,
       "moderate_corroboration_min": 2,

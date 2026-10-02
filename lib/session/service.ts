@@ -34,6 +34,7 @@ import { selectAttentionArea } from "../assessment/interpretation";
 import { classifyAll, isFearPresent } from "../assessment/classifiers";
 import {
   levelsForActivation,
+  resolveLevelBands,
   type ActivationLevels,
 } from "../assessment/activation";
 import {
@@ -286,12 +287,21 @@ export async function completeSession(sessionId: string): Promise<CompletionResu
   // `levelsForActivation` throws on an unrecognised option rather than
   // defaulting — a malformed answer must surface, not silently re-create the
   // all-MID failure this comment documents.
-  const activation: ActivationLevels = levelsForActivation({
-    A1: codesFor("A1")[0],
-    A2: codesFor("A2")[0],
-    A3: codesFor("A3")[0],
-    A4: codesFor("A4")[0],
-  });
+  // Bands come from the config, so `activation.level_bands` is a real control
+  // rather than a second copy of a hardcoded constant. Same values today —
+  // A/B, C, D/E — so no participant's level moves.
+  const activation: ActivationLevels = levelsForActivation(
+    {
+      A1: codesFor("A1")[0],
+      A2: codesFor("A2")[0],
+      A3: codesFor("A3")[0],
+      A4: codesFor("A4")[0],
+    },
+    resolveLevelBands(
+      (cfg as { activation?: { level_bands?: Record<string, unknown> } }).activation
+        ?.level_bands,
+    ),
+  );
 
   const tensionCodes = evaluateTensions(
     {
@@ -523,6 +533,11 @@ export async function completeSession(sessionId: string): Promise<CompletionResu
       ]),
     ),
     perceptionGapConfig: (cfg as Record<string, unknown>)["perception_gap"],
+    // Same config, same pass-through as the perception-gap block above: the
+    // assembler resolves activation levels from the config's bands rather than
+    // from a hardcoded copy.
+    activationLevelBands: (cfg as { activation?: { level_bands?: Record<string, unknown> } })
+      .activation?.level_bands,
     moveSubsignals: scored.moveSubsignals as unknown as Record<string, number | null>,
   });
 
