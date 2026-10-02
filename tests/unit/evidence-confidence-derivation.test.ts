@@ -178,10 +178,36 @@ describe("the derivation is CONFIG-DRIVEN, not hardcoded (PRD §15)", () => {
     expect(() => loadConfidenceDerivation(broken)).toThrow(/language_strength\.derivation/);
   });
 
-  it("the shipped config marks its derivation ASSUMED and documents the rule", () => {
+  it("the shipped config carries a calibration status and documents the rule", () => {
     const d = scoringCfg.language_strength.derivation;
     console.log("  calibration status:", d._calibration_status);
-    expect(d._calibration_status).toBe("ASSUMED_PENDING_OPERATOR_REVIEW");
+
+    // This asserted ASSUMED_PENDING_OPERATOR_REVIEW. On 2026-10-01 the operator
+    // APPROVED these values for the pilot (strong=2, moderate=2) as "initial
+    // calibration values, not permanently validated constants", so the status
+    // moved to PILOT_APPROVED. The assertion now checks that the field states
+    // WHICH kind of status it is, rather than pinning one value — because the
+    // next legitimate state change is an evidence-based recalibration, and a
+    // test that fails on every approval trains people to edit the test.
+    //
+    // What must NOT happen is the field disappearing or being blank: an
+    // unlabelled derivation is a calibration decision hiding as a default.
+    expect(typeof d._calibration_status).toBe("string");
+    expect(d._calibration_status.length).toBeGreaterThan(0);
+    expect(
+      d._calibration_status,
+      "the status must say whether this is assumed or approved, and by whom",
+    ).toMatch(/ASSUMED|APPROVED/);
+
+    // Approval does not remove the obligation to stay revisable.
+    if (d._calibration_status.startsWith("PILOT_APPROVED")) {
+      expect(
+        typeof d._calibration_note,
+        "an approved calibration must record its revision protocol",
+      ).toBe("string");
+      expect(d._calibration_note).toMatch(/version/i);
+    }
+
     expect(typeof d._rule).toBe("string");
     expect(d._rule.length).toBeGreaterThan(20);
   });
