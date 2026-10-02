@@ -274,3 +274,66 @@ describe("the content hash makes a silent config edit detectable", () => {
     expect(contentHash(a), "array ORDER is content, not formatting").not.toBe(contentHash(c));
   });
 });
+
+describe("approved pilot calibration stays configurable and versioned", () => {
+  it("the corroboration values are read from config, not hardcoded", () => {
+    // Operator decision #3: "They must remain centrally configurable and
+    // versioned through the scoring-engine version so that a future
+    // evidence-based calibration change does not rewrite historical Snapshot
+    // meaning."
+    const scoring = readJson(SCORING) as {
+      language_strength: { derivation: Record<string, unknown> };
+    };
+    const d = scoring.language_strength.derivation;
+
+    console.log(
+      `  strong=${d.strong_corroboration_min} moderate=${d.moderate_corroboration_min} status=${d._calibration_status}`,
+    );
+    expect(d.strong_corroboration_min, "approved pilot value").toBe(2);
+    expect(d.moderate_corroboration_min, "approved pilot value").toBe(2);
+    // Marked as pilot-approved rather than permanently validated — the approval
+    // says a later evidence-based revision is expected.
+    expect(d._calibration_status).toBe("PILOT_APPROVED_2026_10_01");
+
+    // And the reader consults the config rather than a literal.
+    const chain = readFileSync(resolve(repo, "lib/assessment/evidence-chain.ts"), "utf8");
+    expect(chain, "the derivation must be read from config").toMatch(
+      /d\['strong_corroboration_min'\]/,
+    );
+    expect(chain, "the derivation must be read from config").toMatch(
+      /d\['moderate_corroboration_min'\]/,
+    );
+  });
+
+  it("a calibration revision is attributable, so history is not rewritten", () => {
+    // THE LINK BETWEEN ITEMS 2 AND 3. Revising corroboration moves the scoring
+    // config's version, and each Snapshot pins that version — so a report
+    // produced under the old numbers stays attributable to them.
+    const original = resolveSnapshotVersions({
+      assessmentConfig: readJson(ASSESSMENT),
+      scoringConfig: readJson(SCORING),
+      narrativeConfig: readJson(NARRATIVES),
+    });
+    const storedRow = { ...original };
+
+    // An evidence-based recalibration: moderate raised to 3, version bumped.
+    const recalibrated = {
+      ...(readJson(SCORING) as Record<string, unknown>),
+      version: "1.1",
+    };
+    const after = resolveSnapshotVersions({
+      assessmentConfig: readJson(ASSESSMENT),
+      scoringConfig: recalibrated,
+      narrativeConfig: readJson(NARRATIVES),
+    });
+
+    console.log(
+      `  scoring pin: ${storedRow.scoringEngineVersion} -> ${after.scoringEngineVersion}`,
+    );
+    expect(after.scoringEngineVersion, "the revision is visible to NEW snapshots").toBe("1.1");
+    expect(
+      storedRow.scoringEngineVersion,
+      "the HISTORICAL snapshot stays attributable to the logic that produced it",
+    ).toBe("1.0");
+  });
+});

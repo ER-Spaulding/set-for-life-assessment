@@ -1001,7 +1001,7 @@
     "derivation": {
       "_prd_section": "§19.1",
       "_notes": "Operationalizes the three prose bands above into a deterministic, config-driven rule (PRD §15: thresholds as configuration, never hard-coded literals). The spec states the three tiers and the language each selects, but specifies NO numeric derivation — every value here is ASSUMED and must be calibrated during pilot. Read by lib/assessment/evidence-chain.ts deriveEvidenceConfidence(). Changing these values changes engine behaviour with no code change.",
-      "_calibration_status": "ASSUMED_PENDING_OPERATOR_REVIEW",
+      "_calibration_status": "PILOT_APPROVED_2026_10_01",
       "extreme_states": [
         "S1",
         "S5"
@@ -1009,7 +1009,9 @@
       "middle_state": "S3",
       "strong_corroboration_min": 2,
       "moderate_corroboration_min": 2,
-      "_rule": "HIGH  = ladder state is an extreme_states member AND corroboration >= strong_corroboration_min. MODERATE = ladder state is a non-middle, non-extreme state (S2/S4), OR corroboration >= moderate_corroboration_min. LIMITED = a special (override) state applies, OR neither of the above holds."
+      "_rule": "HIGH  = ladder state is an extreme_states member AND corroboration >= strong_corroboration_min. MODERATE = ladder state is a non-middle, non-extreme state (S2/S4), OR corroboration >= moderate_corroboration_min. LIMITED = a special (override) state applies, OR neither of the above holds.",
+      "_calibration_note": "APPROVED FOR PILOT by the operator on 2026-10-01: strong=2, moderate=2. These are INITIAL CALIBRATION VALUES, not permanently validated constants — the approval is explicit that an evidence-based revision later is expected. Because both are read from THIS file (lib/assessment/evidence-chain.ts loadConfidenceDerivation), a revision here does not rewrite historical Snapshot meaning: each Snapshot pins scoring_engine_version, which is this file's version, so a report produced under 1.0 stays attributable to 1.0 even after these numbers move. That is why the version pin matters more than the values. REVISION PROTOCOL: bump this file's version alongside any change here, or the pin will attribute old reports to new logic. This approval does NOT authorise changing any unrelated calibration value.",
+      "_interaction_note": "The two being EQUAL is what makes MODERATE reachable by corroboration alone, which can lift a middle S3 out of LIMITED language. That interaction is the reason the operator's attention was drawn here; approving 2/2 keeps it, deliberately."
     },
     "relationship_language": [
       "appears alongside",
