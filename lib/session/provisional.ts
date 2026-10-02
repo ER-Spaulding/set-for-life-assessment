@@ -26,7 +26,7 @@
 // provisional participant grants exactly one capability — starting an assessment.
 
 import { serviceClient } from "../db/client";
-import { PINNED_VERSION } from "./service";
+import { pinnedVersion } from "./service";
 
 export interface ProvisionalResult {
   participantId: string;
@@ -66,7 +66,7 @@ export async function createProvisionalParticipant(): Promise<ProvisionalResult>
     .from("assessment_sessions")
     .insert({
       participant_id: participantId,
-      assessment_version: PINNED_VERSION,
+      assessment_version: pinnedVersion(),
       status: "in_progress",
       current_position: 1,
     })

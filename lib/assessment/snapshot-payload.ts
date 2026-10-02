@@ -78,6 +78,32 @@ export interface SnapshotPayload {
      * identical to one that did not.
      */
     interstitial: string;
+
+    /**
+     * The FOUR identifiers the operator required on 2026-10-01, so a historical
+     * Snapshot stays traceable to the system that actually produced it:
+     *
+     *   instrument        assessment / question / response structure
+     *   scoringEngine     scoring, override, tension and synthesis logic
+     *   narrativeLibrary  the approved participant-facing narrative library
+     *   snapshotSchema    the STRUCTURE of this payload — see below
+     *
+     * `snapshotSchema` is the one that cannot be inferred from the others. The
+     * three content versions say what produced the content; none says how the
+     * content is SHAPED. Change the payload's shape while instrument, engine and
+     * narrative library all stand still, and without this marker a reader would
+     * apply new-shape parsing to an old-shape object and be confidently wrong.
+     * `assertSupportedSchema()` is the guard that refuses instead.
+     *
+     * OPTIONAL IN THE TYPE, ALWAYS SET BY THE WRITER. Payloads persisted before
+     * this existed carry none of these, and `resolveSchemaVersion()` reads that
+     * absence as the 1.0 writer — historically accurate rather than a
+     * convenience default. New writes always set all four, which a test asserts.
+     */
+    instrument?: string;
+    scoringEngine?: string;
+    narrativeLibrary?: string;
+    snapshotSchema?: string;
   };
 
   signals: PayloadSignal[];

@@ -44,7 +44,15 @@ describe("scoring config (PRD §13–§15)", () => {
     const tensionCodes = Object.keys(scoring.tensions).filter(
       (k) => !k.startsWith("_"),
     );
-    const statementKeys = Object.keys(connections);
+    // The connection library gained `version` and `_version_note` on 2026-10-01
+    // for the Snapshot version architecture. They describe the ARTIFACT rather
+    // than naming a statement, so they are metadata on the same footing as
+    // `_prd_section` — excluded here, because the assertion is about which
+    // TENSIONS both files define.
+    const METADATA = new Set(["version", "_version_note"]);
+    const statementKeys = Object.keys(connections).filter(
+      (k) => !k.startsWith("_") && !METADATA.has(k),
+    );
     expect(tensionCodes).toHaveLength(18);
     // Bidirectional: no missing codes, no extra codes — report any difference.
     expect(new Set(tensionCodes)).toEqual(new Set(statementKeys));

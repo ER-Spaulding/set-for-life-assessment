@@ -8,7 +8,7 @@ import { resolve } from "node:path";
 vi.mock("server-only", () => ({}));
 
 import {
-  PINNED_VERSION,
+  pinnedVersion,
   toResponseMap,
 } from "@/lib/session/service";
 import {
@@ -135,18 +135,24 @@ describe("PRD §29 TEST 17 — mid-assessment participants receive answers and p
 });
 
 describe("PRD §29 TEST 17 — the server pins the v1.0 asset version (binds TEST 18 to the API layer)", () => {
-  it("PINNED_VERSION agrees with the assessment, scoring, and report configs", () => {
+  it("the session pin is READ from config, so it cannot claim a version the config does not", () => {
+    // This test used to assert `PINNED_VERSION === "1.0"`. That was true and
+    // useless: a constant always equals itself, and it kept claiming "1.0" no
+    // matter what the configs said. The defect was that it was a CONSTANT — so
+    // the assertion that matters is that the value TRACKS the config.
+    const pinned = pinnedVersion();
     console.log(
       "  pinned:",
-      PINNED_VERSION,
+      pinned,
       "configs:",
       assessmentCfg.version,
       scoringCfg.version,
       reportCfg.version,
     );
-    expect(PINNED_VERSION).toBe("1.0");
-    expect(PINNED_VERSION).toBe(assessmentCfg.version);
-    expect(PINNED_VERSION).toBe(scoringCfg.version);
-    expect(PINNED_VERSION).toBe(reportCfg.version);
+    expect(pinned).toBe(assessmentCfg.version);
+    // The three configs agree with each other today; if one is revised alone,
+    // this fails and the divergence becomes a decision rather than a drift.
+    expect(scoringCfg.version).toBe(assessmentCfg.version);
+    expect(reportCfg.version).toBe(assessmentCfg.version);
   });
 });

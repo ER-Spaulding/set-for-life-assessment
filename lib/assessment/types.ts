@@ -36,7 +36,23 @@ export type SpecialSignalStateKey = keyof typeof narratives.special_signal_state
  * authoritative key set (it is value-identical to the embedded block in
  * narratives-v1.0.json — see tests/unit/copy-library-consistency.mjs).
  */
-export type TensionCode = keyof typeof connectionStatements;
+/**
+ * Metadata keys on a copy library — NOT copy keys.
+ *
+ * These describe the artifact (its version, and notes about it) rather than
+ * naming a participant-facing statement. `version` and `_version_note` were
+ * added to the configs on 2026-10-01 for the Snapshot version architecture, and
+ * because `TensionCode` is `keyof typeof connectionStatements`, they became
+ * legal "tension codes" the moment they landed — which then broke
+ * `TENSION_DEFAULT_ATTENTION`'s exhaustiveness with two keys that are not
+ * tensions at all.
+ *
+ * Excluded here rather than removed from the configs, because the standalone
+ * library is exactly the artifact that needs to declare its own version.
+ */
+type MetadataKey = "version" | "_version_note" | "_prd_section" | "_notes";
+
+export type TensionCode = Exclude<keyof typeof connectionStatements, MetadataKey>;
 
 /** Alias: the key that selects a connection statement. */
 export type ConnectionStatementKey = TensionCode;

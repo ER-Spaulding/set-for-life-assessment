@@ -68,8 +68,28 @@ function check(name, pass, detail = "") {
   console.log(`${pass ? "PASS" : "FAIL"}  ${name}${detail ? ` — ${detail}` : ""}`);
 }
 
+/**
+ * Metadata keys, excluded from COPY-equality comparisons.
+ *
+ * These describe the artifact rather than being copy a participant reads, so a
+ * standalone library and its embedded copy are not required to agree on them.
+ *
+ * Added 2026-10-01 when `version` and `_version_note` were introduced for the
+ * Snapshot version architecture: the standalone connection-statements library
+ * declares its own version, the embedded copy inside narratives does not need
+ * to duplicate it, and this check failed on the difference. The check is about
+ * whether the COPY agrees, so metadata is filtered rather than the fields being
+ * removed — dropping them would have meant no version on the standalone library,
+ * which is the artifact that needs one.
+ */
+const METADATA_KEYS = new Set(["version", "_version_note"]);
+
 function sortedKeys(obj) {
-  return Object.keys(obj ?? {}).sort();
+  // Cast to array: .filter works on both, but Object.keys returns string[] and
+  // the callers compare these arrays directly.
+  return Object.keys(obj ?? {})
+    .filter((k) => !METADATA_KEYS.has(k) && !k.startsWith("_"))
+    .sort();
 }
 
 function setEq(a, b) {

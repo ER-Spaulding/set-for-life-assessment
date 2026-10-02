@@ -88,5 +88,7 @@
     "headline": "Nothing Here Needs to Be Invented.",
     "body": "Your responses do not point to one meaningful area of friction that clearly explains the rest of your financial picture. That does not mean there is nothing to improve. It means this assessment should not manufacture a problem that your responses do not support.",
     "attention_area": "KEEP_OBSERVING"
-  }
+  },
+  "version": "1.0",
+  "_version_note": "Added 2026-10-01 so this library declares its own version. It is part of the participant-facing narrative surface, so a revision must be attributable."
 }

@@ -42,6 +42,7 @@ import {
   loadConfidenceDerivation,
 } from "../assessment/evidence-chain";
 import { assembleSnapshotPayload } from "../assessment/snapshot-payload";
+import { resolveSnapshotVersions, assertSupportedSchema } from "../assessment/versions";
 import type {
   EvidenceConfidence,
   SignalId,
@@ -49,25 +50,66 @@ import type {
 } from "../assessment/types";
 
 /**
- * The pinned asset versions a session records at creation (PRD §22.6).
+ * The version recorded for a session's `assessment_version` column.
  *
- * KNOWN LIMITATION, RECORDED RATHER THAN HIDDEN: this is a hardcoded literal,
- * and `config/narratives-v1.0.json` has no `version` field to read. So a
- * scenario's `narrative_version` is asserted from a constant, not from the
- * config that produced the copy — and it would keep claiming "1.0" after a
- * narrative revision. See docs/DECISIONS-REQUIRED.md §D-7. Changing what a
- * version MEANS (real config fields vs a content hash) is an operator decision;
- * until then the interstitial pin below reads its own config, which does carry
- * a version, so that one cannot drift.
+ * Deprecated alias kept ONLY for the two call sites that pin a session at
+ * creation (`app/api/session/route.ts`, `lib/session/provisional.ts`) and for
+ * the regression test that asserts the pins agree with the configs. It is no
+ * longer used for the Snapshot payload, which now reads all four identifiers
+ * from the artifacts themselves.
+ *
+ * It remains exported rather than deleted because `assessment_sessions.assessment_version`
+ * is NOT NULL and references `assessment_versions.version_id`, so the column
+ * still needs a value at session creation — and that value must be the config's,
+ * not a literal. Deleting the constant without rewiring those two call sites
+ * would break session creation.
  */
-export const PINNED_VERSION = "1.0";
+export function pinnedVersion(): string {
+  const v = assessmentConfig().version;
+  if (typeof v !== "string" || !v.trim()) {
+    throw new Error(
+      "service: config/assessment-v1.0.json has no readable version — cannot pin a session.",
+    );
+  }
+  return v.trim();
+}
+
+/** The assessment/question-bank config, read once. */
+let cachedAssessmentConfig: unknown = null;
+function assessmentConfig(): { version?: unknown } {
+  if (cachedAssessmentConfig === null) {
+    cachedAssessmentConfig = JSON.parse(
+      readFileSync(resolve(configDir(), "assessment-v1.0.json"), "utf8"),
+    );
+  }
+  return cachedAssessmentConfig as { version?: unknown };
+}
+
+/** The narrative library config, read once. */
+let cachedNarrativeConfig: unknown = null;
+function narrativeConfig(): { version?: unknown } {
+  if (cachedNarrativeConfig === null) {
+    cachedNarrativeConfig = JSON.parse(
+      readFileSync(resolve(configDir(), "narratives-v1.0.json"), "utf8"),
+    );
+  }
+  return cachedNarrativeConfig as { version?: unknown };
+}
+
+/** The report config's version, read from config rather than asserted. */
+function reportVersion(): string {
+  const cfg = JSON.parse(
+    readFileSync(resolve(configDir(), "report-v1.0.json"), "utf8"),
+  ) as { version?: unknown };
+  return typeof cfg.version === "string" ? cfg.version : "1.0";
+}
 
 /** The interstitial (Money Moment) version — read from config, not hardcoded. */
 function interstitialVersion(): string {
   const cfg = JSON.parse(
     readFileSync(resolve(configDir(), "interstitial-v1.0.json"), "utf8"),
   ) as { version?: unknown };
-  return typeof cfg.version === "string" ? cfg.version : PINNED_VERSION;
+  return typeof cfg.version === "string" ? cfg.version : "1.0";
 }
 
 // The option-letter scale used to live here as `LETTER_VALUES`, a hardcoded
@@ -420,7 +462,7 @@ export async function completeSession(sessionId: string): Promise<CompletionResu
       // many independent sources corroborate it. Always one of
       // 'high'|'moderate'|'limited' — the DB CHECK constraint's own values.
       evidence_confidence: confidenceFor(signal),
-      calculation_version: PINNED_VERSION,
+      calculation_version: pinnedVersion(),
     })),
     { onConflict: "session_id,signal_id" },
   );
@@ -504,16 +546,39 @@ export async function completeSession(sessionId: string): Promise<CompletionResu
   //
   // A failure here must not leave the session half-completed, so the payload
   // write happens first and the status update only follows on success.
+  // THE FOUR IDENTIFIERS, READ FROM THE ARTIFACTS THAT PRODUCED THIS SNAPSHOT.
+  //
+  // These replace five passes of a hardcoded `PINNED_VERSION`. That constant
+  // would have kept claiming "1.0" after any config revision, which is precisely
+  // the silent mislabelling PRD §22.6 exists to prevent — so `resolveSnapshotVersions`
+  // THROWS rather than defaulting when an artifact declares no version.
+  //
+  // The two structural pins (`assessment`, `questionBank`) are the same artifact
+  // version read twice, because the instrument and its question bank are
+  // versioned together in `assessment-v1.0.json`. They are kept as separate keys
+  // so the payload shape does not change for a reader.
+  const snapshotVersions = resolveSnapshotVersions({
+    assessmentConfig: assessmentConfig(),
+    scoringConfig: cfg,
+    narrativeConfig: narrativeConfig(),
+  });
+
   const payload = assembleSnapshotPayload({
     versions: {
-      assessment: PINNED_VERSION,
-      questionBank: PINNED_VERSION,
-      scoring: PINNED_VERSION,
-      narrative: PINNED_VERSION,
-      report: PINNED_VERSION,
+      assessment: snapshotVersions.instrumentVersion,
+      questionBank: snapshotVersions.instrumentVersion,
+      scoring: snapshotVersions.scoringEngineVersion,
+      narrative: snapshotVersions.narrativeLibraryVersion,
+      report: reportVersion(),
       // §3.1: read from the interstitial config, so a Money Moment or reveal
       // revision moves this pin with it rather than needing a code edit.
       interstitial: interstitialVersion(),
+      // The four identifiers the operator required, recorded explicitly so a
+      // reader can find them without knowing which legacy key maps to which.
+      instrument: snapshotVersions.instrumentVersion,
+      scoringEngine: snapshotVersions.scoringEngineVersion,
+      narrativeLibrary: snapshotVersions.narrativeLibraryVersion,
+      snapshotSchema: snapshotVersions.snapshotSchemaVersion,
     },
     signals: scored.signals,
     tensionCodes,
@@ -543,20 +608,32 @@ export async function completeSession(sessionId: string): Promise<CompletionResu
 
   const { error: snapErr } = await db.from("snapshots").insert({
     session_id: sessionId,
-    report_version: PINNED_VERSION,
+    report_version: reportVersion(),
     // Both columns carry the SAME object: `payload_json` is the current name
     // (Addendum §15) and `rendered_payload_json` is retained for readers that
     // predate the migration. Writing one and not the other would make the two
     // names disagree, which is the drift this whole layer exists to prevent.
     payload_json: payload,
     rendered_payload_json: payload,
-    assessment_version: PINNED_VERSION,
-    question_bank_version: PINNED_VERSION,
-    scoring_config_version: PINNED_VERSION,
-    narrative_version: PINNED_VERSION,
+    // READ FROM THE ARTIFACTS, not from a constant — the same values the
+    // payload carries above, written as columns so they are queryable without
+    // JSONB. These are immutable once written (trg_snapshots_append_only refuses
+    // every UPDATE), which is what makes a historical Snapshot traceable to the
+    // system that produced it rather than to whatever is current.
+    assessment_version: snapshotVersions.instrumentVersion,
+    question_bank_version: snapshotVersions.instrumentVersion,
+    scoring_config_version: snapshotVersions.scoringEngineVersion,
+    narrative_version: snapshotVersions.narrativeLibraryVersion,
     // §3.1: the sixth pin. Same value the payload carries under
     // versions.interstitial, written here so it is queryable without JSONB.
     interstitial_version: interstitialVersion(),
+    // THE FOUR OPERATOR-REQUIRED IDENTIFIERS, as their own columns. Mirrors the
+    // payload's versions.instrument / .scoringEngine / .narrativeLibrary /
+    // .snapshotSchema, so a query can find them without reaching into JSONB.
+    instrument_version: snapshotVersions.instrumentVersion,
+    scoring_engine_version: snapshotVersions.scoringEngineVersion,
+    narrative_library_version: snapshotVersions.narrativeLibraryVersion,
+    snapshot_schema_version: snapshotVersions.snapshotSchemaVersion,
   });
   if (snapErr) throw new Error(`session: snapshot ${snapErr.message}`);
 
@@ -693,7 +770,23 @@ export async function loadSnapshot(sessionId: string) {
     );
   }
 
-  const payload = (snapshot.payload_json ?? snapshot.rendered_payload_json) as {
+  const rawPayload = snapshot.payload_json ?? snapshot.rendered_payload_json;
+
+  // REFUSE TO INTERPRET A PAYLOAD WHOSE SHAPE THIS BUILD DOES NOT UNDERSTAND.
+  //
+  // This is what makes "existing immutable Snapshots must not be silently
+  // reinterpreted" true rather than aspirational. Without it, versioning the
+  // payload is decoration: the reader would still apply current-shape parsing to
+  // an old-shape object and produce confidently wrong results. Throwing is the
+  // only honest response — a Snapshot that cannot be read correctly must not be
+  // read approximately.
+  //
+  // A payload written before the schema marker existed reads as 1.0, which is a
+  // statement of historical fact rather than a convenience default: no other
+  // assembler has ever existed.
+  assertSupportedSchema(rawPayload, snapshot.snapshot_id as string | undefined);
+
+  const payload = rawPayload as {
     signals?: Array<{
       signal: string;
       state: string | null;

@@ -204,5 +204,7 @@
       "label": "Clear Direction — Limited Room to Act",
       "copy": "Your responses suggest that you know where you want to go, but limited financial room may be making it difficult for today’s decisions to reflect that destination as fully as you would like."
     }
-  }
+  },
+  "version": "1.0",
+  "_version_note": "Added 2026-10-01 so this library declares its own version. It is part of the participant-facing narrative surface, so a revision must be attributable."
 }

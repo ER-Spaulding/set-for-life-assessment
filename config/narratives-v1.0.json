@@ -417,5 +417,7 @@
     "If Q11_A and Q12_F both trigger, use DIRECT_LIMITED_EVIDENCE_CAPACITY rather than a low DIRECT state.",
     "If Direction is clear, alignment is low, and Capacity is constrained, prefer AIM_CAPACITY_CONSTRAINED_ALIGNMENT / CLEAR_DESTINATION_CAPACITY_CONSTRAINED_ALIGNMENT.",
     "Context classifiers are descriptive and may be omitted from the participant-facing report when they do not materially improve understanding."
-  ]
+  ],
+  "version": "1.0",
+  "_version_note": "Added 2026-10-01 so the narrative library pin is READ from the artifact that produced the copy, rather than asserted from a constant (the old PINNED_VERSION would have kept claiming 1.0 after any revision)."
 }

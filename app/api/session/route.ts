@@ -13,7 +13,7 @@
 
 import { NextResponse } from "next/server";
 import { serviceClient, isDatabaseConfigured, errorBody } from "@/lib/db/client";
-import { PINNED_VERSION } from "@/lib/session/service";
+import { pinnedVersion } from "@/lib/session/service";
 
 export const dynamic = "force-dynamic";
 
@@ -67,7 +67,7 @@ export async function POST(request: Request) {
     .from("assessment_sessions")
     .insert({
       participant_id: participantId,
-      assessment_version: PINNED_VERSION,
+      assessment_version: pinnedVersion(),
       status: "in_progress",
       current_position: 1,
     })
