@@ -134,40 +134,32 @@ describe("config values with hardcoded twins are declared as such", () => {
     expect(bands.HIGH).toEqual(["D", "E"]);
   });
 
-  it("LETTER_VALUES and profile_1_5 still agree on shared letters, and F is still code-only", () => {
-    // THE LATENT TRAP. scoring.ts reads profile_1_5 from config for signal
-    // averages; service.ts:187 uses LETTER_VALUES for the `items` map that feeds
-    // every item-level tension comparison. Two sources, one scale. They agree
-    // today — that is what makes it latent rather than live — and they must not
-    // silently diverge on a shared letter, because that would change scoring
-    // with no config edit and no test failure anywhere else.
+  it("LETTER_VALUES is GONE — the divergence was fixed, not documented", () => {
+    // This test used to assert that LETTER_VALUES and profile_1_5 agreed on
+    // shared letters, and that F was code-only. It was describing a LATENT TRAP
+    // and passing — which is exactly what a test should not do with a defect.
+    //
+    // Investigating it properly showed the trap was live, not latent: the config
+    // maps the capacity-override options to null to EXCLUDE them, and the
+    // hardcoded map scored Q12_F as 5 — the highest agency value — for an answer
+    // that says money lacks flexibility. The fix removed the twin entirely.
+    //
+    // So this now asserts the FIX. The old assertion would fail, correctly,
+    // because the thing it described no longer exists.
     const src = source("lib/session/service.ts");
-    const m = src.match(/LETTER_VALUES[^=]*=\s*\{([^}]*)\}/);
-    expect(m, "LETTER_VALUES declaration not found").toBeTruthy();
+    const code = src.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
 
-    const hard: Record<string, number> = {};
-    for (const pair of m![1].split(",")) {
-      const [k, v] = pair.split(":").map((s) => s.trim());
-      if (k) hard[k.replace(/["']/g, "")] = Number(v);
-    }
-    const cfg = (config.option_value_maps as Record<string, Record<string, number>>).profile_1_5;
+    expect(
+      code,
+      "LETTER_VALUES is back — see docs/SPEC-TRACE-46.md §4 for why it was removed",
+    ).not.toMatch(/LETTER_VALUES\s*[:=]/);
 
-    console.log(`  config profile_1_5: ${JSON.stringify(cfg)}`);
-    console.log(`  code LETTER_VALUES: ${JSON.stringify(hard)}`);
-
-    for (const [letter, value] of Object.entries(cfg)) {
-      expect(
-        hard[letter],
-        `${letter} scores ${hard[letter]} in code but ${value} in config — the two sources have diverged, which silently changes item-level scoring`,
-      ).toBe(value);
-    }
-
-    // F is code-only. If it ever appears in config, the divergence has a second
-    // axis and SPEC-TRACE-46.md §4 needs rewriting.
-    expect(Object.keys(cfg), "F now exists in config — update SPEC-TRACE-46.md §4").not.toContain(
-      "F",
+    // The scale now comes from config, through the extracted pure module.
+    expect(code).toMatch(/numericItems\(letters,\s*tables\.values\)/);
+    const optionValues = source("lib/assessment/option-values.ts");
+    expect(optionValues, "the resolution logic moved to a pure, testable module").toMatch(
+      /export function numericItems/,
     );
-    expect(Object.keys(hard)).toContain("F");
   });
 });
 

@@ -26,6 +26,8 @@ import { resolve } from "node:path";
 import { serviceClient } from "../db/client";
 import { validateCompleteness } from "../assessment/validation";
 import { loadScoringTables, scoreAssessment } from "../assessment/scoring";
+import { letterOf, numericItems, toLetterMap } from "../assessment/option-values";
+import type { ScoringTables } from "../assessment/scoring";
 import { loadQ18Cutoffs } from "../assessment/overrides";
 import { evaluateTensions } from "../assessment/tensions";
 import { selectAttentionArea } from "../assessment/interpretation";
@@ -67,8 +69,11 @@ function interstitialVersion(): string {
   return typeof cfg.version === "string" ? cfg.version : PINNED_VERSION;
 }
 
-/** Option letters map low→high for the 1–5 profile items (PRD §9). */
-const LETTER_VALUES: Record<string, number> = { A: 1, B: 2, C: 3, D: 4, E: 5, F: 5 };
+// The option-letter scale used to live here as `LETTER_VALUES`, a hardcoded
+// twin of `option_value_maps` in the scoring config. It is GONE: the config is
+// now the only source, read through `loadScoringTables` and applied per item in
+// `numericItems` below. A second copy is how `Q12_F` came to be scored 5 when
+// the config says it carries no numeric value.
 
 function configDir(): string {
   return resolve(process.cwd(), "config");
@@ -153,41 +158,6 @@ export function toResponseMap(rows: StoredResponse[]): Record<string, unknown> {
     else map[r.item_id] = [prior, r.option_code];
   }
   return map;
-}
-
-/**
- * Reduce a response map to the single option letter the scorer needs per item.
- * Multi-select items contribute their FIRST selection in stored order; the
- * scoring config decides which items actually carry a numeric value, so items
- * that are classifier-only (Q1, Q9, Q16, Q21) are ignored by the formulas
- * regardless of what this returns.
- */
-function toLetterMap(responses: Record<string, unknown>): Record<string, string> {
-  const letters: Record<string, string> = {};
-  for (const [item, value] of Object.entries(responses)) {
-    if (Array.isArray(value)) {
-      const first = value[0];
-      if (typeof first === "string") letters[item] = letterOf(first);
-    } else if (typeof value === "string") {
-      letters[item] = letterOf(value);
-    }
-  }
-  return letters;
-}
-
-/** Extract the trailing option letter from a code like "Q11_A". */
-function letterOf(code: string): string {
-  const idx = code.lastIndexOf("_");
-  return idx === -1 ? code : code.slice(idx + 1);
-}
-
-function numericItems(letters: Record<string, string>): Record<string, number> {
-  const out: Record<string, number> = {};
-  for (const [item, letter] of Object.entries(letters)) {
-    const n = LETTER_VALUES[letter];
-    if (n !== undefined) out[item] = n;
-  }
-  return out;
 }
 
 export interface CompletionResult {
@@ -276,7 +246,7 @@ export async function completeSession(sessionId: string): Promise<CompletionResu
     ]),
   ) as Record<SignalId, SignalState>;
 
-  const items = numericItems(letters);
+  const items = numericItems(letters, tables.values);
 
   /** Codes for one classifier question, always as an array. */
   const codesFor = (item: string): string[] => {
