@@ -637,9 +637,39 @@ describe("required keys — the snapshots INSERT writes all four version identif
   // append-only row that can never be backfilled. This is the half that was
   // missing, and the reason the deletion of all four columns once passed every
   // test and `tsc`.
+  //
+  // WHERE THE KEYS COME FROM NOW. Since owner ruling item 3 the Snapshot is not
+  // written by a `.from("snapshots").insert(...)` in the app at all: the row is
+  // handed to `db.rpc("complete_session_atomic", {...})` and the SQL function
+  // performs the insert. So this resolves the identifier passed as `p_snapshot`
+  // instead. That is a real change of shape, not a relaxation — the keys are
+  // still read out of the application's own object literal, which is the thing
+  // that could silently drop a column.
+  function atomicSnapshotKeys(): string[] {
+    const keys = new Set<string>();
+    const re = /p_snapshot:\s*([A-Za-z_]\w*)/g;
+    let m: RegExpExecArray | null;
+    while ((m = re.exec(appSrc)) !== null) {
+      for (const k of constObjectKeys(m[1], new Set())) keys.add(k);
+    }
+    return [...keys];
+  }
+
   it("snapshots insert contains instrument_version, scoring_engine_version, narrative_library_version and snapshot_schema_version", () => {
-    const inserted = new Set([...insertKeysFor("snapshots"), ...pushedKeysFor("snapshots")]);
+    const inserted = new Set([
+      ...insertKeysFor("snapshots"),
+      ...pushedKeysFor("snapshots"),
+      ...atomicSnapshotKeys(),
+    ]);
     console.log(`  snapshots inserts ${JSON.stringify([...inserted].sort())}`);
+    // ANTI-VACUITY. Every assertion below is a `toContain`, so an empty set
+    // fails them — but only for the four named columns. A caller that renamed
+    // `p_snapshot` would silently drop the whole check while the four happened
+    // to be found some other way, so the source of the keys is asserted too.
+    expect(
+      [...inserted].length,
+      "snapshots keys must be resolvable at all — otherwise every toContain below passes or fails for the wrong reason",
+    ).toBeGreaterThan(4);
     for (const col of [
       "instrument_version",
       "scoring_engine_version",
@@ -648,6 +678,25 @@ describe("required keys — the snapshots INSERT writes all four version identif
     ]) {
       expect([...inserted], `snapshots INSERT must write ${col}`).toContain(col);
     }
+  });
+
+  it("the atomic boundary is still the ONLY writer of the derived tables", () => {
+    // The guarantee item 3 buys is that these four tables are written in ONE
+    // transaction. A new direct writer anywhere in app/ or lib/ would not fail
+    // any behavioural test — the fakes would still pass — but it would reopen
+    // the exact hole the ruling closed.
+    const service = readFileSync(resolve(repo, "lib/session/service.ts"), "utf8");
+    for (const table of ["computed_signals", "overrides", "tensions", "snapshots"]) {
+      const direct = service.match(
+        new RegExp(`\\.from\\("${table}"\\)\\s*\\.(?:insert|upsert|update|delete)\\(`, "g"),
+      );
+      expect(
+        direct,
+        `${table} must be written only through complete_session_atomic`,
+      ).toBeNull();
+    }
+    // And the boundary itself is invoked, by name.
+    expect(service).toMatch(/\.rpc\(\s*"complete_session_atomic"/);
   });
 });
 

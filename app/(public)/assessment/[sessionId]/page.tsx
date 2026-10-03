@@ -348,7 +348,11 @@ export default function SessionPage() {
       <MoneyMoment
         momentId={moment}
         milestoneLabel={moneyMomentLabel(moment)}
-        progress={`${index + 1} of ${REQUIRED_QUESTION_COUNT} answered`}
+        // POSITION, not a saved-response count (owner ruling 2026-10-03).
+        // `index + 1` is where the participant is in the instrument, and after
+        // the front door seeds Opening A (F-06) the two numbers differ — so
+        // "answered" would claim a count this value does not carry.
+        progress={`Question ${index + 1} of ${REQUIRED_QUESTION_COUNT}`}
         onContinue={() => leaveMoment(true)}
       />
     );

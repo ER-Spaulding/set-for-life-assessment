@@ -46,33 +46,36 @@ interface Captured {
   computedSignals: Array<Record<string, unknown>>;
 }
 
-/** Minimal in-memory stand-in — captures the snapshot + computed_signals writes. */
+/**
+ * Minimal in-memory stand-in — captures the snapshot + computed_signals writes.
+ *
+ * Since owner ruling item 3 these arrive through `complete_session_atomic`
+ * rather than as direct table writes: the derived rows and the Snapshot are
+ * handed to ONE function that the real database runs in one transaction. The
+ * fake therefore serves `rpc` and refuses a direct write to those tables — a
+ * fake that accepted both would let the transaction disappear while these
+ * payload-shape assertions stayed green.
+ */
 function fakeDb(rows: Array<{ item_id: string; option_code: string }>) {
   const captured: Captured = { snapshot: null, computedSignals: [] };
   const db = {
+    rpc: (name: string, params: Record<string, unknown>) => {
+      if (name !== "complete_session_atomic") {
+        throw new Error(`fakeDb: unexpected rpc ${name}`);
+      }
+      captured.computedSignals = (params.p_signals as Array<Record<string, unknown>>) ?? [];
+      captured.snapshot = params.p_snapshot as Record<string, unknown>;
+      return Promise.resolve({ data: { ok: true }, error: null });
+    },
     from(table: string) {
       if (table === "responses") {
         const q = { select: () => q, eq: () => Promise.resolve({ data: rows, error: null }) };
         return q;
       }
-      if (table === "computed_signals") {
-        return {
-          upsert: (payload: Array<Record<string, unknown>>) => {
-            captured.computedSignals = payload;
-            return Promise.resolve({ error: null });
-          },
-        };
-      }
-      if (table === "tensions" || table === "overrides") {
-        return { upsert: () => Promise.resolve({ error: null }) };
-      }
-      if (table === "snapshots") {
-        return {
-          insert: (payload: Record<string, unknown>) => {
-            captured.snapshot = payload;
-            return Promise.resolve({ error: null });
-          },
-        };
+      if (table === "computed_signals" || table === "tensions" || table === "overrides" || table === "snapshots") {
+        throw new Error(
+          `fakeDb: ${table} must be written through complete_session_atomic, not directly`,
+        );
       }
       if (table === "assessment_sessions") {
         const q: Record<string, unknown> = {

@@ -104,7 +104,7 @@ const PROBE = `(() => {
   // The first version of this probe did not exclude them and produced two
   // failures on the question screen that were not defects: the custom radio
   // inputs are 1x1px by design (the visible card is the label), and
-  // "(n) percent complete" is sr-only text that is clipped on purpose.
+  // "(n) percent of the assessment" is sr-only text that is clipped on purpose.
   // A harness that reports those as bugs trains you to ignore it.
   //
   // Detection: the element is clipped to ~1px in both axes, or carries the

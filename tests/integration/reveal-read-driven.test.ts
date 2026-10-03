@@ -67,6 +67,33 @@ function fakeCompleteDb(
   };
 
   const db = {
+    /**
+     * THE ATOMIC BOUNDARY (owner ruling item 3). Every derived write and the
+     * Snapshot go through this one call, which the real database runs in a
+     * single transaction.
+     *
+     * The refusal check comes FIRST and writes nothing — which is what makes
+     * the "already complete performs ZERO writes" assertion below meaningful
+     * rather than a coincidence of the caller's ordering.
+     */
+    rpc: (name: string, params: Record<string, unknown>) => {
+      if (name !== "complete_session_atomic") {
+        throw new Error(`fakeCompleteDb: unexpected rpc ${name}`);
+      }
+      if (sessionStatus !== "in_progress" && sessionStatus !== "abandoned") {
+        return Promise.resolve({ data: { ok: false, state: sessionStatus }, error: null });
+      }
+      captured.computedSignals = (params.p_signals as Array<Record<string, unknown>>) ?? [];
+      captured.writes.push("computed_signals");
+      if (((params.p_overrides as unknown[]) ?? []).length) captured.writes.push("overrides");
+      captured.writes.push("tensions");
+      captured.snapshot = params.p_snapshot as Record<string, unknown>;
+      captured.writes.push("snapshots");
+      captured.sessionUpdate = { status: "completed" };
+      captured.writes.push("assessment_sessions");
+      sessionStatus = "completed";
+      return Promise.resolve({ data: { ok: true }, error: null });
+    },
     from(table: string) {
       if (table === "responses") {
         return {
@@ -75,39 +102,18 @@ function fakeCompleteDb(
           }),
         };
       }
-      if (table === "computed_signals") {
-        return {
-          upsert: (payload: Array<Record<string, unknown>>) => {
-            captured.computedSignals = payload;
-            captured.writes.push("computed_signals");
-            return Promise.resolve({ error: null });
-          },
-        };
-      }
-      if (table === "tensions") {
-        return {
-          upsert: () => {
-            captured.writes.push("tensions");
-            return Promise.resolve({ error: null });
-          },
-        };
-      }
-      if (table === "overrides") {
-        return {
-          upsert: () => {
-            captured.writes.push("overrides");
-            return Promise.resolve({ error: null });
-          },
-        };
-      }
-      if (table === "snapshots") {
-        return {
-          insert: (payload: Record<string, unknown>) => {
-            captured.snapshot = payload;
-            captured.writes.push("snapshots");
-            return Promise.resolve({ error: null });
-          },
-        };
+      // Direct writes to the derived tables are REFUSED (item 3). Before the
+      // atomic boundary these were four separate round-trips, which is exactly
+      // how a failed Snapshot insert could strand committed scoring rows.
+      if (
+        table === "computed_signals" ||
+        table === "tensions" ||
+        table === "overrides" ||
+        table === "snapshots"
+      ) {
+        throw new Error(
+          `fakeCompleteDb: ${table} must be written through complete_session_atomic, not directly`,
+        );
       }
       if (table === "assessment_sessions") {
         const q: Record<string, unknown> = {
@@ -115,12 +121,6 @@ function fakeCompleteDb(
           eq: () => q,
           maybeSingle: () =>
             Promise.resolve({ data: { status: sessionStatus }, error: null }),
-          update: (payload: Record<string, unknown>) => {
-            captured.sessionUpdate = payload;
-            captured.writes.push("assessment_sessions");
-            if (typeof payload.status === "string") sessionStatus = payload.status;
-            return q;
-          },
         };
         return q;
       }

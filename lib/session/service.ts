@@ -386,82 +386,29 @@ export async function completeSession(sessionId: string): Promise<CompletionResu
   // `refuse_snapshot_for_terminal_session` refuses a Snapshot insert for a
   // session still marked `abandoned`, with a message that says exactly what is
   // required — "must be resumed (returned to in_progress) before it can produce
-  // a Snapshot". Before this write existed, completion read the status, passed
+  // a Snapshot". Before that resume existed, completion read the status, passed
   // its own gate for `abandoned`, ran scoring, COMMITTED computed_signals /
   // overrides / tensions, and only then hit the trigger — which refused the
   // Snapshot and threw, returning a 500 to a participant with all 31 answers
   // while leaving scoring artifacts on a session that has no Snapshot.
   //
-  // The response path already performs this resume (decideResponseWrite returns
-  // resumeTo: 'in_progress', and the route carries it in the same write).
-  // Completion must do the same, so the transition here is identical: status
-  // back to `in_progress`, with `lifecycle_changed_at` stamped so the
-  // abandonment->resume event remains attributable.
+  // THE RESUME NOW LIVES IN THE ATOMIC BOUNDARY, NOT HERE, and that move is the
+  // point of owner ruling item 3. It used to be an UPDATE issued from this
+  // function — a separate round-trip, guarded by `.eq("status","abandoned")`
+  // and followed by a re-read when the guard missed. That guard was correct but
+  // it could only DETECT the sweep race; it could not prevent it, because the
+  // scoring writes that followed were still their own transactions. Inside
+  // `complete_session_atomic` the row is locked first, the status is re-read
+  // under that lock, and the resume and every derived write share one
+  // transaction — so the race is closed by construction rather than caught
+  // afterwards, and a session that became `expired` in the window is refused
+  // with nothing written.
   //
-  // ORDER IS LOAD-BEARING, and deliberately placed AFTER the completeness check
-  // but BEFORE any scoring write: a session with missing responses returns
-  // above without resuming (an incomplete session stays abandoned, which is
-  // correct — answering a question is what resumes it), while a session that is
-  // about to complete resumes first so a failure later cannot leave scoring
-  // artifacts on a session the trigger would still refuse. The final
-  // `status: "completed"` update below is a second write on the same row, which
-  // is right: the resume records that the session left `abandoned`, and the
-  // flip to completed is the terminal transition.
-  if (status === "abandoned") {
-    const resumeIso = new Date().toISOString();
-    const { data: resumedRows, error: resumeErr } = await db
-      .from("assessment_sessions")
-      .update({
-        status: "in_progress",
-        lifecycle_changed_at: resumeIso,
-        // Both existing resume paths bump this (resumable/route.ts,
-        // response/route.ts), and for the same reason: the status column says
-        // "in_progress" while the activity clock must agree, or the next sweep
-        // re-classifies a session the participant just returned to — the
-        // double-counted-abandonment defect this codebase already fixed once.
-        last_activity_at: resumeIso,
-      })
-      .eq("session_id", sessionId)
-      // GUARD AGAINST A CONCURRENT SWEEP — the same guard the other two resume
-      // paths use. Only resume a session that is STILL abandoned.
-      //
-      // THIS GUARD IS LOAD-BEARING, AND ITS ABSENCE WAS A §3 VIOLATION. The
-      // status this function acted on was read BEFORE the completeness check; a
-      // sweep running in that window can expire the session. Un-guarded, this
-      // UPDATE would force a 40-day-stale session back to `in_progress`, and the
-      // Snapshot insert would then SUCCEED — producing exactly the "current
-      // Financial Snapshot" that operator decision §3 says an expired
-      // assessment "must never subsequently produce". The DB trigger could not
-      // catch it, because by then the status really was `in_progress`.
-      .eq("status", "abandoned")
-      .select("status");
-    if (resumeErr) throw new Error(`session: resume ${resumeErr.message}`);
-
-    // A no-op match means the status moved under us. Do NOT proceed to score on
-    // stale state: re-read and let the gate above decide, so a session that
-    // became expired in the meantime is refused rather than completed.
-    if (!resumedRows || resumedRows.length === 0) {
-      const { data: fresh } = await db
-        .from("assessment_sessions")
-        .select("status")
-        .eq("session_id", sessionId)
-        .maybeSingle();
-      const freshStatus = (fresh as { status?: string } | null)?.status ?? "";
-      if (!mayProduceSnapshot(freshStatus)) {
-        return {
-          sessionId,
-          complete: false,
-          refusal: snapshotRefusalReason(freshStatus) ?? "This assessment cannot be completed.",
-          missing: [],
-          present: 0,
-          required: 0,
-        };
-      }
-      // Otherwise the session is still completable (it was resumed by another
-      // caller) — fall through and complete it normally.
-    }
-  }
-
+  // ORDERING IS PRESERVED EXACTLY: the resume still happens only AFTER the
+  // completeness check (so an incomplete session stays `abandoned`, which is
+  // correct — answering a question is what resumes it), and still BEFORE any
+  // derived write.
+  //
   // ---- scoring runs server-side, exactly once, at completion ----
   const cfg = scoringConfig();
   const tables = loadScoringTables(cfg);
@@ -664,21 +611,46 @@ export async function completeSession(sessionId: string): Promise<CompletionResu
   // ALIGNMENT) have no column here by design — §22.3 gives none. They belong to
   // the `overrides` table (override_code + payload) and to the Snapshot's
   // narrative keys, and are written in the overrides block below.
-  const { error: sigErr } = await db.from("computed_signals").upsert(
-    (Object.keys(scored.signals) as SignalId[]).map((signal) => ({
-      session_id: sessionId,
-      signal_id: signal,
-      raw_value: scored.signals[signal].value,
-      state: scored.signals[signal].state,
-      // Derived from the signal's ladder state, any capacity override, and how
-      // many independent sources corroborate it. Always one of
-      // 'high'|'moderate'|'limited' — the DB CHECK constraint's own values.
-      evidence_confidence: confidenceFor(signal),
-      calculation_version: pinnedVersion(),
-    })),
-    { onConflict: "session_id,signal_id" },
-  );
-  if (sigErr) throw new Error(`session: signals ${sigErr.message}`);
+  // OWNER RULING 2026-10-03 ITEM 3 — THESE ROWS ARE BUILT, NOT WRITTEN HERE.
+  //
+  // They used to be a standalone upsert. That was the defect: PostgREST commits
+  // each round-trip on its own, so a failure at the Snapshot insert left these
+  // scoring rows committed against a session with no Snapshot — exactly the
+  // "scoring artifacts on a session that cannot complete" state the ruling
+  // forbids, and reachable by a sweep racing between the lifecycle read and the
+  // insert. They now travel into `complete_session_atomic`, which writes all of
+  // them plus the Snapshot plus the status flip in ONE transaction, so nothing
+  // derived commits unless the Snapshot does.
+  //
+  // The COLUMN NAMES ARE UNCHANGED and still the schema's, not the engine's.
+  // That distinction cost a live defect once: this code previously sent
+  // `{ signal, value, special_state }` with `onConflict: "session_id,signal"`,
+  // and NONE of those exist — `computed_signals` is (session_id, signal_id,
+  // raw_value, state, evidence_confidence, calculation_version) per migration
+  // 20260930000001 and PRD §22.3. Verified by execution against a real
+  // Postgres: the old statement failed with `column "signal" of relation
+  // "computed_signals" does not exist`, so EVERY completion would have failed
+  // at that line. The stubbed DB accepted any column name, so the suite stayed
+  // green while production could not complete at all. The SQL function now
+  // re-checks every key against an allow-list and RAISES on an unknown one,
+  // because `jsonb_populate_record` would silently drop it.
+  //
+  // `calculation_version` is NOT NULL and carries PINNED_VERSION.
+  //
+  // The off-ladder states (DIRECT_CAPACITY_LIMITED, AIM_CAPACITY_CONSTRAINED_
+  // ALIGNMENT) have no column here by design — §22.3 gives none. They belong to
+  // the `overrides` table (override_code + payload) and to the Snapshot's
+  // narrative keys, and are built in the overrides block below.
+  const signalRows = (Object.keys(scored.signals) as SignalId[]).map((signal) => ({
+    signal_id: signal,
+    raw_value: scored.signals[signal].value,
+    state: scored.signals[signal].state,
+    // Derived from the signal's ladder state, any capacity override, and how
+    // many independent sources corroborate it. Always one of
+    // 'high'|'moderate'|'limited' — the DB CHECK constraint's own values.
+    evidence_confidence: confidenceFor(signal),
+    calculation_version: pinnedVersion(),
+  }));
 
   // ---- capacity overrides + modifiers (§13.4–§13.7) ----
   //
@@ -689,7 +661,6 @@ export async function completeSession(sessionId: string): Promise<CompletionResu
   const { overrideFlags, directSpecial, q18ModifierFired } = scored;
   if (overrideFlags.Q11_CAPACITY_OVERRIDE) {
     overrideRows.push({
-      session_id: sessionId,
       override_code: "Q11_CAPACITY_OVERRIDE",
       source_item_ids: ["Q11"],
       payload: { option: codesFor("Q11")[0] ?? null },
@@ -697,7 +668,6 @@ export async function completeSession(sessionId: string): Promise<CompletionResu
   }
   if (overrideFlags.Q12_CAPACITY_OVERRIDE) {
     overrideRows.push({
-      session_id: sessionId,
       override_code: "Q12_CAPACITY_OVERRIDE",
       source_item_ids: ["Q12"],
       payload: { option: codesFor("Q12")[0] ?? null },
@@ -705,7 +675,6 @@ export async function completeSession(sessionId: string): Promise<CompletionResu
   }
   if (overrideFlags.AGENCY_EVIDENCE_LIMITED_DUE_TO_CAPACITY_CONTEXT) {
     overrideRows.push({
-      session_id: sessionId,
       override_code: "AGENCY_EVIDENCE_LIMITED_DUE_TO_CAPACITY_CONTEXT",
       source_item_ids: ["Q11", "Q12", "Q10"],
       payload: {},
@@ -713,7 +682,6 @@ export async function completeSession(sessionId: string): Promise<CompletionResu
   }
   if (q18ModifierFired) {
     overrideRows.push({
-      session_id: sessionId,
       override_code: "Q18_CAPACITY_MODIFIER",
       source_item_ids: ["Q18"],
       payload: { option: codesFor("Q18")[0] ?? null },
@@ -724,29 +692,16 @@ export async function completeSession(sessionId: string): Promise<CompletionResu
     const special = scored.signals[signal].specialState;
     if (special) {
       overrideRows.push({
-        session_id: sessionId,
         override_code: special,
         source_item_ids: [],
         payload: { signal, display_state: special },
       });
     }
   }
-  if (overrideRows.length > 0) {
-    const { error: oErr } = await db
-      .from("overrides")
-      .upsert(overrideRows, { onConflict: "session_id,override_code" });
-    if (oErr) throw new Error(`session: overrides ${oErr.message}`);
-  }
-
-  if (tensionCodes.length > 0) {
-    const { error: tErr } = await db
-      .from("tensions")
-      .upsert(
-        tensionCodes.map((code) => ({ session_id: sessionId, tension_code: code })),
-        { onConflict: "session_id,tension_code" },
-      );
-    if (tErr) throw new Error(`session: tensions ${tErr.message}`);
-  }
+  // NOT WRITTEN HERE (item 3) — these rows travel into the atomic boundary
+  // with the signals and the Snapshot. `session_id` is supplied by the SQL
+  // function so it cannot disagree with the row it is written against.
+  const tensionRows = tensionCodes.map((code) => ({ tension_code: code }));
 
   // ---- assemble and PERSIST the Snapshot payload (Addendum 01 §3, §5) ----
   //
@@ -756,8 +711,9 @@ export async function completeSession(sessionId: string): Promise<CompletionResu
   // Snapshot would be exactly the state §5 forbids, where the web page and the
   // PDF each recompute and can disagree.
   //
-  // A failure here must not leave the session half-completed, so the payload
-  // write happens first and the status update only follows on success.
+  // A failure here must not leave the session half-completed. That is no longer
+  // a property of THIS ORDERING — it is a property of the transaction all five
+  // writes now share (see the atomic boundary at the end of this function).
   // THE FOUR IDENTIFIERS, READ FROM THE ARTIFACTS THAT PRODUCED THIS SNAPSHOT.
   //
   // These replace five passes of a hardcoded `PINNED_VERSION`. That constant
@@ -835,13 +791,13 @@ export async function completeSession(sessionId: string): Promise<CompletionResu
     moveSubsignals: scored.moveSubsignals as unknown as Record<string, number | null>,
   });
 
-  const { error: snapErr } = await db.from("snapshots").insert({
-    session_id: sessionId,
+  const snapshotRow = {
     report_version: reportVersion(),
     // Both columns carry the SAME object: `payload_json` is the current name
     // (Addendum §15) and `rendered_payload_json` is retained for readers that
     // predate the migration. Writing one and not the other would make the two
     // names disagree, which is the drift this whole layer exists to prevent.
+    // The SQL function enforces this equality rather than trusting the caller.
     payload_json: payload,
     rendered_payload_json: payload,
     // READ FROM THE ARTIFACTS, not from a constant — the same values the
@@ -863,14 +819,72 @@ export async function completeSession(sessionId: string): Promise<CompletionResu
     scoring_engine_version: snapshotVersions.scoringEngineVersion,
     narrative_library_version: snapshotVersions.narrativeLibraryVersion,
     snapshot_schema_version: snapshotVersions.snapshotSchemaVersion,
-  });
-  if (snapErr) throw new Error(`session: snapshot ${snapErr.message}`);
+  };
 
-  const { error: upErr } = await db
-    .from("assessment_sessions")
-    .update({ status: "completed", completed_at: nowIso })
-    .eq("session_id", sessionId);
-  if (upErr) throw new Error(`session: complete ${upErr.message}`);
+  // ==========================================================================
+  // THE ATOMIC BOUNDARY — owner ruling 2026-10-03, item 3.
+  //
+  // "A session that is not eligible to complete must not leave scoring,
+  //  interpretation, Snapshot, or other derived rows behind ... use an
+  //  atomic/transactional boundary so a refusal or failure rolls back the
+  //  derived writes."
+  //
+  // Everything above this line only COMPUTES. Every write that changes state —
+  // the six computed_signals rows, the overrides, the tensions, the Snapshot,
+  // and the status flip — happens inside this one call, in one Postgres
+  // transaction. Exactly three outcomes are possible:
+  //
+  //   1. it commits          — all five writes, or
+  //   2. it REFUSES          — {"ok":false}; nothing was written, because the
+  //                            function returns before its first INSERT
+  //   3. it RAISES           — a trigger, the unique index, a transient error;
+  //                            the transaction aborts and everything rolls back
+  //
+  // There is no fourth outcome, and in particular there is no state where
+  // derived rows exist on a session that has no Snapshot. That was the defect:
+  // four independent PostgREST round-trips meant a failure at the Snapshot
+  // insert rolled back NOTHING, leaving scoring rows committed against a
+  // session that could not complete — the exact state the ruling forbids.
+  // Proved by execution against a real Postgres before this was wired: with the
+  // Snapshot insert forced to raise on the unique index, the old path left
+  // computed_signals=1 committed, and the boundary leaves computed_signals=0.
+  //
+  // WHY THE SESSION IS RE-READ *INSIDE* THE FUNCTION. The eligibility checks
+  // above ran against a status read before scoring. A sweep can expire the
+  // session in that window, which is precisely how an expired session could
+  // have produced a Snapshot. The function takes a row lock (FOR UPDATE) and
+  // re-reads the status under it, so the decision is made against the committed
+  // truth and no sweep can change the row until the transaction ends. That
+  // closes the race by construction rather than by re-checking after the fact.
+  // ==========================================================================
+  const { data: outcome, error: rpcErr } = await db.rpc("complete_session_atomic", {
+    p_session_id: sessionId,
+    p_now: nowIso,
+    p_signals: signalRows,
+    p_overrides: overrideRows,
+    p_tensions: tensionRows,
+    p_snapshot: snapshotRow,
+  });
+  if (rpcErr) throw new Error(`session: complete ${rpcErr.message}`);
+
+  // A REFUSAL IS DATA, NOT AN EXCEPTION. The function reports which lifecycle
+  // state refused; the WORDING comes from lib/session/lifecycle.ts, which is
+  // the single source of the may/may-not rule and of its message. Rebuilding
+  // that sentence in SQL would recreate the two-hand-maintained-copies defect
+  // this codebase already removed from LETTER_VALUES.
+  const result = (outcome ?? {}) as { ok?: boolean; state?: string };
+  if (result.ok !== true) {
+    const state = result.state ?? "";
+    return {
+      sessionId,
+      complete: false,
+      refusal:
+        snapshotRefusalReason(state) ?? "This assessment cannot be completed.",
+      missing: [],
+      present: 0,
+      required: 0,
+    };
+  }
 
   // Resolved AFTER completion succeeds, and never fatal: a missing name is a
   // cosmetic loss on the reveal, while throwing here would fail a completed

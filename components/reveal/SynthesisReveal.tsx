@@ -53,12 +53,29 @@ import {
   SIX_HUMAN_QUESTIONS,
   frame5,
 } from "@/lib/ui/reveal-copy";
+// The Snapshot failure/success-adjacent copy, including the owner's verbatim
+// EXPIRED fresh-start copy. Imported rather than authored here so the strings
+// exist in exactly one place and the copy guard can see them.
+import {
+  EXPIRED_FRESH_START_COPY,
+  FRESH_START_HREF,
+  UNAVAILABLE_COPY,
+  expiredFreshStartGreeting,
+} from "@/lib/ui/snapshot-failure";
 
 type Outcome =
   | { kind: "pending" }
   | { kind: "ready"; firstName: string | null }
   | { kind: "incomplete"; missing: string[]; present: number; required: number }
   | { kind: "refused"; message: string }
+  /**
+   * An EXPIRED assessment — distinct from both `incomplete` (still resumable)
+   * and `refused` (a generic lifecycle refusal). Owner ruling 2026-10-03: an
+   * expired participant must not be sent back to finish questions on a session
+   * that can never produce a Snapshot, and must not get a fourth
+   * Snapshot-error narrative. They get the approved fresh-assessment experience.
+   */
+  | { kind: "expired"; firstName: string | null }
   | { kind: "failed" };
 
 /**
@@ -155,9 +172,23 @@ export function SynthesisReveal({ sessionId }: { sessionId: string }) {
         const state = (await read.json()) as {
           completed?: boolean;
           firstName?: string | null;
+          status?: string;
         };
         if (state.completed === true) {
           setOutcome({ kind: "ready", firstName: state.firstName ?? null });
+          return;
+        }
+        // An EXPIRED assessment is the one lifecycle state that must be told
+        // apart from "not finished yet" (owner ruling 2026-10-03). Its questions
+        // may all be answered, and the session can never produce a Snapshot, so
+        // the incomplete copy would be false and the CTA would send them back to
+        // a session that cannot complete. Handled HERE, from the same
+        // authoritative read, so no write is attempted at all.
+        if (state.status === "expired") {
+          setOutcome({
+            kind: "expired",
+            firstName: state.firstName ?? null,
+          });
           return;
         }
       }
@@ -265,27 +296,47 @@ export function SynthesisReveal({ sessionId }: { sessionId: string }) {
     );
   }
 
-  if (outcome.kind === "refused") {
-    // COPY PROVENANCE. The headline is the SAME approved string the `failed`
-    // state below already uses — deliberately reused rather than a new variant
-    // authored here. This branch is reached only from the server's own refusal
-    // body, and that body carries the distinction ("already complete" vs
-    // "expired"), so a second near-identical headline phrased "…could not be
-    // prepared." adds a third untraceable sibling to two existing ones and
-    // buys nothing. The lifecycle-specific sentence is the server's, which is
-    // also the one place it can be authored correctly.
+  if (outcome.kind === "expired") {
+    // THE EXPIRED ASSESSMENT — owner ruling 2026-10-03.
     //
-    // The CTA differs on purpose: a refusal means this session will never
-    // produce a Snapshot, so "Try again" would be a lie. Starting a current
-    // assessment is the actionable move, and matches the expired-refusal copy.
+    // The copy is the owner's, verbatim, from lib/ui/snapshot-failure.ts. It is
+    // NOT a Snapshot-error narrative: it is the approved fresh-assessment
+    // experience, which is the one thing that is actually true and actionable
+    // here. The landing route resolves the Set for Life Number, verifies
+    // identity, and renders the same "Welcome back, {First Name}." greeting
+    // where the name is legitimately known.
     return (
       <Shell>
-        <Headline>Your Snapshot could not be prepared just now.</Headline>
+        <Headline>{expiredFreshStartGreeting(outcome.firstName)}</Headline>
+        <p className="prose-measure mt-6 font-body text-obsidian" style={BODY}>
+          {EXPIRED_FRESH_START_COPY.body}
+        </p>
+        <PrimaryButton onClick={() => router.push(FRESH_START_HREF)}>
+          {EXPIRED_FRESH_START_COPY.cta}
+        </PrimaryButton>
+      </Shell>
+    );
+  }
+
+  if (outcome.kind === "refused") {
+    // A LIFECYCLE REFUSAL that is NOT expiration — reached only if the session's
+    // status moved between the authoritative read above and the completion POST
+    // (a concurrent sweep), or if the read could not report a status.
+    //
+    // COPY PROVENANCE (owner ruling 2026-10-03): do not author a new headline to
+    // make this state unique. This uses the APPROVED UNAVAILABLE headline, and
+    // the supporting sentence is the SERVER's own refusal message — the one
+    // place the lifecycle reason can be stated accurately. The CTA is the
+    // approved fresh-assessment destination rather than "Try again", because a
+    // refusal means this session will never produce a Snapshot.
+    return (
+      <Shell>
+        <Headline>{UNAVAILABLE_COPY.headline}</Headline>
         <p className="prose-measure mt-6 font-body text-obsidian" style={BODY}>
           {outcome.message}
         </p>
-        <PrimaryButton onClick={() => router.push("/assessment/start")}>
-          Begin a new assessment
+        <PrimaryButton onClick={() => router.push(FRESH_START_HREF)}>
+          Begin a current assessment
         </PrimaryButton>
       </Shell>
     );
