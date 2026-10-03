@@ -339,8 +339,11 @@ export async function completeSession(sessionId: string): Promise<CompletionResu
     .maybeSingle();
   if (stateErr) throw new Error(`session: ${stateErr.message}`);
 
+  // The status is read here and carried forward so the F-08 resume below can
+  // act on it AFTER the completeness check but BEFORE any scoring write.
+  let status = "";
   if (sessionRow) {
-    const status = (sessionRow as { status?: string }).status ?? "";
+    status = (sessionRow as { status?: string }).status ?? "";
     if (!mayProduceSnapshot(status)) {
       // A structured refusal rather than a throw: the caller surfaces the reason
       // to the participant, who needs to know whether to resume or to start a
@@ -374,6 +377,89 @@ export async function completeSession(sessionId: string): Promise<CompletionResu
       present: validation.present,
       required: validation.required,
     };
+  }
+
+  // F-08 — RESUME FIRST, THEN COMPLETE.
+  //
+  // The lifecycle gate above ALLOWS `abandoned` (it is inside the resumable
+  // window), but the database does not: the trigger
+  // `refuse_snapshot_for_terminal_session` refuses a Snapshot insert for a
+  // session still marked `abandoned`, with a message that says exactly what is
+  // required — "must be resumed (returned to in_progress) before it can produce
+  // a Snapshot". Before this write existed, completion read the status, passed
+  // its own gate for `abandoned`, ran scoring, COMMITTED computed_signals /
+  // overrides / tensions, and only then hit the trigger — which refused the
+  // Snapshot and threw, returning a 500 to a participant with all 31 answers
+  // while leaving scoring artifacts on a session that has no Snapshot.
+  //
+  // The response path already performs this resume (decideResponseWrite returns
+  // resumeTo: 'in_progress', and the route carries it in the same write).
+  // Completion must do the same, so the transition here is identical: status
+  // back to `in_progress`, with `lifecycle_changed_at` stamped so the
+  // abandonment->resume event remains attributable.
+  //
+  // ORDER IS LOAD-BEARING, and deliberately placed AFTER the completeness check
+  // but BEFORE any scoring write: a session with missing responses returns
+  // above without resuming (an incomplete session stays abandoned, which is
+  // correct — answering a question is what resumes it), while a session that is
+  // about to complete resumes first so a failure later cannot leave scoring
+  // artifacts on a session the trigger would still refuse. The final
+  // `status: "completed"` update below is a second write on the same row, which
+  // is right: the resume records that the session left `abandoned`, and the
+  // flip to completed is the terminal transition.
+  if (status === "abandoned") {
+    const resumeIso = new Date().toISOString();
+    const { data: resumedRows, error: resumeErr } = await db
+      .from("assessment_sessions")
+      .update({
+        status: "in_progress",
+        lifecycle_changed_at: resumeIso,
+        // Both existing resume paths bump this (resumable/route.ts,
+        // response/route.ts), and for the same reason: the status column says
+        // "in_progress" while the activity clock must agree, or the next sweep
+        // re-classifies a session the participant just returned to — the
+        // double-counted-abandonment defect this codebase already fixed once.
+        last_activity_at: resumeIso,
+      })
+      .eq("session_id", sessionId)
+      // GUARD AGAINST A CONCURRENT SWEEP — the same guard the other two resume
+      // paths use. Only resume a session that is STILL abandoned.
+      //
+      // THIS GUARD IS LOAD-BEARING, AND ITS ABSENCE WAS A §3 VIOLATION. The
+      // status this function acted on was read BEFORE the completeness check; a
+      // sweep running in that window can expire the session. Un-guarded, this
+      // UPDATE would force a 40-day-stale session back to `in_progress`, and the
+      // Snapshot insert would then SUCCEED — producing exactly the "current
+      // Financial Snapshot" that operator decision §3 says an expired
+      // assessment "must never subsequently produce". The DB trigger could not
+      // catch it, because by then the status really was `in_progress`.
+      .eq("status", "abandoned")
+      .select("status");
+    if (resumeErr) throw new Error(`session: resume ${resumeErr.message}`);
+
+    // A no-op match means the status moved under us. Do NOT proceed to score on
+    // stale state: re-read and let the gate above decide, so a session that
+    // became expired in the meantime is refused rather than completed.
+    if (!resumedRows || resumedRows.length === 0) {
+      const { data: fresh } = await db
+        .from("assessment_sessions")
+        .select("status")
+        .eq("session_id", sessionId)
+        .maybeSingle();
+      const freshStatus = (fresh as { status?: string } | null)?.status ?? "";
+      if (!mayProduceSnapshot(freshStatus)) {
+        return {
+          sessionId,
+          complete: false,
+          refusal: snapshotRefusalReason(freshStatus) ?? "This assessment cannot be completed.",
+          missing: [],
+          present: 0,
+          required: 0,
+        };
+      }
+      // Otherwise the session is still completable (it was resumed by another
+      // caller) — fall through and complete it normally.
+    }
   }
 
   // ---- scoring runs server-side, exactly once, at completion ----

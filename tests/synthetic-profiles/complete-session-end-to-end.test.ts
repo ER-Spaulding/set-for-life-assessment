@@ -55,6 +55,12 @@ interface Captured {
   /** Order of operations, so the payload-before-completion contract is testable. */
   writes: string[];
   sessionUpdate: Record<string, unknown> | null;
+  /**
+   * EVERY update to assessment_sessions, in order. F-08 needs to distinguish
+   * the resume (status -> in_progress) from the terminal flip (status ->
+   * completed), which `sessionUpdate` alone (last write) cannot.
+   */
+  sessionUpdates: Array<Record<string, unknown>>;
 }
 
 function fakeDb(
@@ -66,8 +72,14 @@ function fakeDb(
    * for the lifecycle gate pass 'expired' or 'abandoned' to prove the refusal.
    */
   initialStatus = "in_progress",
+  /**
+   * Simulate the sweep expiring the session BETWEEN completeSession's status
+   * read and its guarded resume write — the race the guard exists for.
+   */
+  opts: { sweepWinsRace?: boolean } = {},
 ) {
   let sessionStatus = initialStatus;
+  let raceFired = false;
   const captured: Captured = {
     computedSignals: [],
     tensions: [],
@@ -75,6 +87,7 @@ function fakeDb(
     snapshot: null,
     writes: [],
     sessionUpdate: null,
+    sessionUpdates: [],
   };
 
   const db = {
@@ -132,22 +145,74 @@ function fakeDb(
         // crash rather than test anything — and the tempting shortcut, deleting
         // the guard so the old fake passes, would remove the check the operator
         // required. Serving the read keeps the guard under test.
-        const q: Record<string, unknown> = {
-          select: () => q,
-          eq: () => q,
-          maybeSingle: () =>
-            Promise.resolve({
-              data: { status: sessionStatus },
-              error: null,
-            }),
+        // The guarded resume writes `.eq("status", "abandoned")` — a status
+        // PREDICATE, not just a session-id match. The fake records the
+        // predicates it was given so a test can assert the guard exists, and
+        // `sweepWinsRace` lets a test simulate the sweep expiring the session
+        // BETWEEN completeSession's status read and its resume write.
+        // A FRESH chain per call, and the update is EVALUATED ONLY WHEN THE
+        // CHAIN RESOLVES. Supabase's builder is lazy: `update(payload).eq(...)
+        // .eq(...).select()` collects every predicate BEFORE it issues the
+        // statement. An eager fake that matched on the predicates collected so
+        // far would see NONE of the chained `.eq()`s — which is precisely how a
+        // test asserting "the guard works" passes or fails for the wrong reason.
+        // The first attempt at this fake had exactly that defect and reported a
+        // spurious failure; the fake, not the production code, was wrong.
+        const table = "assessment_sessions";
+        function chain() {
+          const predicates: Array<[string, unknown]> = [];
+          const state: { payload?: Record<string, unknown> } = {};
+          const builder: Record<string, unknown> = {
+            select: () => builder,
+            eq: (col: string, val: unknown) => {
+              predicates.push([col, val]);
+              return builder;
+            },
+            maybeSingle: () =>
+              Promise.resolve({ data: { status: sessionStatus }, error: null }),
+            update: (payload: Record<string, unknown>) => {
+              state.payload = payload;
+              return builder;
+            },
+            // `select()` after an update is what resolves the statement.
+            then: (resolve: (v: unknown) => unknown) => {
+              if (state.payload === undefined) {
+                // A plain select chain (the status read).
+                return Promise.resolve({ data: { status: sessionStatus }, error: null }).then(
+                  resolve,
+                );
+              }
+              const payload = state.payload;
+              captured.sessionUpdate = payload;
+              captured.sessionUpdates.push(payload);
+              captured.writes.push(table);
+
+              // THE RACE. When armed, the sweep lands before this guarded update
+              // is issued: the row becomes `expired`, so the WHERE no longer
+              // holds. That is the interleaving the guard exists for — the status
+              // completeSession acted on was read earlier and is now stale.
+              if (opts.sweepWinsRace && !raceFired) {
+                raceFired = true;
+                sessionStatus = "expired";
+              }
+
+              const statusGuard = predicates.find(([c]) => c === "status");
+              const matched = statusGuard === undefined || statusGuard[1] === sessionStatus;
+              if (matched && typeof payload.status === "string") sessionStatus = payload.status;
+              const rows = matched ? [{ status: sessionStatus }] : [];
+              return Promise.resolve({ data: rows, error: null }).then(resolve);
+            },
+          };
+          return builder;
+        }
+        return {
+          select: () => chain(),
           update: (payload: Record<string, unknown>) => {
-            captured.sessionUpdate = payload;
-            captured.writes.push("assessment_sessions");
-            if (typeof payload.status === "string") sessionStatus = payload.status;
-            return q;
+            const b = chain();
+            (b.update as (p: Record<string, unknown>) => unknown)(payload);
+            return b;
           },
         };
-        return q;
       }
       throw new Error(`fakeDb: unexpected table ${table}`);
     },
@@ -184,6 +249,25 @@ function storedRows(overrides: Record<string, string | string[]>) {
 
 async function run(overrides: Record<string, string | string[]>) {
   const { db, captured } = fakeDb(storedRows(overrides));
+  const { serviceClient } = await import("@/lib/db/client");
+  vi.mocked(serviceClient).mockReturnValue(db as never);
+  const result = await completeSession("11111111-2222-3333-4444-555555555555");
+  return { result, captured };
+}
+
+/**
+ * Run the REAL completeSession against a fake db whose starting status is
+ * explicit. The `initialStatus` parameter of `fakeDb` was previously unused by
+ * every test here (all completed from `in_progress`); F-08 is the first caller
+ * that needs a status read and a responses read to disagree — the session row
+ * says `abandoned`/`expired`/`completed` while the responses table still holds
+ * the full 31.
+ */
+async function runWithStatus(
+  rows: Array<{ item_id: string; option_code: string }>,
+  initialStatus: string,
+) {
+  const { db, captured } = fakeDb(rows, initialStatus);
   const { serviceClient } = await import("@/lib/db/client");
   vi.mocked(serviceClient).mockReturnValue(db as never);
   const result = await completeSession("11111111-2222-3333-4444-555555555555");
@@ -472,5 +556,158 @@ describe("Snapshot payload is persisted at completion (Addendum 01 §3, §5)", (
     ).rejects.toThrow(/snapshot/);
     // The session must NOT have been marked complete.
     expect(captured.sessionUpdate).toBeNull();
+  });
+});
+
+describe("F-08 — an abandoned session resumes before it completes", () => {
+  it("(a) an abandoned session with all 31 responses COMPLETES: resume precedes scoring and snapshot", async () => {
+    // The session row says `abandoned` while the responses table holds all 31 —
+    // the direct-to-reveal path that used to 500. The app allows `abandoned`
+    // (it is inside the resumable window), so completeSession must RESUME it
+    // back to in_progress BEFORE the Snapshot insert, or the database trigger
+    // (`refuse_snapshot_for_terminal_session`) refuses the insert and throws.
+    const { result, captured } = await runWithStatus(storedRows({}), "abandoned");
+    console.log("  complete:", JSON.stringify(result));
+    console.log("  write order:", JSON.stringify(captured.writes));
+    console.log("  session updates:", JSON.stringify(captured.sessionUpdates));
+
+    expect(result.complete).toBe(true);
+    // A Snapshot row is written — the terminal symptom the trigger used to deny.
+    expect(captured.snapshot).not.toBeNull();
+    expect(captured.writes).toContain("snapshots");
+
+    // ORDER IS LOAD-BEARING. The resume (an assessment_sessions update to
+    // in_progress) must be the FIRST write — before computed_signals, before
+    // overrides/tensions, and before the snapshot insert — so a failure later
+    // cannot leave scoring artifacts on a session the trigger still refuses.
+    expect(captured.writes[0], "the resume must be the very first write").toBe(
+      "assessment_sessions",
+    );
+    expect(
+      captured.writes.indexOf("assessment_sessions"),
+      "resume must precede scoring",
+    ).toBeLessThan(captured.writes.indexOf("computed_signals"));
+    expect(
+      captured.writes.indexOf("assessment_sessions"),
+      "resume must precede the snapshot insert",
+    ).toBeLessThan(captured.writes.indexOf("snapshots"));
+
+    // The resume carries the SAME transition decideResponseWrite performs:
+    // status -> in_progress, with lifecycle_changed_at stamped.
+    expect(captured.sessionUpdates[0]?.status).toBe("in_progress");
+    expect(typeof captured.sessionUpdates[0]?.lifecycle_changed_at).toBe("string");
+    // And the terminal write still flips to completed.
+    expect(captured.sessionUpdates[captured.sessionUpdates.length - 1]?.status).toBe(
+      "completed",
+    );
+    expect(captured.sessionUpdate?.status).toBe("completed");
+  });
+
+  it("(b) an abandoned session with a MISSING response completes nothing and writes nothing", async () => {
+    // The resume happens only after the completeness check. An abandoned
+    // session that is still short one answer must NOT resume and must NOT
+    // score: answering a question is what resumes it, not completion.
+    const rows = storedRows({}).filter((r) => r.item_id !== "Q25");
+    const { result, captured } = await runWithStatus(rows, "abandoned");
+    console.log("  incomplete:", JSON.stringify(result));
+    console.log("  writes:", JSON.stringify(captured.writes));
+
+    expect(result.complete).toBe(false);
+    expect(result.missing).toEqual(["Q25"]);
+    // Nothing written: no resume, no scoring, no snapshot.
+    expect(captured.writes).toEqual([]);
+    expect(captured.sessionUpdates).toEqual([]);
+    expect(captured.sessionUpdate).toBeNull();
+    expect(captured.computedSignals).toEqual([]);
+    expect(captured.snapshot).toBeNull();
+  });
+
+  it("(c) an EXPIRED session still refuses and writes nothing", async () => {
+    const { result, captured } = await runWithStatus(storedRows({}), "expired");
+    console.log("  expired:", JSON.stringify(result));
+
+    expect(result.complete).toBe(false);
+    expect(typeof result.refusal).toBe("string");
+    expect(result.refusal).toMatch(/expired/i);
+
+    expect(captured.writes).toEqual([]);
+    expect(captured.sessionUpdates).toEqual([]);
+    expect(captured.sessionUpdate).toBeNull();
+    expect(captured.computedSignals).toEqual([]);
+    expect(captured.snapshot).toBeNull();
+  });
+
+  it("(c2) the resume is GUARDED: if the sweep expires the session first, §3 still holds", async () => {
+    // THE RACE THIS GUARDS. completeSession reads the status, then the sweep
+    // expires the session before the resume write lands. An UNGUARDED resume
+    // would force the row back to in_progress and the Snapshot insert would
+    // then SUCCEED — producing exactly the "current Financial Snapshot" that
+    // operator decision §3 says an expired assessment "must never subsequently
+    // produce". The DB trigger cannot catch it, because by then the status
+    // really is in_progress. This is the guard that keeps §3 true.
+    //
+    // Mutation that must fail this test: drop the `.eq("status", "abandoned")`
+    // from the resume, which makes the update match regardless.
+    const { db, captured } = fakeDb(storedRows({}), "abandoned", { sweepWinsRace: true });
+    const { serviceClient } = await import("@/lib/db/client");
+    vi.mocked(serviceClient).mockReturnValue(db as never);
+
+    const result = await completeSession("11111111-2222-3333-4444-555555555555");
+    console.log("  race ->", JSON.stringify(result));
+    console.log("  writes:", JSON.stringify(captured.writes));
+
+    // It must NOT complete, and must NOT write a Snapshot or any scoring.
+    expect(result.complete).toBe(false);
+    expect(typeof result.refusal).toBe("string");
+    expect(result.refusal).toMatch(/expired/i);
+    expect(captured.snapshot, "§3: an expired session must never produce a Snapshot").toBeNull();
+    expect(captured.computedSignals).toEqual([]);
+    expect(captured.writes).not.toContain("snapshots");
+  });
+
+  it("(d) a COMPLETED session still refuses a second completion and writes nothing", async () => {
+    // Completion is a one-time transition (§22.5): no second Snapshot.
+    const { result, captured } = await runWithStatus(storedRows({}), "completed");
+    console.log("  already-complete:", JSON.stringify(result));
+
+    expect(result.complete).toBe(false);
+    expect(typeof result.refusal).toBe("string");
+    expect(result.refusal).toMatch(/already complete/i);
+
+    expect(captured.writes).toEqual([]);
+    expect(captured.sessionUpdates).toEqual([]);
+    expect(captured.sessionUpdate).toBeNull();
+    expect(captured.computedSignals).toEqual([]);
+    expect(captured.snapshot).toBeNull();
+  });
+
+  it("(e) NO PARTIAL WRITES in every refusal case — scoring, overrides, tensions and snapshot all untouched", async () => {
+    // The defect's worst symptom: scoring artifacts committed to a session with
+    // no Snapshot. Every refusal path must leave ALL four tables untouched.
+    const cases: Array<{
+      name: string;
+      status: string;
+      rows: Array<{ item_id: string; option_code: string }>;
+    }> = [
+      { name: "expired", status: "expired", rows: storedRows({}) },
+      { name: "completed (second completion)", status: "completed", rows: storedRows({}) },
+      {
+        name: "abandoned with a missing response",
+        status: "abandoned",
+        rows: storedRows({}).filter((r) => r.item_id !== "Q25"),
+      },
+    ];
+
+    for (const c of cases) {
+      const { result, captured } = await runWithStatus(c.rows, c.status);
+      console.log(`  ${c.name}: complete=${result.complete} writes=${JSON.stringify(captured.writes)}`);
+      expect(result.complete, c.name).toBe(false);
+      expect(captured.writes, `${c.name}: no write may occur`).toEqual([]);
+      expect(captured.computedSignals, `${c.name}: no computed_signals`).toEqual([]);
+      expect(captured.overrides, `${c.name}: no overrides`).toEqual([]);
+      expect(captured.tensions, `${c.name}: no tensions`).toEqual([]);
+      expect(captured.snapshot, `${c.name}: no snapshot`).toBeNull();
+      expect(captured.sessionUpdates, `${c.name}: no resume/complete`).toEqual([]);
+    }
   });
 });
