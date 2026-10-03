@@ -42,11 +42,29 @@ loadDotEnvLocal();
 
 let bucket = process.env.SFL_STORAGE_BUCKET ?? "snapshot-documents";
 for (let i = 2; i < process.argv.length; i++) {
-  if (process.argv[i] === "--bucket") {
-    bucket = process.argv[i + 1] ?? bucket;
+  const arg = process.argv[i];
+  if (arg === "--bucket") {
+    const value = process.argv[i + 1];
+    // A missing value must NOT fall back to the default bucket. `--bucket` with
+    // nothing after it is a truncated command, and silently checking the
+    // DEFAULT bucket would print PASS while the operator believed they were
+    // probing a missing one — a false green in the one script whose whole job
+    // is to fail loudly rather than skip. Same class as a flag that is parsed
+    // but ignored.
+    if (value === undefined || value.startsWith("--")) {
+      console.error("FAIL: --bucket requires a value (e.g. --bucket=snapshot-documents).");
+      console.error("      Refusing to fall back to the default bucket: a truncated command must not report PASS.");
+      process.exit(2);
+    }
+    bucket = value;
     i++;
-  } else if (process.argv[i].startsWith("--bucket=")) {
-    bucket = process.argv[i].slice("--bucket=".length);
+  } else if (arg.startsWith("--bucket=")) {
+    const value = arg.slice("--bucket=".length);
+    if (!value) {
+      console.error("FAIL: --bucket= requires a value (e.g. --bucket=snapshot-documents).");
+      process.exit(2);
+    }
+    bucket = value;
   }
 }
 
