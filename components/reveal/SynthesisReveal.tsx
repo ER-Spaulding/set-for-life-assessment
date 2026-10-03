@@ -266,9 +266,21 @@ export function SynthesisReveal({ sessionId }: { sessionId: string }) {
   }
 
   if (outcome.kind === "refused") {
+    // COPY PROVENANCE. The headline is the SAME approved string the `failed`
+    // state below already uses — deliberately reused rather than a new variant
+    // authored here. This branch is reached only from the server's own refusal
+    // body, and that body carries the distinction ("already complete" vs
+    // "expired"), so a second near-identical headline phrased "…could not be
+    // prepared." adds a third untraceable sibling to two existing ones and
+    // buys nothing. The lifecycle-specific sentence is the server's, which is
+    // also the one place it can be authored correctly.
+    //
+    // The CTA differs on purpose: a refusal means this session will never
+    // produce a Snapshot, so "Try again" would be a lie. Starting a current
+    // assessment is the actionable move, and matches the expired-refusal copy.
     return (
       <Shell>
-        <Headline>Your Snapshot could not be prepared.</Headline>
+        <Headline>Your Snapshot could not be prepared just now.</Headline>
         <p className="prose-measure mt-6 font-body text-obsidian" style={BODY}>
           {outcome.message}
         </p>
