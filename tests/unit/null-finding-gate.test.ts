@@ -125,6 +125,15 @@ function payloadFor(overrides: Record<string, string>) {
   // and the capacity case in the sweep below silently resolved to
   // DEVELOPING_PICTURE — the sweep was not exercising the branch it claimed to,
   // and passed anyway. Capacity must ride on the scorer's own output.
+  // A fixed evidence object is a legitimate ASSEMBLY-only input; this suite
+  // tests the null-finding gate, not the derivation (covered separately).
+  const signals = Object.fromEntries(
+    Object.entries(result.signals).map(([k, v]) => [
+      k,
+      { ...v, evidence: { confidence: "moderate" as const, limitedReason: null } },
+    ]),
+  );
+
   return assembleSnapshotPayload({
     versions: {
       assessment: "1.0",
@@ -134,7 +143,7 @@ function payloadFor(overrides: Record<string, string>) {
       report: "1.0",
       interstitial: "1.0",
     },
-    signals: result.signals as never,
+    signals: signals as never,
     tensionCodes: codes,
     classifierTags: [],
     activationSelections: { A1: "C", A2: "C", A3: "C", A4: "C" },

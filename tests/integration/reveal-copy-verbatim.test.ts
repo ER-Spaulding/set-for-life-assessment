@@ -245,10 +245,20 @@ describe("§2.1 / §2.3 participant-facing constraints hold", () => {
         q.question,
         `retired signal label in a human question: ${q.question}`,
       ).not.toMatch(/^\s*(SEE|ROOM|DIRECT|PREPARE|AIM|MOVE)\b/i);
-      expect(
-        q.question,
-        `retired signal label in a human question: ${q.question}`,
-      ).not.toMatch(/\b(SEE|ROOM|DIRECT|PREPARE|AIM|MOVE) SCORE\b/i);
+      // The second variant check must catch a retired token ANYWHERE, not just
+      // at the start. The previous form searched for "<token> SCORE" — a suffix
+      // §2.3 never uses: the retired shorthand is the bare tokens SEE / ROOM /
+      // DIRECT / PREPARE / AIM / MOVE, so a token leaking into the MIDDLE of a
+      // question (e.g. "HOW ARE YOU MAKING DIRECT DECISIONS?") sailed straight
+      // past it. A standalone token in a question is therefore a leak unless the
+      // question is one of the two locked §2.4 strings whose wording contains
+      // that token as ordinary English.
+      if (/\b(SEE|ROOM|DIRECT|PREPARE|AIM|MOVE)\b/i.test(q.question)) {
+        expect(
+          ["WHAT CAN YOU SEE?", "HOW MUCH ROOM DO YOU HAVE?"],
+          `retired signal label in a human question: ${q.question}`,
+        ).toContain(q.question);
+      }
     }
   });
 

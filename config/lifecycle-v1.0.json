@@ -1,0 +1,46 @@
+{
+  "config_name": "Set for Life Assessment — Assessment Lifecycle",
+  "version": "1.0",
+  "_purpose": "Operational thresholds for classifying INCOMPLETE assessment sessions by inactivity. Operator decision 2026-10-01.",
+  "_governing_principle": "The Set for Life Financial Assessment is intended to reflect where the participant is financially today. We want to respect intentionally saved progress without allowing sufficiently old answers to become the basis for a current Financial Snapshot.",
+  "_why_not_in_scoring_config": "These are OPERATIONAL configuration, not diagnostic. Operator instruction: 'These lifecycle thresholds are operational configuration and must not affect diagnostic scoring or the Set for Life Money Picture(TM).' Keeping them in scoring-v1.0.json would tie them to scoring_engine_version, so a change to a housekeeping timeout would read as a change to the engine that produced a participant's report. Separate file, separate version.",
+  "_does_not_affect_scoring": true,
+
+  "saved_window_days": 7,
+  "_saved_window_note": "DAYS 0-7. An incomplete assessment with fewer than 7 FULL days since last meaningful activity remains current and resumable, and is NOT classified abandoned. Applies whether or not the participant used Save My Progress — the operator was explicit: 'This applies whether the participant explicitly used Save My Progress or simply stopped participating.'",
+  "_saved_window_boundary": "Inclusive of the start, exclusive of the end: 6 days 23:59 is current; exactly 7 days 00:00 is abandoned. Implemented by flooring elapsed time to whole days.",
+
+  "expiration_window_days": 30,
+  "_expiration_window_note": "DAYS 31+. An incomplete assessment with 30 or more FULL days since last meaningful activity may no longer be resumed as the participant's current assessment. It is classified EXPIRED - INCOMPLETE and becomes historical.",
+  "_expiration_does_not_delete": "Expiration is a lifecycle classification, not deletion. The operator was explicit: 'Do not delete the participant, session, or historical responses.' And: 'Expiration does not mean deletion.'",
+  "_expiration_new_session": "When an expired participant returns: the SAME participant identity is resolved, the SAME Participant ID and Set for Life Number are retained, the expired session is preserved as historical, and a NEW assessment session is created. Diagnostic answers are NOT prepopulated — the operator's reason: 'we do not want previous answers anchoring the participant's current responses.'",
+
+  "_status_model": {
+    "_note": "The persisted lifecycle is deliberately small. Operator instruction #6: 'Do not create unnecessary permanent lifecycle states merely because we can measure inactivity.'",
+    "in_progress": "Incomplete and within the saved window — resumable, not abandoned. Also the state an abandoned session RETURNS to on resume.",
+    "completed": "Terminal. All 31 responses present and an immutable Snapshot exists.",
+    "abandoned": "Incomplete, 7-29 full days idle. RESUMABLE — returning before expiration resumes this same session.",
+    "expired": "Incomplete, 30+ full days idle. NOT resumable. Never produces a Snapshot.",
+    "RESUMED": "NOT A STATUS. Recorded as an EVENT (assessment_resumed / assessment_resumed_after_abandonment). A resumed session goes back to in_progress and its HISTORY preserves that it had been abandoned — so 'where is this session now' and 'what has this session been' stay separate questions.",
+    "SAVED": "NOT A STATUS either. Saved is in_progress + a verified contact (participant_contacts.verified_at), which is a fact about the participant, not a phase of the session."
+  },
+
+  "_sweep": {
+    "_note": "Server-side evaluation of incomplete sessions. Operator instruction #7: 'Use the previously proposed server-side Supabase sweep, not browser unload behavior.'",
+    "_why_not_a_beacon": "Unload/visibility beacons fire on every tab switch, phone call and app backgrounding, so they would report abandonment for interrupted participants and bias hardest against mobile users.",
+    "rule": "in_progress or abandoned session AND last_activity_at older than the threshold -> transition. Forward-only and idempotent: a second run finds nothing to do.",
+    "never_touches": "Sessions with status = completed. A completed assessment is a historical record and no inactivity rule applies to it.",
+    "frequency": "Hourly is sufficient. The finest threshold is 7 days."
+  },
+
+  "_analytics": {
+    "_note": "Operator instruction #8. A participant who used Save My Progress and later crossed the 7-day threshold MAY be counted as abandoned, but analytics must preserve that they had previously saved, so saved abandonment and unsaved abandonment stay distinguishable.",
+    "_stage_identifiers": "Controlled identifiers only — Q08, MM02, Q17, ACTIVATION, DEMOGRAPHICS. These say WHERE the participant stopped, never WHAT they answered.",
+    "_forbidden_in_analytics": "Actual answers, option codes, financial amounts, household income, free text, narrative content. Enforced by the analytics_events payload allow-list."
+  },
+
+  "_retention": {
+    "_note": "Operator instruction #9: 'Analytics/data-retention duration remains a separate Owner decision. Keep retention configurable and do not invent a permanent retention policy.'",
+    "_status": "UNDECIDED, deliberately. See docs/ANALYTICS.md §6. Nothing in this file sets a retention period, and this lifecycle introduces no deletion."
+  }
+}

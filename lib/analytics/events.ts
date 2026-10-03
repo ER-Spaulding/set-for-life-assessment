@@ -21,6 +21,25 @@ export const ANALYTICS_EVENTS = [
   "assessment_resumed",
   "assessment_completed",
   "assessment_abandoned",
+  // Operator decision 2026-10-01: the third lifecycle transition. Kept separate
+  // from `assessment_abandoned` because they are different events with different
+  // consequences — an abandoned session can be resumed, an expired one cannot,
+  // and collapsing them would make "did they come back" unanswerable.
+  "assessment_expired",
+  // Distinct from `assessment_resumed` on purpose. Operator instruction #8:
+  // "A participant who used Save My Progress and later crossed the 7-day
+  // threshold may be counted as abandoned, but analytics must preserve that the
+  // participant had previously intentionally saved so we can distinguish: saved
+  // abandonment from unsaved abandonment. This will allow us to measure whether
+  // Save My Progress actually contributes to eventual completion."
+  //
+  // A separate event name is what makes that measurable: `assessment_resumed`
+  // after an abandonment with `saved: true` is a saved abandonment returning,
+  // and the two are then countable apart.
+  "assessment_resumed_after_abandonment",
+  // An expired participant returning is a new beginning under the same identity,
+  // and the funnel needs to see it as such rather than as a resume.
+  "assessment_restarted_after_expiration",
   // Funnel position — a NUMBER, never an answer
   "question_position_reached",
   // Pacing
@@ -67,6 +86,9 @@ export const EVENT_KIND: Record<AnalyticsEvent, "server" | "client"> = {
   assessment_resumed: "server",
   assessment_completed: "server",
   assessment_abandoned: "server",
+  assessment_expired: "server",
+  assessment_resumed_after_abandonment: "server",
+  assessment_restarted_after_expiration: "server",
   question_position_reached: "server",
   money_moment_displayed: "client",
   money_moment_continued: "client",
@@ -120,6 +142,13 @@ export const ALLOWED_PAYLOAD_KEYS = [
   "code",
   "surface",
   "stage",
+  // Operator decision 2026-10-01, instruction #8: whether the participant had
+  // used Save My Progress at the moment of a lifecycle transition, so saved
+  // abandonment and unsaved abandonment stay countable apart. A boolean about a
+  // STATE of the flow — the same structural class as `ok` — never content from
+  // it. Must match the DB allow-list in migration ...0011, which asserts the two
+  // agree.
+  "saved",
 ] as const;
 
 export type AnalyticsPayload = Partial<

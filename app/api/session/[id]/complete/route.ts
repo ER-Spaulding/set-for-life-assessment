@@ -43,8 +43,31 @@ export async function POST(
   }
 
   if (!result.complete) {
-    // A legitimate refusal, not an error: the assessment is simply unfinished.
-    // The missing items are returned so the client can navigate to them.
+    // A LIFECYCLE refusal is a different thing from an unfinished assessment,
+    // and the participant needs different information.
+    //
+    // Operator decision 2026-10-01: an expired assessment "may no longer be
+    // resumed as the participant's current assessment" and "must never
+    // subsequently produce a current Financial Snapshot". Telling that
+    // participant "some questions still need an answer" would be actively
+    // misleading — they may have answered everything, and the reason they
+    // cannot finish is that their answers are too old to represent today.
+    //
+    // Still 422: nothing is broken, the request simply cannot be honoured in the
+    // session's current lifecycle state.
+    if (result.refusal) {
+      return NextResponse.json(
+        {
+          complete: false,
+          refused: true,
+          message: result.refusal,
+        },
+        { status: 422 },
+      );
+    }
+
+    // Otherwise a legitimate refusal for an unfinished assessment. The missing
+    // items are returned so the client can navigate to them.
     return NextResponse.json(
       {
         complete: false,

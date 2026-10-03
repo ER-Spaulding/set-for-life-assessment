@@ -50,8 +50,18 @@ export interface SnapshotVersions {
  * BUMP THIS whenever `SnapshotPayload`'s shape changes incompatibly — a renamed
  * key, a changed type, a moved field. Adding an optional field does not require
  * a bump.
+ *
+ * Bumped '1.0' -> '1.1' (2026-10-02) because the payload gained THREE REQUIRED
+ * fields, none of which is purely-additive-optional:
+ *   - `q16Selections: string[]`  (new REQUIRED field; Q16 is a required question)
+ *   - `openingB: number | null`  (new REQUIRED field, reserved input)
+ *   - `PayloadSignal.evidence`   (a CHANGED TYPE: new mandatory member on the
+ *                                 signals[] element)
+ * All three require the bump under the rule above. Keep '1.0' in SUPPORTED so
+ * this build can still READ a 1.0-shaped payload (the pre-marker legacy
+ * fallback) — that is "can read", NOT an alias that reinterprets 1.0 as 1.1.
  */
-export const SNAPSHOT_SCHEMA_VERSION = '1.0';
+export const SNAPSHOT_SCHEMA_VERSION = '1.1';
 
 /**
  * The schema versions this build can interpret.
@@ -59,8 +69,12 @@ export const SNAPSHOT_SCHEMA_VERSION = '1.0';
  * The reader guard is what makes "must not be silently reinterpreted" true: a
  * build that does not recognise a payload's shape REFUSES and says so, rather
  * than applying current assumptions to historical data.
+ *
+ * '1.0' remains so historical (and pre-marker) payloads stay readable; '1.1' is
+ * what the current writer produces. No code may translate a 1.0 shape into a
+ * 1.1 shape — that would be the compatibility alias the owner forbids.
  */
-export const SUPPORTED_SNAPSHOT_SCHEMAS: readonly string[] = ['1.0'];
+export const SUPPORTED_SNAPSHOT_SCHEMAS: readonly string[] = ['1.0', '1.1'];
 
 /** The schema a pre-column Snapshot was written by — see `resolveSchemaVersion`. */
 export const IMPLICIT_LEGACY_SCHEMA = '1.0';

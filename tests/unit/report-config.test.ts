@@ -18,6 +18,15 @@ const cfg = JSON.parse(
 const screens = cfg.screens;
 const byUiux = (ref: string) => screens.find((s: { uiux_ref: string }) => s.uiux_ref === ref);
 
+/** Collect every string VALUE in a JSON tree (values only — not keys). */
+function collectStrings(node: unknown): string[] {
+  if (typeof node === "string") return [node];
+  if (Array.isArray(node)) return node.flatMap(collectStrings);
+  if (node !== null && typeof node === "object")
+    return Object.values(node as Record<string, unknown>).flatMap(collectStrings);
+  return [];
+}
+
 describe("report config (PRD §11/§20, UIUX §22/§22A)", () => {
   it("presents every Snapshot screen S12–S22 (PRD §20)", () => {
     const refs = new Set(screens.map((s: { uiux_ref: string }) => s.uiux_ref));
@@ -83,5 +92,21 @@ describe("report config (PRD §11/§20, UIUX §22/§22A)", () => {
     expect(s20a.title).toBe("STAY CONNECTED — ON YOUR TERMS");
     // Em dash U+2014 — a hyphen here would silently ship wrong copy.
     expect(s20a.title).toContain("—");
+  });
+
+  it("never claims the retired SEE/ROOM/DIRECT/PREPARE/AIM/MOVE labels are participant-facing (A01 v1.1 §2.3)", () => {
+    // The regression this guards: the operating-profile screen's `notes` used
+    // to read "Participant-friendly operating labels SEE / ROOM / DIRECT /
+    // PREPARE / AIM / MOVE (PRD §20.1)". §2.3 retires that shorthand as the
+    // participant-facing framework, so re-introducing the claim is a stale
+    // vocabulary bug, not a neutral wording tweak. Assert across the whole
+    // config so the claim cannot reappear under a different screen.
+    const offenders = collectStrings(cfg).filter((s) =>
+      /participant[- ]friendly/i.test(s),
+    );
+    expect(
+      offenders,
+      "a config string still describes the retired labels as participant-friendly",
+    ).toEqual([]);
   });
 });

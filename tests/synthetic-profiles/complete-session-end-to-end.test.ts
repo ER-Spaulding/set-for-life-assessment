@@ -57,7 +57,17 @@ interface Captured {
   sessionUpdate: Record<string, unknown> | null;
 }
 
-function fakeDb(rows: Array<{ item_id: string; option_code: string }>) {
+function fakeDb(
+  rows: Array<{ item_id: string; option_code: string }>,
+  /**
+   * The session's starting lifecycle status.
+   *
+   * `in_progress` by default so existing tests exercise the normal path. Tests
+   * for the lifecycle gate pass 'expired' or 'abandoned' to prove the refusal.
+   */
+  initialStatus = "in_progress",
+) {
+  let sessionStatus = initialStatus;
   const captured: Captured = {
     computedSignals: [],
     tensions: [],
@@ -113,13 +123,29 @@ function fakeDb(rows: Array<{ item_id: string; option_code: string }>) {
         };
       }
       if (table === "assessment_sessions") {
-        const q = {
+        // The fake serves BOTH operations the real code performs on this table:
+        // a status READ (the lifecycle gate added 2026-10-01) and a status
+        // UPDATE (completion).
+        //
+        // The read was added because `completeSession` now checks the session's
+        // lifecycle before scoring. A fake that could not answer that read would
+        // crash rather than test anything — and the tempting shortcut, deleting
+        // the guard so the old fake passes, would remove the check the operator
+        // required. Serving the read keeps the guard under test.
+        const q: Record<string, unknown> = {
+          select: () => q,
+          eq: () => q,
+          maybeSingle: () =>
+            Promise.resolve({
+              data: { status: sessionStatus },
+              error: null,
+            }),
           update: (payload: Record<string, unknown>) => {
             captured.sessionUpdate = payload;
             captured.writes.push("assessment_sessions");
+            if (typeof payload.status === "string") sessionStatus = payload.status;
             return q;
           },
-          eq: () => Promise.resolve({ error: null }),
         };
         return q;
       }

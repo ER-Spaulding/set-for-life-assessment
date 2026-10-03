@@ -16,6 +16,8 @@ export const VERIFY_TTL_MS = 30 * 60 * 1000; // 30 min verification links
 export const SESSION_TTL_MS = 30 * 24 * 3600 * 1000; // 30 day participant session
 /** Minimum response time for start-new/start-returning so timing is identical. */
 export const AUTH_MIN_RESPONSE_MS = 400;
+/** Signed PDF-download token lifetime (Addendum 01 §8 signed/time-limited). */
+export const DOWNLOAD_TTL_MS = 15 * 60 * 1000; // 15 min
 
 function getSecret(): string {
   const s = process.env.AUTH_TOKEN_SECRET ?? process.env.REMINDER_LINK_SECRET;
@@ -95,6 +97,34 @@ export function signParticipantToken(pid: string, email: string): string {
     email,
     exp: Date.now() + SESSION_TTL_MS,
   });
+}
+
+/**
+ * Issue a signed, time-limited PDF-download token (Addendum 01 §8, §14 step 7).
+ *
+ * Reuses the SAME HMAC scheme as the verification/session tokens (node:crypto
+ * createHmac sha256, base64url, purpose-tagged, `exp`, constant-time compare).
+ * A NEW purpose `"download"` means a session/verification token can never be
+ * replayed as a download token. The payload binds `sid` -> `doc` so a token
+ * minted for one participant's document cannot be replayed against another's.
+ */
+export function signDownloadToken(sid: string, doc: string): string {
+  return sign({
+    purpose: "download",
+    sid,
+    doc,
+    exp: Date.now() + DOWNLOAD_TTL_MS,
+  });
+}
+
+/**
+ * Verify a PDF-download token. Returns the bound `{ sid, doc }` or null when the
+ * signature, purpose, shape, or expiry is wrong — never a distinguishing reason.
+ */
+export function verifyDownloadToken(token: string): { sid: string; doc: string } | null {
+  const p = verify<{ sid: string; doc: string }>(token, "download");
+  if (!p || typeof p.sid !== "string" || typeof p.doc !== "string") return null;
+  return { sid: p.sid, doc: p.doc };
 }
 
 export function verifyParticipantToken(token: string): string | null {

@@ -2,6 +2,8 @@ import { describe, it, expect } from "vitest";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { signalLabel } from "@/lib/ui/narratives";
+import { HUMAN_QUESTIONS } from "@/lib/ui/human-questions";
+import { SIX_HUMAN_QUESTIONS } from "@/lib/ui/reveal-copy";
 
 /**
  * The Money Picture naming and signal treatment — Addendum 01 v1.1 §2.
@@ -26,15 +28,16 @@ import { signalLabel } from "@/lib/ui/narratives";
 const repo = resolve(__dirname, "../..");
 const read = (p: string) => readFileSync(resolve(repo, p), "utf8");
 
-/** Addendum 01 v1.1 §2.4, verbatim. */
-const QUESTIONS: Record<string, string> = {
-  SEE: "What can you see?",
-  ROOM: "How much room do you have?",
-  DIRECT: "How are you making decisions?",
-  PREPARE: "How prepared are you for disruption?",
-  AIM: "Where are you headed?",
-  MOVE: "What happens after you know?",
-};
+/**
+ * Addendum 01 v1.1 §2.4's six questions, derived from the single source of
+ * truth (lib/ui/human-questions.ts) rather than a third hand-maintained copy.
+ * The spec-verbatim guard for the words themselves lives in
+ * reveal-copy-verbatim.test.ts, which re-extracts them from the .md; here the
+ * map is only the signal→question wiring `signalLabel` must reproduce.
+ */
+const QUESTIONS: Record<string, string> = Object.fromEntries(
+  HUMAN_QUESTIONS.map((q) => [q.signal, q.question]),
+);
 
 describe("participant-facing signal treatment uses §2.4's human questions", () => {
   it("every signal maps to its approved question, verbatim", () => {
@@ -76,6 +79,36 @@ describe("participant-facing signal treatment uses §2.4's human questions", () 
   });
 });
 
+describe("the six questions have ONE source of truth, not three", () => {
+  it("reveal-copy's SIX_HUMAN_QUESTIONS derive from the shared source", () => {
+    // The words live in lib/ui/human-questions.ts. If someone hand-edits a
+    // question in reveal-copy.ts back to a literal (re-forking the copy), this
+    // diverges from the source and fails.
+    expect(SIX_HUMAN_QUESTIONS).toHaveLength(HUMAN_QUESTIONS.length);
+    HUMAN_QUESTIONS.forEach((src, i) => {
+      const reveal = SIX_HUMAN_QUESTIONS[i];
+      expect(
+        reveal.question,
+        `${src.signal}: reveal question must be the shared source's question, verbatim`,
+      ).toBe(src.question);
+      expect(
+        reveal.prompt,
+        `${src.signal}: reveal prompt must be the shared source's prompt, verbatim`,
+      ).toBe(src.prompt);
+    });
+  });
+
+  it("narratives' signalLabel agrees with the shared source", () => {
+    // signalLabel derives SIGNAL_QUESTION_LABEL from the same source. A
+    // hand-edited label in narratives.ts would diverge and fail here.
+    HUMAN_QUESTIONS.forEach((src) => {
+      expect(signalLabel(src.signal), `${src.signal} label drift`).toBe(
+        src.question,
+      );
+    });
+  });
+});
+
 describe("the Money Picture is named as the participant-facing methodology", () => {
   it("report-v1.0.json no longer titles a screen 'Financial Operating Profile'", () => {
     const report = JSON.parse(read("config/report-v1.0.json")) as {
@@ -95,54 +128,66 @@ describe("the Money Picture is named as the participant-facing methodology", () 
     expect(named, "the Money Picture is not named on any screen").toBeTruthy();
   });
 
-  it("the Snapshot page renders the Money Picture title, not the old one", () => {
-    const page = read("app/(public)/snapshot/[sessionId]/page.tsx");
-    const code = page.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
+  it("the Snapshot page renders the Money Picture title from the shared model, not the old one", () => {
+    // The page is now a server component that delegates presentation to the
+    // shared-section-model renderer (components/snapshot/results-view.tsx). The
+    // participant-facing title is SOURCED from the report config's
+    // operating-profile screen by the SHARED section model
+    // (lib/render/snapshot-sections.ts) and rendered verbatim as the model's
+    // `section.heading` — never re-authored as a literal in the render layer.
+    // This asserts the sourcing, while the first test in this file asserts the
+    // report config names it "Your Set for Life Money Picture" and never
+    // "Financial Operating Profile".
+    const view = read("components/snapshot/results-view.tsx");
+    const code = view.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
     expect(code).not.toMatch(/Financial Operating Profile/);
-    expect(code).toMatch(/Your Set for Life Money Picture/);
+    // The render layer prints the model's heading; it does not look the title up
+    // itself.
+    expect(code).toMatch(/section\.heading/);
+    // The single source maps the money-picture module to the report config's
+    // operating-profile screen id.
+    const model = read("lib/render/snapshot-sections.ts");
+    expect(model).toMatch(/"money-picture"\s*:\s*"operating-profile"/);
   });
 
   it("no participant-facing source RENDERS an internal signal code", () => {
-    // Targets RENDERING, not every mention. `key={s.signal}` is a correct React
-    // identity and is invisible to a participant — a blunt scan for `s.signal`
-    // flags it, which is a false positive, not a finding. (The first version of
-    // this test did exactly that.)
-    //
-    // What matters is the JSX text positions: an expression inside braces that
-    // is not wrapped in a label lookup.
-    const page = read("app/(public)/snapshot/[sessionId]/page.tsx");
+    // Targets RENDERING, not every mention. `key={row.signal}` is a correct
+    // React identity and is invisible to a participant. The render layer
+    // (results-view) consumes the RESOLVED view and may only print its resolved
+    // fields (question / label / copy) — never a raw internal identifier.
+    const view = read("components/snapshot/results-view.tsx");
 
-    // Match JSX TEXT POSITIONS only: a line that is exactly `{expr}` and
-    // nothing else, which is how a value actually renders as text.
-    //
-    // The first two attempts at this were both wrong in instructive ways. A bare
-    // `/\{\s*s\.signal\s*\}/` matched `key={s.signal}` — a React identity, never
-    // shown to anyone. Loosening it to "any braces containing `signal`" then
-    // matched a TypeScript interface body (`{ signal: string; state: string }`),
-    // which is a type, not output. Anchoring to a whole line of JSX text is what
-    // distinguishes "this value is displayed" from "this value is mentioned".
+    // Match JSX expressions that resolve a raw internal identifier — the
+    // `.signal` code, a `.state`, a `.narrativeKey`, a `.specialState`, or a
+    // `.displayState` — wherever they sit. Reject only the one legitimate
+    // non-rendering form: `key={row.signal}` (an invisible React identity).
     const offenders: string[] = [];
-    for (const line of page.split("\n")) {
-      const m = line.match(/^\s*\{([^{}]+)\}\s*$/);
-      if (!m) continue;
-      const expr = m[1].trim();
-      if (!/\bsignal\b/.test(expr)) continue;
-      // `signalLabel(s.signal)` is the correct form — it translates.
-      if (/signalLabel\s*\(/.test(expr)) continue;
+    for (const m of view.matchAll(
+      /\{[^{}]*\.(signal|state|narrativeKey|specialState|displayState)\b[^{}]*\}/g,
+    )) {
+      const expr = m[0];
+      const before = view.slice(Math.max(0, m.index - 16), m.index);
+      if (/key\s*=\s*$/.test(before)) continue;
       offenders.push(expr);
     }
-    console.log(`  rendered signal expressions: ${JSON.stringify(offenders)}`);
+    console.log(`  rendered internal-identifier expressions: ${JSON.stringify(offenders)}`);
     expect(
       offenders,
-      "a raw signal code is rendered to the participant — wrap it in signalLabel()",
+      "a raw internal signal/state identifier is rendered to the participant",
     ).toEqual([]);
 
-    // And the correct form is present, so this cannot pass by rendering nothing.
-    expect(page).toMatch(/signalLabel\(/);
+    // The resolved fields ARE rendered (as block.kicker / block.label /
+    // block.body — the shared section model's fields), so this cannot pass by
+    // rendering nothing.
+    expect(view).toMatch(/block\.kicker/);
+    expect(view).toMatch(/block\.label/);
+    expect(view).toMatch(/block\.body/);
 
-    // `key=` uses are legitimate; assert at least one exists so the exclusion
-    // above is visibly justified rather than hypothetical.
-    expect(page, "the exclusion for key= is not hypothetical").toMatch(/key=\{s\.signal\}/);
+    // The shared block model carries NO internal id, so the renderer has no
+    // `.signal` to reference at all — even as a React key. That is the strongest
+    // form of the guard: the internal identifier cannot leak because it never
+    // reaches the render layer.
+    expect(view, "the render layer must hold no .signal reference").not.toMatch(/\.signal\b/);
   });
 });
 
@@ -164,15 +209,31 @@ describe("web results render from the stored payload — never a recompute", () 
     console.log(
       `  loadSnapshot scores: ${/scoreAssessment\(/.test(body)} | reads payload_json: ${/payload_json/.test(body)}`,
     );
-    expect(body, "loadSnapshot must not re-score").not.toMatch(/scoreAssessment\(/);
-    expect(body, "loadSnapshot must not recompute tensions").not.toMatch(/evaluateTensions\(/);
-    expect(body, "loadSnapshot must read the persisted payload").toMatch(/payload_json/);
+    // Match the IDENTIFIER, not just a call with parens: `const recompute =
+    // scoreAssessment` (a bare reference) and a renamed import both recompute
+    // without ever writing `scoreAssessment(`. The body must never even
+    // reference the scoring identifiers — the payload is the only permitted
+    // input to a render.
+    expect(body, "loadSnapshot must not re-score").not.toMatch(/\bscoreAssessment\b/);
+    expect(body, "loadSnapshot must not recompute tensions").not.toMatch(/\bevaluateTensions\b/);
+    // loadSnapshot reads the persisted payload through the shared reader —
+    // `readCompletedSnapshot` is the ONE place payload_json is selected, and
+    // loadSnapshot delegates to it rather than re-deriving anything. Assert the
+    // reader reads the persisted column (never recomputes) and that loadSnapshot
+    // calls it.
+    const reader = service.slice(
+      service.indexOf("async function readCompletedSnapshot"),
+      service.indexOf("export async function loadSnapshot"),
+    );
+    expect(reader, "the snapshot reader must read the persisted payload").toMatch(/payload_json/);
+    expect(reader, "the snapshot reader must not re-score").not.toMatch(/\bscoreAssessment\b/);
+    expect(body, "loadSnapshot must delegate to the stored-payload reader").toMatch(/readCompletedSnapshot\(/);
 
     // And the route that serves the participant delegates to it rather than
     // scoring anything itself.
     const route = read("app/api/session/[id]/snapshot/route.ts");
     expect(route).toMatch(/loadSnapshot\(/);
-    expect(route, "the snapshot route must not score").not.toMatch(/scoreAssessment\(/);
+    expect(route, "the snapshot route must not score").not.toMatch(/\bscoreAssessment\b/);
   });
 
   it("the payload the renderer reads is the payload the writer stored", () => {

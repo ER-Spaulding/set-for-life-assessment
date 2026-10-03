@@ -10,6 +10,7 @@
 import type {
   AttentionAreaKey,
   EvidenceConfidence,
+  EvidenceStrength,
   SignalId,
   SignalState,
 } from './types';
@@ -231,4 +232,35 @@ export function deriveEvidenceConfidence(
     return 'moderate';
   }
   return 'limited';
+}
+
+/**
+ * Derive one signal's evidence STRENGTH — the per-signal metadata a renderer
+ * uses to select deterministic language strength (PRD §19.1), alongside the
+ * confidence tier.
+ *
+ * DELEGATES to `deriveEvidenceConfidence` so the tier and the strength can
+ * never disagree: `confidence` here is the SAME value the
+ * `computed_signals.evidence_confidence` column stores, derived once.
+ *
+ * The `limitedReason` preserves the distinction the operator requires
+ * (Addendum 01 v1.1 §10): a capacity override makes `specialState` non-null, so
+ * its LIMITED tier carries 'CAPACITY_CONTEXT' — the evidence is limited BY the
+ * context, not by weak agency. A genuinely thin signal (`specialState` null)
+ * carries 'THIN_EVIDENCE'. This is metadata ONLY: it never selects the
+ * signal's narrative key, so the margin-independent protections are untouched
+ * and the value never becomes a score.
+ */
+export function deriveEvidenceStrength(
+  args: DeriveConfidenceArgs,
+  derivation: ConfidenceDerivationConfig,
+): EvidenceStrength {
+  const confidence = deriveEvidenceConfidence(args, derivation);
+  const limitedReason =
+    confidence === 'limited'
+      ? args.specialState !== null
+        ? 'CAPACITY_CONTEXT'
+        : 'THIN_EVIDENCE'
+      : null;
+  return { confidence, limitedReason };
 }

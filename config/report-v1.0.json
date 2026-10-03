@@ -15,7 +15,8 @@
       "prd_ref": "§20 Screen/Page 1",
       "uiux_ref": "S12",
       "title": "YOUR SET FOR LIFE FINANCIAL SNAPSHOT",
-      "subtitle": "A personalized look at how you currently see, direct, prepare, and make decisions with your money.",
+      "subtitle": "{First Name}, here is what your responses reveal when we look at them together.",
+      "lead": "Here is what your responses reveal.",
       "title_source": "prd",
       "conditional": false,
       "feeds": {
@@ -31,8 +32,8 @@
       "order": 2,
       "prd_ref": "§20 Screen/Page 2",
       "uiux_ref": "S12",
-      "title": "Big Picture",
-      "title_source": "structural",
+      "title": "YOUR BIG PICTURE",
+      "title_source": "prd",
       "conditional": false,
       "feeds": {
         "narratives-v1.0.json": [
@@ -53,7 +54,7 @@
       "prd_ref": "§20 Screen/Page 3",
       "uiux_ref": "S13",
       "title": "Your Set for Life Money Picture",
-      "title_source": "structural",
+      "title_source": "prd",
       "conditional": false,
       "feeds": {
         "narratives-v1.0.json": [
@@ -75,7 +76,7 @@
           "SPECIAL.*"
         ]
       },
-      "notes": "Participant-friendly operating labels SEE / ROOM / DIRECT / PREPARE / AIM / MOVE (PRD §20.1). Descriptive state labels only — no raw 1–5 values, no scores, no gauges.",
+      "notes": "Internal diagnostic constructs (SEE / ROOM / DIRECT / PREPARE / AIM / MOVE) — retired as the participant-facing framework by Addendum 01 v1.1 §2.3; participant-facing presentation uses §2.4's six human questions. Descriptive state labels only — no raw 1–5 values, no scores, no gauges.",
       "_title_note": "Renamed 2026-10-01. Was 'Financial Operating Profile', which Addendum 01 v1.1 2.1-2.2 supersedes: the participant-facing methodology is The Set for Life Money Picture (TM), and the six signal constructs are the technical architecture UNDERNEATH the participant experience, not a name to show anyone. Section id kept as 'operating-profile' so renderers and refs do not break."
     },
     {
@@ -169,7 +170,8 @@
           "perception_gap.PERCEPTION_MIXED_COMPLEX"
         ]
       },
-      "notes": "Never use 'wrong', 'misperception', 'reality check', or corrective arrows."
+      "notes": "Never use 'wrong', 'misperception', 'reality check', or corrective arrows.",
+      "_deferred": "DEFERRED FOR PILOT (owner decision 2026-10-02): Module 8 Perception Gap does NOT ship in the pilot. This is a deliberate product deferral pending pilot evidence, not authorization to delete the underlying data or concept, and not a request to build anything. The screen entry is RESERVED for a future revisit; its `perception_gap.*` narrative feeds and the payload's perceptionGap / perceptionGapStatus fields remain in place (nullable/unpopulated, documented semantics) with NO fabricated result written while scoring-v1.0.json perception_gap.comparison_method stays TBD_PENDING_OPERATOR_REVIEW. No renderer may display a Perception Gap section, a 'coming soon' / 'not enough information' placeholder, an empty Module 8 container, an error state, or any indication that a planned module was withheld — the Money Picture must read as COMPLETE, not as one with a hole."
     },
     {
       "id": "readiness",

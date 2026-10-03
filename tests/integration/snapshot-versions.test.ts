@@ -175,11 +175,13 @@ describe("a LATER config change does not move an EARLIER Snapshot's versions", (
       (readJson(NARRATIVES) as { version: string }).version,
     ];
     // Not merely different by accident — sourced from a different place, so no
-    // config edit can move it.
-    expect(
-      configVersions.includes(v.snapshotSchemaVersion) && SNAPSHOT_SCHEMA_VERSION === "1.0",
-      "informational: the schema version may coincide with a config version",
-    ).toBe(true);
+    // config edit can move it. After the 1.0 -> 1.1 payload bump the schema
+    // version no longer COINCIDES with any content version (which all remain
+    // "1.0"), so the independence is now visible in the values themselves, not
+    // just in the sourcing. (Previously the two coincided at "1.0", and the
+    // old informational assertion documented that coincidence; it is replaced,
+    // not weakened — the structural claim on line 171 is unchanged.)
+    expect(configVersions.includes(v.snapshotSchemaVersion)).toBe(false);
   });
 });
 
@@ -335,5 +337,46 @@ describe("approved pilot calibration stays configurable and versioned", () => {
       storedRow.scoringEngineVersion,
       "the HISTORICAL snapshot stays attributable to the logic that produced it",
     ).toBe("1.0");
+  });
+});
+
+describe("the payload-schema bump to 1.1 happened, and 1.0 is NOT relabelled", () => {
+  it("the current schema is 1.1 and the supported set carries both 1.0 and 1.1", () => {
+    // The 2026-10-02 payload additions (q16Selections, openingB, per-signal
+    // evidence) are REQUIRED fields, so the schema bumped 1.0 -> 1.1. '1.0'
+    // stays in SUPPORTED because this build must still READ pre-bump payloads.
+    expect(SNAPSHOT_SCHEMA_VERSION).toBe("1.1");
+    expect(SUPPORTED_SNAPSHOT_SCHEMAS).toContain("1.1");
+    expect(SUPPORTED_SNAPSHOT_SCHEMAS).toContain("1.0");
+  });
+
+  it("a freshly resolved snapshot records 1.1 as its schema version", () => {
+    const v = resolveSnapshotVersions({
+      assessmentConfig: readJson(ASSESSMENT),
+      scoringConfig: readJson(SCORING),
+      narrativeConfig: readJson(NARRATIVES),
+    });
+    expect(v.snapshotSchemaVersion).toBe("1.1");
+    // And it still identifies all four, independently.
+    expect(typeof v.instrumentVersion).toBe("string");
+    expect(typeof v.scoringEngineVersion).toBe("string");
+    expect(typeof v.narrativeLibraryVersion).toBe("string");
+  });
+
+  it("a 1.0-marked payload reads as 1.0 — never silently reinterpreted as 1.1", () => {
+    // The owner's rule: "Do not create compatibility aliases that silently
+    // reinterpret an older Snapshot as a newer schema." A stored 1.0 payload
+    // must resolve to '1.0', not to the current '1.1'.
+    const legacy = { versions: { snapshotSchema: "1.0" } };
+    expect(resolveSchemaVersion(legacy)).toBe("1.0");
+    expect(() => assertSupportedSchema(legacy, "old-snap")).not.toThrow();
+  });
+
+  it("still refuses a payload from an unknown future schema", () => {
+    // The refusal is what makes the bump meaningful: an unrecognised shape is
+    // not guessed at, whether 1.0-legacy or a future 2.0.
+    expect(() =>
+      assertSupportedSchema({ versions: { snapshotSchema: "2.0" } }, "snap-xyz"),
+    ).toThrow(/written by payload schema 2\.0/);
   });
 });

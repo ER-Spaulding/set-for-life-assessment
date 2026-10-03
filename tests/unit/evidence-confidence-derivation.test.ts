@@ -3,6 +3,7 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import {
   deriveEvidenceConfidence,
+  deriveEvidenceStrength,
   loadConfidenceDerivation,
 } from "@/lib/assessment/evidence-chain";
 
@@ -210,5 +211,58 @@ describe("the derivation is CONFIG-DRIVEN, not hardcoded (PRD §15)", () => {
 
     expect(typeof d._rule).toBe("string");
     expect(d._rule.length).toBeGreaterThan(20);
+  });
+});
+
+describe("deriveEvidenceStrength — limitedReason preserves capacity vs thin evidence (§10)", () => {
+  it("a capacity override yields LIMITED with reason CAPACITY_CONTEXT", () => {
+    // Addendum 01 v1.1 §10: AGENCY_EVIDENCE=LIMITED_DUE_TO_CAPACITY_CONTEXT must
+    // stay distinguishable from genuinely weak Agency. A capacity override makes
+    // specialState non-null, so its LIMITED tier carries CAPACITY_CONTEXT.
+    const got = deriveEvidenceStrength(
+      { state: "S5", specialState: "DIRECT_CAPACITY_LIMITED", corroboration: 3 },
+      derivation,
+    );
+    console.log("  override ->", JSON.stringify(got));
+    expect(got.confidence).toBe("limited");
+    expect(got.limitedReason).toBe("CAPACITY_CONTEXT");
+  });
+
+  it("a genuinely thin signal yields LIMITED with reason THIN_EVIDENCE", () => {
+    // No override, but the responses provide little to go on. This is the
+    // weak-Agency reading the capacity reason must NOT be confused with.
+    const got = deriveEvidenceStrength(
+      { state: "S3", specialState: null, corroboration: 1 },
+      derivation,
+    );
+    console.log("  thin ->", JSON.stringify(got));
+    expect(got.confidence).toBe("limited");
+    expect(got.limitedReason).toBe("THIN_EVIDENCE");
+  });
+
+  it("non-limited confidence carries a null limitedReason", () => {
+    for (const [state, corroboration] of [["S5", 3], ["S4", 1], ["S3", 2]] as const) {
+      const got = deriveEvidenceStrength(
+        { state, specialState: null, corroboration },
+        derivation,
+      );
+      expect(got.confidence, `${state}/${corroboration}`).not.toBe("limited");
+      expect(got.limitedReason, `${state}/${corroboration} must have no reason`).toBeNull();
+    }
+  });
+
+  it("the strength's confidence EQUALS deriveEvidenceConfidence — never disagrees", () => {
+    const states = [null, "S1", "S2", "S3", "S4", "S5"] as const;
+    const specials = [null, "DIRECT_CAPACITY_LIMITED"] as const;
+    for (const state of states) {
+      for (const specialState of specials) {
+        for (let c = 0; c <= 4; c++) {
+          const args = { state, specialState, corroboration: c };
+          expect(deriveEvidenceStrength(args, derivation).confidence).toBe(
+            deriveEvidenceConfidence(args, derivation),
+          );
+        }
+      }
+    }
   });
 });

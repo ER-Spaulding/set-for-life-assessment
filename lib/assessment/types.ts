@@ -92,6 +92,37 @@ export type LanguageStrengthKey = keyof typeof narratives.language_strength;
 export type EvidenceConfidence = "high" | "moderate" | "limited";
 
 /**
+ * WHY a signal's evidence confidence is LIMITED (Addendum 01 v1.1 §10).
+ *
+ * The distinction is load-bearing and must survive into the persisted payload:
+ *
+ *   CAPACITY_CONTEXT — the numeric value is context-constrained by a capacity
+ *       override (Q11/Q12/Q18). Limited margin is NOT weak agency; the signal's
+ *       narrative key still comes from its special state, so this reason is
+ *       metadata ONLY.
+ *   THIN_EVIDENCE    — the responses themselves provide little to go on (a
+ *       single source, or no ladder position at all).
+ *
+ * Collapsing the two would let a capacity-constrained participant be addressed
+ * as though their agency were weakly evidenced — the exact misreading §13.4–
+ * §13.7 exist to prevent. `AGENCY_EVIDENCE=LIMITED_DUE_TO_CAPACITY_CONTEXT` must
+ * remain distinguishable from genuinely weak Agency.
+ */
+export type EvidenceLimitedReason = "CAPACITY_CONTEXT" | "THIN_EVIDENCE";
+
+/**
+ * Evidence strength is METADATA about how strongly the participant's response
+ * pattern supports a finding. It is NOT another participant score and must
+ * never become an overall financial-health rating — there is no aggregate
+ * evidence field, and a renderer may use it only to select deterministic
+ * language strength (PRD §19.1), never to override the signal's narrative key.
+ */
+export interface EvidenceStrength {
+  confidence: EvidenceConfidence;
+  limitedReason: EvidenceLimitedReason | null;
+}
+
+/**
  * Compile-time guard: the lowercase contract and the library's uppercase keys
  * must stay in step. If a tier is added to one and not the other, this fails
  * to compile rather than drifting silently at runtime.

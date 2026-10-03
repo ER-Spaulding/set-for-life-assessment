@@ -58,5 +58,19 @@ export async function GET(
   // arrived" — a mid-assessment session hitting this route is not a view.
   recordEventInBackground({ eventName: "snapshot_viewed", sessionId });
 
-  return NextResponse.json(snapshot);
+  // §24: build the participant-facing view EXPLICITLY. `loadSnapshot` already
+  // returns only flat fields, but this whitelist is the serialization boundary:
+  // if a future change ever puts the raw payload (or any new internal field)
+  // back on the service return, it still does NOT reach the browser unless it
+  // is added to this list on purpose. Exposure requires an explicit decision.
+  return NextResponse.json({
+    snapshotId: snapshot.snapshotId,
+    reportVersion: snapshot.reportVersion,
+    generatedAt: snapshot.generatedAt,
+    signals: snapshot.signals,
+    tensionCodes: snapshot.tensionCodes,
+    connectionKeys: snapshot.connectionKeys,
+    attentionArea: snapshot.attentionArea,
+    attentionAreas: snapshot.attentionAreas,
+  });
 }

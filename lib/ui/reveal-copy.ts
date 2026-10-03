@@ -11,44 +11,37 @@
 //   cta uses ASCII hyphen-greater "->" as written in the source
 //   hold uses three ASCII dots, NOT a U+2026 ellipsis
 //
+// The six §2.4 human questions are the one exception to "strings live here":
+// they moved to lib/ui/human-questions.ts (single source of truth), and
+// SIX_HUMAN_QUESTIONS below is DERIVED from them verbatim — the source stores
+// them FULL CAPS (the resolved casing), so no casing transform is applied here.
+// The prompts remain verbatim from §2.4.
+//
 // §2.3 retires SEE / ROOM / DIRECT / PREPARE / AIM / MOVE as the
 // participant-facing presentation system. Nothing in this file may surface
 // those tokens, and the reveal must not render the retired wheel.
 
+import { HUMAN_QUESTIONS } from "./human-questions";
+
 export interface HumanQuestion {
-  /** The participant-facing question label, e.g. "WHAT CAN YOU SEE?" */
+  /** The participant-facing question label, FULL CAPS, verbatim from §2.4. */
   question: string;
   /** The one-line elaboration shown beneath it. */
   prompt: string;
 }
 
-/** §2.4 — the six human questions that organize the participant's Money Picture. */
-export const SIX_HUMAN_QUESTIONS: readonly HumanQuestion[] = [
-  {
-    question: "WHAT CAN YOU SEE?",
-    prompt: "What is visible and understandable about your financial life right now?",
-  },
-  {
-    question: "HOW MUCH ROOM DO YOU HAVE?",
-    prompt: "How much financial margin or flexibility exists after life and current obligations are handled?",
-  },
-  {
-    question: "HOW ARE YOU MAKING DECISIONS?",
-    prompt: "How intentionally can you direct the money and choices that are actually available to you?",
-  },
-  {
-    question: "HOW PREPARED ARE YOU FOR DISRUPTION?",
-    prompt: "How able is your financial life to absorb disruption and recover?",
-  },
-  {
-    question: "WHERE ARE YOU HEADED?",
-    prompt: "How clearly do today's financial decisions connect to the future you want?",
-  },
-  {
-    question: "WHAT HAPPENS AFTER YOU KNOW?",
-    prompt: "What happens when financial information reaches you - does it become evaluation, decision, and follow-through?",
-  },
-];
+/**
+ * §2.4 — the six human questions that organize the participant's Money Picture.
+ *
+ * The words are NOT duplicated here: this array is derived from the single
+ * source of truth, lib/ui/human-questions.ts. The source stores the labels in
+ * §2.4's FULL CAPS wording (the resolved casing), so the reveal presents them
+ * verbatim — no casing transform. Addendum 03 §14's sentence case is a
+ * presentation transform of these same words, not a competing canonical set.
+ */
+export const SIX_HUMAN_QUESTIONS: readonly HumanQuestion[] = HUMAN_QUESTIONS.map(
+  (q) => ({ question: q.question, prompt: q.prompt }),
+);
 
 /** §4.1 — the creative territory. */
 export const CREATIVE_TERRITORY = "THE PICTURE COMES INTO FOCUS";

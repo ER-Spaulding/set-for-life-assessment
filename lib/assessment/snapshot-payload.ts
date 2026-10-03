@@ -1,4 +1,4 @@
-// PRD Addendum 01 §3, §5, §11, §12 — the Snapshot payload assembler.
+// PRD Addendum 01 §3, §5, §10 — the Snapshot payload assembler.
 //
 // WHAT THIS IS. The single object that BOTH renderers read: the web results
 // experience and the downloadable PDF. §5 is explicit that the app "must not
@@ -21,7 +21,7 @@
 //
 // Pure functions. No I/O, no Date.now(), no randomness.
 
-import type { SignalId, SignalState } from './types';
+import type { EvidenceStrength, SignalId, SignalState } from './types';
 import { selectAttentionArea, attentionAreaForTension } from './interpretation';
 import {
   evaluatePerceptionGap,
@@ -49,6 +49,12 @@ export interface PayloadSignal {
   displayState: string | null;
   /** Approved-copy key for whichever state is being displayed. */
   narrativeKey: string | null;
+  /**
+   * Evidence strength — METADATA for deterministic language-strength selection
+   * (PRD §19.1 / Addendum 01 v1.1 §10). Never a score; never selects this
+   * signal's narrative key, which continues to come from state/specialState.
+   */
+  evidence: EvidenceStrength;
 }
 
 /** A strength or friction entry: a state plus its approved copy key. */
@@ -193,6 +199,31 @@ export interface SnapshotPayload {
 
   /** Contextual subsignals (MOVE's three parts), when the engine produced them. */
   moveSubsignals: Record<string, number | null>;
+
+  /**
+   * Q16 participant selections — the RAW OPTION CODES (e.g. ["Q16_A","Q16_D"]),
+   * order preserved, unranked, multiplicity preserved.
+   *
+   * Addendum 01 v1.1 §9 PAGE 7 "WHAT SET FOR LIFE MEANS TO YOU" renders the
+   * participant's actual destination themes from these codes. The immutable fact
+   * is the CODE list; labels resolve at render time from the pinned question
+   * bank (a formatting artifact, like a narrativeKey), never by re-reading raw
+   * responses. Do not reconstruct Q16 later from raw responses outside this
+   * immutable Snapshot.
+   */
+  q16Selections: string[];
+
+  /**
+   * The participant's Opening B self-rating (1–5) — a RESERVED INPUT for the
+   * eventual Perception Gap method, not a result.
+   *
+   * Persisted as an internal fact (precedent: `moveSubsignals` already persists
+   * raw internal numbers and is never rendered). §20 forbids raw 1–5 values
+   * REACHING PARTICIPANTS, not storage; no renderer may surface this value. The
+   * Perception Gap result itself (`perceptionGap` above) stays null until the
+   * method is approved — see `perceptionGapStatus`.
+   */
+  openingB: number | null;
 }
 
 // ---------------------------------------------------------------------------
@@ -211,6 +242,8 @@ export interface AssembleInput {
       state: SignalState | null;
       specialState: string | null;
       displayState: SignalState | string | null;
+      /** Derived evidence strength for this signal. Required — the writer always sets it. */
+      evidence: EvidenceStrength;
     }
   >;
 
@@ -333,9 +366,9 @@ export function resolveBigPictureTemplate(
 }
 
 /**
- * Which big-picture template applies (Addendum §11, §12.1, §12.2).
+ * Which big-picture template applies (Addendum §10).
  *
- * CAPACITY_FIRST takes precedence over the others: §12.2 requires that when
+ * CAPACITY_FIRST takes precedence over the others: §10 requires that when
  * capacity overrides apply, "ROOM/capacity context appears BEFORE agency
  * criticism". A capacity-constrained participant shown a friction-led narrative
  * first would read as criticism of discipline when the constraint is available
@@ -409,6 +442,7 @@ export function assembleSnapshotPayload(input: AssembleInput): SnapshotPayload {
       specialState: s.specialState,
       displayState: displayState ?? null,
       narrativeKey: signalNarrativeKey(signal, displayState ?? null),
+      evidence: s.evidence,
     };
   });
 
@@ -524,6 +558,8 @@ export function assembleSnapshotPayload(input: AssembleInput): SnapshotPayload {
     attentionAreas,
     nullFinding,
     moveSubsignals: input.moveSubsignals,
+    q16Selections: [...input.q16Selections],
+    openingB: input.openingB,
   };
 }
 
@@ -555,6 +591,33 @@ export function selectConnections(
 }
 
 /**
+ * The config values that mean "the Perception Gap method is approved".
+ *
+ * NOTHING is approved today. `config/scoring-v1.0.json` records
+ * `perception_gap.comparison_method = "TBD_PENDING_OPERATOR_REVIEW"`, and the
+ * method is under separate design review — so this set is EMPTY and the
+ * container refuses every result.
+ *
+ * WHY AN ALLOWLIST AND NOT A DENYLIST. A denylist listing the pending value
+ * would treat any OTHER string as an approval — including a typo, a draft, or a
+ * value an unrelated config edit happened to introduce. That is the failure mode
+ * that would let a fabricated gap into an immutable Snapshot. An empty
+ * allowlist fails closed: the only way to enable the path is to add the
+ * operator's approved identifier here, which is a reviewable code change.
+ */
+export const PERCEPTION_GAP_METHOD_APPROVED_CONFIG_VALUES: readonly string[] = Object.freeze([]);
+
+/** True only when config names a method the owner has APPROVED. */
+function isPerceptionGapMethodApproved(config: unknown): boolean {
+  const method = (config as { comparison_method?: unknown } | null | undefined)
+    ?.comparison_method;
+  return (
+    typeof method === 'string' &&
+    PERCEPTION_GAP_METHOD_APPROVED_CONFIG_VALUES.includes(method)
+  );
+}
+
+/**
  * Resolve the Perception Gap, recording WHY it is absent when it is.
  *
  * The distinction this preserves matters: `not_ready` is a fact about the
@@ -577,6 +640,28 @@ export function resolvePerceptionGap(input: AssembleInput): {
     if (result.status === 'not_ready') {
       return { perceptionGap: null, perceptionGapStatus: 'not_ready' };
     }
+
+    // THE CONTAINER BOUNDARY GUARD.
+    //
+    // Everything ABOVE delegates to the review-gated `evaluatePerceptionGap`,
+    // which throws while the comparison method is unspecified — so no reachable
+    // path through THIS module can mint a value. But `resolvePerceptionGap` is
+    // exported, and the write path consumes that one result: a future caller
+    // (or a stubbed/replaced evaluator) that hands back `{status:'finalized'}`
+    // would otherwise have its value written into the immutable Snapshot
+    // unexamined. That is the fabrication the owner forbids — and because a
+    // Snapshot is append-only, it could never be taken back.
+    //
+    // So the boundary validates rather than trusts. Until the method is
+    // approved and implemented, a 'finalized' result is REFUSED and recorded as
+    // 'method_pending' (a build gap) rather than stored as a finding. When the
+    // method lands, the approval is recorded in config — see
+    // PERCEPTION_GAP_METHOD_APPROVED_CONFIG_VALUES — and this guard steps aside
+    // with it, so it cannot silently block the approved implementation.
+    if (!isPerceptionGapMethodApproved(input.perceptionGapConfig)) {
+      return { perceptionGap: null, perceptionGapStatus: 'method_pending' };
+    }
+
     return {
       perceptionGap: { code: result.code, narrativeKey: result.narrativeKey },
       perceptionGapStatus: 'finalized',

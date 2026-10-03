@@ -39,12 +39,19 @@ import {
 } from "../assessment/activation";
 import {
   deriveEvidenceConfidence,
+  deriveEvidenceStrength,
   loadConfidenceDerivation,
 } from "../assessment/evidence-chain";
-import { assembleSnapshotPayload } from "../assessment/snapshot-payload";
+import {
+  assembleSnapshotPayload,
+  type AssembleInput,
+  type SnapshotPayload,
+} from "../assessment/snapshot-payload";
 import { resolveSnapshotVersions, assertSupportedSchema } from "../assessment/versions";
+import { mayProduceSnapshot, snapshotRefusalReason } from "./lifecycle";
 import type {
   EvidenceConfidence,
+  EvidenceStrength,
   SignalId,
   SignalState,
 } from "../assessment/types";
@@ -224,6 +231,16 @@ export interface CompletionResult {
    * separate "recognized" concept here and none is invented.
    */
   firstName?: string | null;
+
+  /**
+   * Present only when the session's LIFECYCLE forbids completion — expired, or
+   * already completed. Operator decision 2026-10-01, instruction #3.
+   *
+   * Distinct from `missing`: that says "you have unanswered questions", this
+   * says "this assessment can no longer become a current Snapshot". The two
+   * need different participant-facing responses — resume versus start fresh.
+   */
+  refusal?: string;
 }
 
 /**
@@ -240,6 +257,45 @@ export interface CompletionResult {
  */
 export async function completeSession(sessionId: string): Promise<CompletionResult> {
   const db = serviceClient();
+
+  // THE LIFECYCLE GATE.
+  //
+  // Operator instruction #3: an expired incomplete assessment "becomes
+  // historical and must never subsequently produce a current Financial
+  // Snapshot."
+  //
+  // THIS CHECK DID NOT EXIST. `completeSession` read the response set and
+  // proceeded without ever reading the session's status — so a session the sweep
+  // had expired, whose 31 responses were still sitting in the table, would have
+  // completed and written a Snapshot. The rule would have been broken silently,
+  // by exactly the participant the rule exists to protect: one whose answers are
+  // too old to represent their situation today.
+  //
+  // Checked BEFORE any scoring or writes, so an expired session costs nothing
+  // and leaves no partial state.
+  const { data: sessionRow, error: stateErr } = await db
+    .from("assessment_sessions")
+    .select("status")
+    .eq("session_id", sessionId)
+    .maybeSingle();
+  if (stateErr) throw new Error(`session: ${stateErr.message}`);
+
+  if (sessionRow) {
+    const status = (sessionRow as { status?: string }).status ?? "";
+    if (!mayProduceSnapshot(status)) {
+      // A structured refusal rather than a throw: the caller surfaces the reason
+      // to the participant, who needs to know whether to resume or to start a
+      // current assessment. Both are actionable; neither is an error.
+      return {
+        sessionId,
+        complete: false,
+        refusal: snapshotRefusalReason(status) ?? "This assessment cannot be completed.",
+        missing: [],
+        present: 0,
+        required: 0,
+      };
+    }
+  }
 
   const { data: rows, error: rErr } = await db
     .from("responses")
@@ -408,27 +464,38 @@ export async function completeSession(sessionId: string): Promise<CompletionResu
   }
 
   const triggered = new Set(tensionCodes);
-  const confidenceFor = (signal: SignalId): EvidenceConfidence => {
+
+  // Corroboration = contributing items that actually carried a value, plus
+  // triggered tensions that reference this signal. An item whose option maps
+  // to null (a capacity override such as Q11_A) carries NO numeric evidence
+  // and is correctly absent from `items`, so it cannot corroborate. Extracted
+  // so the DB column and the payload's per-signal evidence derive from ONE
+  // count — they can never disagree about the corroboration.
+  const corroborationFor = (signal: SignalId): number => {
     const contributing = signalItems[signal] ?? [];
-    // Corroboration = contributing items that actually carried a value, plus
-    // triggered tensions that reference this signal. An item whose option maps
-    // to null (a capacity override such as Q11_A) carries NO numeric evidence
-    // and is correctly absent from `items`, so it cannot corroborate.
     const fromItems = contributing.filter(
       (q) => items[q] !== undefined,
     ).length;
     const fromTensions = (signalTensions[signal] ?? []).filter((c) =>
       triggered.has(c as never),
     ).length;
-    return deriveEvidenceConfidence(
-      {
-        state: scored.signals[signal].state,
-        specialState: scored.signals[signal].specialState,
-        corroboration: fromItems + fromTensions,
-      },
-      derivation,
-    );
+    return fromItems + fromTensions;
   };
+
+  const confidenceArgsFor = (signal: SignalId) => ({
+    state: scored.signals[signal].state,
+    specialState: scored.signals[signal].specialState,
+    corroboration: corroborationFor(signal),
+  });
+
+  const confidenceFor = (signal: SignalId): EvidenceConfidence =>
+    deriveEvidenceConfidence(confidenceArgsFor(signal), derivation);
+
+  // The payload's per-signal evidence strength (Addendum 01 v1.1 §10). Derived
+  // from the SAME args as the confidence column, so the two cannot disagree.
+  // Metadata only — never a score, never the signal's narrative key.
+  const evidenceFor = (signal: SignalId): EvidenceStrength =>
+    deriveEvidenceStrength(confidenceArgsFor(signal), derivation);
 
   // Persist, then freeze. The immutability trigger rejects later writes, so a
   // failure here surfaces as a database error rather than silent divergence.
@@ -563,6 +630,23 @@ export async function completeSession(sessionId: string): Promise<CompletionResu
     narrativeConfig: narrativeConfig(),
   });
 
+  // The assembler's signal input now requires per-signal evidence, which the
+  // scorer does not produce. Build the input with evidence derived here (same
+  // source as the computed_signals column), so the payload carries the strength
+  // metadata without the scorer's own shape changing.
+  const payloadSignals: AssembleInput["signals"] = Object.fromEntries(
+    (Object.keys(scored.signals) as SignalId[]).map((signal) => [
+      signal,
+      {
+        value: scored.signals[signal].value,
+        state: scored.signals[signal].state,
+        specialState: scored.signals[signal].specialState,
+        displayState: scored.signals[signal].displayState,
+        evidence: evidenceFor(signal),
+      },
+    ]),
+  ) as AssembleInput["signals"];
+
   const payload = assembleSnapshotPayload({
     versions: {
       assessment: snapshotVersions.instrumentVersion,
@@ -580,7 +664,7 @@ export async function completeSession(sessionId: string): Promise<CompletionResu
       narrativeLibrary: snapshotVersions.narrativeLibraryVersion,
       snapshotSchema: snapshotVersions.snapshotSchemaVersion,
     },
-    signals: scored.signals,
+    signals: payloadSignals,
     tensionCodes,
     classifierTags: Object.values(tags).flat(),
     activationSelections: {
@@ -724,14 +808,21 @@ export async function verifiedFirstNameForParticipant(
 }
 
 /**
- * The participant-facing Snapshot.
+ * A completed session's frozen Snapshot, read once and typed.
  *
- * Returns null unless the session is COMPLETED — a mid-assessment participant
- * receives nothing (PRD §23.2, §24). The shape carries approved narrative keys
- * and the selected attention area; it never carries classifier tags,
- * evidence-chain payloads, or raw scores.
+ * The shared read path for BOTH renderers. It reads the persisted payload —
+ * never recomputes (Addendum 01 §3, §5) — and refuses to interpret a payload
+ * whose schema this build does not understand. Returns null unless the session
+ * is COMPLETED.
  */
-export async function loadSnapshot(sessionId: string) {
+async function readCompletedSnapshot(
+  sessionId: string,
+): Promise<{
+  snapshotId: string;
+  reportVersion: string | null;
+  generatedAt: string | null;
+  payload: SnapshotPayload;
+} | null> {
   const db = serviceClient();
 
   const { data: session, error: sErr } = await db
@@ -786,18 +877,7 @@ export async function loadSnapshot(sessionId: string) {
   // assembler has ever existed.
   assertSupportedSchema(rawPayload, snapshot.snapshot_id as string | undefined);
 
-  const payload = rawPayload as {
-    signals?: Array<{
-      signal: string;
-      state: string | null;
-      specialState: string | null;
-      displayState: string | null;
-      narrativeKey: string | null;
-    }>;
-    connections?: Array<{ code: string; narrativeKey: string }>;
-    attentionAreas?: string[];
-    nullFinding?: boolean;
-  } | null;
+  const payload = rawPayload as SnapshotPayload | null;
 
   if (!payload) {
     throw new Error(
@@ -805,13 +885,41 @@ export async function loadSnapshot(sessionId: string) {
     );
   }
 
-  const signals = payload.signals ?? [];
-  const connectionCodes = (payload.connections ?? []).map((c) => c.code);
+  return {
+    snapshotId: snapshot.snapshot_id as string,
+    reportVersion: snapshot.report_version as string | null,
+    generatedAt: snapshot.generated_at as string | null,
+    payload,
+  };
+}
+
+/**
+ * The participant-facing Snapshot.
+ *
+ * Returns null unless the session is COMPLETED — a mid-assessment participant
+ * receives nothing (PRD §23.2, §24). The shape carries approved narrative keys
+ * and the selected attention area; it never carries classifier tags,
+ * evidence-chain payloads, or raw scores.
+ *
+ * PRD §24: this is the ONLY Snapshot shape a browser-facing route may
+ * serialize. The raw payload is deliberately ABSENT here — it is served solely
+ * through `loadSnapshotPayload`, which is server-only. A field added to the
+ * payload therefore cannot reach a participant through this function; surfacing
+ * a new field here requires an explicit decision in this return object.
+ */
+export async function loadSnapshot(sessionId: string) {
+  const stored = await readCompletedSnapshot(sessionId);
+  if (!stored) return null;
+
+  const { snapshotId, reportVersion, generatedAt, payload } = stored;
+
+  const signals = payload.signals;
+  const connectionCodes = payload.connections.map((c) => c.code);
 
   return {
-    snapshotId: snapshot.snapshot_id,
-    reportVersion: snapshot.report_version,
-    generatedAt: snapshot.generated_at,
+    snapshotId,
+    reportVersion,
+    generatedAt,
 
     // The renderable view of each signal, straight from the stored payload.
     signals: signals.map((s) => ({
@@ -826,22 +934,58 @@ export async function loadSnapshot(sessionId: string) {
     tensionCodes: connectionCodes,
     connectionKeys: connectionCodes,
 
-    attentionArea: payload.attentionAreas?.[0] ?? "KEEP_OBSERVING",
-    attentionAreas: payload.attentionAreas ?? [],
-
-    // The full payload is available for the PDF renderer and the richer web
-    // modules; the flat fields above remain for the current consumer.
-    payload,
+    attentionArea: payload.attentionAreas[0] ?? "KEEP_OBSERVING",
+    attentionAreas: payload.attentionAreas,
   };
 }
 
-/** The attention area selected at completion, recomputed from stored tensions. */
-export async function attentionAreaFor(sessionId: string): Promise<string> {
-  const db = serviceClient();
-  const { data } = await db
-    .from("tensions")
-    .select("tension_code")
-    .eq("session_id", sessionId);
-  const codes = (data ?? []).map((t: { tension_code: string }) => t.tension_code);
-  return selectAttentionArea(codes as never);
+/**
+ * The FULL, immutable Snapshot payload — for SERVER-SIDE renderers only.
+ *
+ * The PDF renderer (module 12) and any richer server module need the whole
+ * payload: signals with their internal states (state/specialState/displayState),
+ * evidence-strength metadata, connection codes under their internal names, the
+ * big picture, context, activation, the perception gap. This is the accessor
+ * for them.
+ *
+ * SERVER-ONLY BY CONSTRUCTION: this module imports "server-only", so this
+ * function cannot be bundled into a client. It MUST NEVER be the return value
+ * of a route that serializes to a browser — that is exactly the §24 exposure
+ * this split exists to prevent. Participant-facing code calls `loadSnapshot`.
+ */
+export async function loadSnapshotPayload(
+  sessionId: string,
+): Promise<SnapshotPayload | null> {
+  const stored = await readCompletedSnapshot(sessionId);
+  return stored ? stored.payload : null;
 }
+
+/**
+ * A completed session's Snapshot payload PLUS the non-interpretive metadata the
+ * PDF renderer needs (Addendum 01 §8, §14 step 6).
+ *
+ * The PDF is generated from the SAME read path as the web page — `readCompletedSnapshot`
+ * — so the web and PDF renderers can never disagree about which payload is
+ * current. `snapshotId` keys the `snapshot_documents` row (and binds the signed
+ * download token's `doc` claim); `reportVersion` and `generatedAt` are the §8
+ * footer metadata, delivered through the separate `SnapshotPdfMeta` channel
+ * rather than the resolver's payload->copy contract.
+ *
+ * SERVER-ONLY BY CONSTRUCTION (this module imports "server-only").
+ */
+export async function loadSnapshotForDownload(
+  sessionId: string,
+): Promise<{
+  snapshotId: string;
+  reportVersion: string | null;
+  generatedAt: string | null;
+  payload: SnapshotPayload;
+} | null> {
+  return readCompletedSnapshot(sessionId);
+}
+
+// REMOVED: `attentionAreaFor(sessionId)` used to recompute the attention area from
+// the live `tensions` table at read time. That is the exact re-derivation that
+// Addendum 01 §5 forbids: the attention area must come from the frozen
+// `snapshot_payload` (see the `attentionArea`/`attentionAreas` fields above), never
+// from live tensions. Do not re-add a read-time recompute path here.

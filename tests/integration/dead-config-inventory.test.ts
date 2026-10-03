@@ -179,11 +179,14 @@ describe("config values with hardcoded twins are declared as such", () => {
   });
 });
 
-describe("Group 1 rows describe work that does not exist yet", () => {
-  it("there is still no PDF renderer, dependency, or storage call", () => {
-    // Six rows in DECISIONS-REQUIRED.md's Group 1 are PDF/storage choices with no
-    // implementation. If that work lands, those rows become real decisions and
-    // the register must say so.
+describe("PDF work has landed — delivery is a private-bucket stream, not a public URL", () => {
+  it("the PDF renderer dependency exists, and delivery still never uses a signed public URL", () => {
+    // Addendum 01 §14 steps 6-7 have landed: the PDF renderer (@react-pdf/renderer)
+    // is a real dependency, and PDF bytes are generated server-side and streamed
+    // from a PRIVATE bucket behind a signed, time-limited token — never via
+    // `createSignedUrl`, which would mint a public object URL a participant could
+    // enumerate or guess (§11). The register's former Group 1 "PDF/storage" rows
+    // are now real decisions, so the state this test pins has changed accordingly.
     const pkg = JSON.parse(readFileSync(resolve(repo, "package.json"), "utf8")) as {
       dependencies?: Record<string, string>;
       devDependencies?: Record<string, string>;
@@ -191,10 +194,13 @@ describe("Group 1 rows describe work that does not exist yet", () => {
     const deps = Object.keys({ ...pkg.dependencies, ...pkg.devDependencies });
     expect(
       deps.filter((d) => /pdf/i.test(d)),
-      "a PDF dependency appeared — the Group 1 rows are no longer hypothetical",
-    ).toEqual([]);
+      "the PDF renderer dependency is missing — the renderer was removed",
+    ).toEqual(["@react-pdf/renderer"]);
 
     const prod = allProductionSource();
-    expect(prod, "a signed-URL call appeared").not.toMatch(/createSignedUrl/);
+    expect(
+      prod,
+      "a signed public URL appeared — delivery must stay a private-bucket stream",
+    ).not.toMatch(/createSignedUrl/);
   });
 });

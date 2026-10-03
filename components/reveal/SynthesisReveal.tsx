@@ -106,12 +106,12 @@ const GRID_SLOTS: Array<{
   /** Leader-line direction, pointing at the center. */
   line: "up" | "down" | "left" | "right";
 }> = [
-  { col: 2, row: 1, align: "center", line: "down" }, // 0 WHAT CAN YOU SEE?
-  { col: 3, row: 2, align: "left", line: "left" }, //   1 HOW MUCH ROOM DO YOU HAVE?
-  { col: 3, row: 3, align: "left", line: "left" }, //   2 HOW ARE YOU MAKING DECISIONS?
-  { col: 2, row: 4, align: "center", line: "up" }, //   3 HOW PREPARED ARE YOU FOR DISRUPTION?
-  { col: 1, row: 3, align: "right", line: "right" }, // 4 WHERE ARE YOU HEADED?
-  { col: 1, row: 2, align: "right", line: "right" }, // 5 WHAT HAPPENS AFTER YOU KNOW?
+  { col: 2, row: 1, align: "center", line: "down" }, // 0 SEE
+  { col: 3, row: 2, align: "left", line: "left" }, //   1 ROOM
+  { col: 3, row: 3, align: "left", line: "left" }, //   2 DIRECT
+  { col: 2, row: 4, align: "center", line: "up" }, //   3 PREPARE
+  { col: 1, row: 3, align: "right", line: "right" }, // 4 AIM
+  { col: 1, row: 2, align: "right", line: "right" }, // 5 MOVE
 ];
 
 export function SynthesisReveal({ sessionId }: { sessionId: string }) {

@@ -14,6 +14,7 @@
     "qa:320": "node tests/qa/viewport-320.mjs"
   },
   "dependencies": {
+    "@react-pdf/renderer": "^4.9.0",
     "@supabase/supabase-js": "^2.117.2",
     "next": "16.3.8",
     "react": "19.2.8",
@@ -29,6 +30,7 @@
     "@vitest/coverage-v8": "^5.0.3",
     "eslint": "^9",
     "eslint-config-next": "16.3.8",
+    "jsdom": "^30.1.1",
     "tailwindcss": "^4",
     "typescript": "^5",
     "vitest": "^5.0.3"

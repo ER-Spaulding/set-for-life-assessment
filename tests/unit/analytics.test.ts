@@ -36,10 +36,25 @@ import {
  */
 
 const repo = resolve(__dirname, "../..");
-const migration = readFileSync(
-  resolve(repo, "supabase/migrations/20261001000008_analytics_events.sql"),
-  "utf8",
-);
+
+/**
+ * The analytics migrations, ALL of them, concatenated.
+ *
+ * Reading only the original ...0008 was correct until the lifecycle work added
+ * `assessment_expired` and the two resume/restart events in ...0011 — at which
+ * point the cross-check failed, correctly, because it was comparing the live
+ * vocabulary against a file that no longer described it. Reading every
+ * analytics-touching migration keeps the check honest as the schema evolves:
+ * the constraint and the allow-list function are redefined in ...0011, and the
+ * LAST definition is the one the database enforces.
+ */
+const ANALYTICS_MIGRATIONS = [
+  "20261001000008_analytics_events.sql",
+  "20261001000011_lifecycle_analytics.sql",
+];
+const migration = ANALYTICS_MIGRATIONS.map((f) =>
+  readFileSync(resolve(repo, "supabase/migrations", f), "utf8"),
+).join("\n");
 
 describe("the event vocabulary is closed and matches the database", () => {
   it("every TS event name is accepted by the SQL CHECK", () => {
@@ -201,9 +216,19 @@ describe("the client/server split is enforced, not documented", () => {
 
 describe("the payload allow-list matches the SQL function exactly", () => {
   it("every TS key appears in analytics_payload_is_safe()", () => {
-    // Extract the SQL allow-list literal.
-    const block = migration.match(/IF lower\(k\) NOT IN \(([\s\S]*?)\) THEN/)?.[1] ?? "";
+    // Extract the SQL allow-list literal from the LAST definition.
+    //
+    // `migration` is every analytics migration concatenated, and ...0011
+    // REDEFINES this function. `String.match` returns the FIRST hit, so a
+    // non-global regex silently checks the superseded copy — which is how this
+    // test failed on `saved` while the live function accepted it. Match all and
+    // take the last, because the last definition is what Postgres enforces.
+    const blocks = [...migration.matchAll(/IF lower\(k\) NOT IN \(([\s\S]*?)\) THEN/g)];
+    const block = blocks.length ? blocks[blocks.length - 1][1] : "";
     const sqlKeys = [...block.matchAll(/'([a-z_]+)'/g)].map((m) => m[1]);
+    console.log(
+      `  SQL allow-list definitions found: ${blocks.length} (checking the last)`,
+    );
     console.log(`  SQL keys: ${sqlKeys.length} | TS keys: ${ALLOWED_PAYLOAD_KEYS.length}`);
 
     const missingInSql = ALLOWED_PAYLOAD_KEYS.filter((k) => !sqlKeys.includes(k));

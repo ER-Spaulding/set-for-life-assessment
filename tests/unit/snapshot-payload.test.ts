@@ -1,6 +1,17 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
+
+// PASSTHROUGH mock: every existing test still runs the REAL evaluator (the
+// default implementation below is the imported original). It exists so the
+// container-guard test can present a counterfactual evaluator that RETURNS a
+// 'finalized' result instead of throwing — without it, the guard's refusal
+// cannot be distinguished from the evaluator's throw, and the guard test would
+// pass even with the guard deleted.
+vi.mock("@/lib/assessment/perception-gap", async (importOriginal) => {
+  const real = await importOriginal<typeof import("@/lib/assessment/perception-gap")>();
+  return { ...real, evaluatePerceptionGap: vi.fn(real.evaluatePerceptionGap) };
+});
 import { scoreAssessment, loadScoringTables } from "@/lib/assessment/scoring";
 import { loadQ18Cutoffs } from "@/lib/assessment/overrides";
 import { evaluateTensions } from "@/lib/assessment/tensions";
@@ -10,6 +21,7 @@ import {
   selectBigPictureTemplate,
   isCapacityConstrained,
   resolvePerceptionGap,
+  PERCEPTION_GAP_METHOD_APPROVED_CONFIG_VALUES,
   NULL_FINDING_CODE,
 } from "@/lib/assessment/snapshot-payload";
 
@@ -69,9 +81,19 @@ function assemble(overrides: Record<string, string> = {}) {
     fearPresent: input.Q21 !== "Q21_G",
   } as never, cfg);
 
+  // These fixtures test ASSEMBLY, not derivation, so a fixed evidence object is
+  // a legitimate assembly-only input. The DERIVATION is proven separately by
+  // evidence-confidence-derivation.test.ts and the end-to-end path.
+  const signals = Object.fromEntries(
+    Object.entries(scored.signals).map(([k, v]) => [
+      k,
+      { ...v, evidence: { confidence: "moderate" as const, limitedReason: null } },
+    ]),
+  );
+
   return assembleSnapshotPayload({
     versions: VERSIONS,
-    signals: scored.signals,
+    signals: signals as never,
     tensionCodes,
     classifierTags: tags,
     activationSelections: { A1: input.A1, A2: input.A2, A3: input.A3, A4: input.A4 },
@@ -147,6 +169,85 @@ describe("perception gap records WHY it is absent (§12.3, §18)", () => {
   it("never invents a gap to fill the report", () => {
     const p = assemble();
     expect(p.perceptionGap).toBeNull();
+  });
+});
+
+describe("perception gap: the container REFUSES a result from an unreviewed method", () => {
+  // The container is exported and the write path persists THIS result. While the
+  // comparison method is under separate design review, a 'finalized' result —
+  // from a future caller, or from an evaluator whose implementation landed
+  // before the owner's approval — would be a fabricated diagnosis written into
+  // an APPEND-ONLY Snapshot, where it could never be corrected.
+  //
+  // So the boundary validates instead of trusting. The allowlist is EMPTY today
+  // (PERCEPTION_GAP_METHOD_APPROVED_CONFIG_VALUES), which makes the refusal fail
+  // closed: only an approved-config identifier enables the path.
+
+  const base = {
+    openingB: 3,
+    q16Selections: ["Q16_A"],
+    signalMeans: { SEE: 3, ROOM: 3, DIRECT: 3, PREPARE: 3, AIM: 3, MOVE: 3 },
+  };
+
+  it("a counterfactual FINALIZED evaluator + unapproved config still stores NOTHING", async () => {
+    // The decisive counterfactual: the real evaluator cannot return a result
+    // today (it throws), so refusal-by-throw and refusal-by-guard are
+    // indistinguishable. This test makes them distinguishable — it presents an
+    // evaluator that RETURNS a finalized result while config names an
+    // UNapproved method. Only the container guard can refuse here.
+    const pg = await import("@/lib/assessment/perception-gap");
+    const spy = vi.mocked(pg.evaluatePerceptionGap);
+    spy.mockImplementationOnce((() => ({
+      status: "finalized",
+      code: "PERCEPTION_ALIGNED",
+      narrativeKey: "perception_gap.PERCEPTION_ALIGNED",
+    })) as never);
+
+    const r = resolvePerceptionGap({
+      ...base,
+      perceptionGapConfig: { comparison_method: "TBD_PENDING_OPERATOR_REVIEW" },
+    } as unknown as Parameters<typeof resolvePerceptionGap>[0]);
+
+    console.log("  counterfactual finalized ->", r.perceptionGapStatus, JSON.stringify(r.perceptionGap));
+    expect(r.perceptionGap).toBeNull();
+    expect(r.perceptionGapStatus).toBe("method_pending");
+  });
+
+  it("an implementation that lands BEFORE approval is refused, not persisted", () => {
+    const r = resolvePerceptionGap({
+      ...base,
+      // The exact value the eval harness would set if someone implemented the
+      // branch without waiting for the owner. It is NOT an approval token.
+      perceptionGapConfig: { comparison_method: "WEIGHTED_DELTA_V1" },
+    } as unknown as Parameters<typeof resolvePerceptionGap>[0]);
+    console.log("  pre-approval method ->", r.perceptionGapStatus, JSON.stringify(r.perceptionGap));
+    expect(r.perceptionGap).toBeNull();
+    expect(r.perceptionGapStatus).toBe("method_pending");
+  });
+
+  it("a marker/typographic edit near the pending value is still NOT an approval", () => {
+    const nearMisses = [
+      "tbd_pending_operator_review",
+      "TBD_PENDING_OPERATOR_REVIEW ",
+      "APPROVED",
+      true,
+      null,
+    ];
+    for (const m of nearMisses) {
+      const r = resolvePerceptionGap({
+        ...base,
+        perceptionGapConfig: { comparison_method: m },
+      } as unknown as Parameters<typeof resolvePerceptionGap>[0]);
+      expect(r.perceptionGap, `method=${JSON.stringify(m)}`).toBeNull();
+      expect(r.perceptionGapStatus).not.toBe("finalized");
+    }
+  });
+
+  it("the approved-values allowlist is empty until the owner approves a method", () => {
+    // Pins the state the review is in. When the method is approved this test
+    // fails ON PURPOSE, forcing the approving change to also carry the
+    // implementation — the two cannot drift apart silently.
+    expect(PERCEPTION_GAP_METHOD_APPROVED_CONFIG_VALUES).toEqual([]);
   });
 });
 

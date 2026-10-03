@@ -15,6 +15,7 @@
 import { NextResponse } from "next/server";
 import { serviceClient, isDatabaseConfigured, errorBody } from "@/lib/db/client";
 import { loadQuestionBank, applySelection, checkSelection } from "@/lib/assessment/questions";
+import { decideResponseWrite } from "@/lib/session/lifecycle";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
@@ -94,11 +95,17 @@ export async function PUT(
       status: 404,
     });
   }
-  if (session.status === "completed") {
-    return NextResponse.json(
-      errorBody("SESSION_COMPLETE", "This assessment is complete and can no longer be edited."),
-      { status: 409 },
-    );
+  // LIFECYCLE GATE. This checked only for `completed` until live verification
+  // showed what that let through: writes to an EXPIRED session succeeded and
+  // bumped its activity, and writes to an ABANDONED session left it abandoned
+  // so the next sweep re-abandoned it and double-counted the event. The rule
+  // lives in one place now — lib/session/lifecycle.ts — rather than as an
+  // `if` here that has to be kept in step with the sweep and the completer.
+  const decision = decideResponseWrite(session.status);
+  if (!decision.allowed) {
+    return NextResponse.json(errorBody(decision.code, decision.message), {
+      status: decision.code === "SESSION_EXPIRED" ? 422 : 409,
+    });
   }
 
   // --- validate against the instrument (PRD §9 types, §14 exclusivity) ---
@@ -152,12 +159,23 @@ export async function PUT(
   }
 
   // PRD §23.2: autosave updates last_activity_at and current_position.
+  //
+  // It also carries the resume, when the gate above asked for one. Answering a
+  // question resumes an abandoned session in the SAME write rather than a
+  // second one, so the session cannot be left abandoned-with-a-fresh-answer by
+  // a crash between the two.
+  const updated: Record<string, unknown> = {
+    last_activity_at: new Date().toISOString(),
+    current_position: (question.external_order ?? 0) + 1,
+  };
+  if (decision.resumeTo) {
+    updated.status = decision.resumeTo;
+    updated.lifecycle_changed_at = new Date().toISOString();
+  }
+
   const { error: uErr } = await db
     .from("assessment_sessions")
-    .update({
-      last_activity_at: new Date().toISOString(),
-      current_position: (question.external_order ?? 0) + 1,
-    })
+    .update(updated)
     .eq("session_id", sessionId);
   if (uErr) {
     return NextResponse.json(errorBody("DB_ERROR", "Could not update the session."), {

@@ -1,4 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
+import { REQUIRED_ITEM_IDS } from "@/lib/assessment/validation";
+import { buildAnswerPlan, toRequestBody } from "../live/answer-plan";
 
 /**
  * PUT /api/session/[id]/response — the participant data-write path.
@@ -235,5 +237,119 @@ describe("failure modes stay opaque", () => {
     const { res, captured } = await call({ itemId: "Q4", optionCode: "Q4_C" });
     expect(res.status).toBe(503);
     expect(captured.inserted).toBeNull();
+  });
+});
+
+// ---------------------------------------------------------------------------
+
+/**
+ * THE COMPLETE INSTRUMENT, DRIVEN THROUGH THE REAL ROUTE.
+ *
+ * OPERATOR REQUIREMENT, Layer 1:
+ *   "The automated suite must prove: all 31 required assessment responses are
+ *    actually represented; no required questions are silently dropped by
+ *    slicing/order logic."
+ *
+ * The gap this closes. Every test above writes ONE item and asserts on that
+ * write. Nothing posted the whole instrument, so nothing could notice that the
+ * plan being posted was short — which is exactly how a 29-of-31 live run
+ * reported success and then failed at completion with a message that read like
+ * an application defect. The plan's own completeness is proven in
+ * live-answer-plan.test.ts; THIS file proves the route accepts every item in it,
+ * which is a different claim and needs its own evidence.
+ */
+describe("the full 31-item instrument posts cleanly through the route", () => {
+  it("every planned item is accepted, in order, with no refusals", async () => {
+    const plan = buildAnswerPlan();
+    const refused: string[] = [];
+
+    for (const answer of plan) {
+      const { res, body } = await call(toRequestBody(answer));
+      if (res.status !== 200) {
+        refused.push(`${answer.itemId}: HTTP ${res.status} ${JSON.stringify(body)}`);
+      }
+    }
+
+    console.log(`  posted ${plan.length} items, refused: ${refused.length}`);
+    expect(refused, `items the route refused: ${refused.join(" | ")}`).toEqual([]);
+    expect(plan).toHaveLength(31);
+  });
+
+  it("the posted set covers every required id — nothing silently dropped", async () => {
+    // Restated against the APPLICATION's list rather than the plan's own count,
+    // so a plan that is internally consistent but wrong cannot pass both.
+    const posted = new Set(buildAnswerPlan().map((a) => a.itemId));
+    const missing = REQUIRED_ITEM_IDS.filter((id) => !posted.has(id));
+    console.log(`  distinct items posted: ${posted.size}`);
+    expect(missing, `required items never posted: ${missing.join(", ")}`).toEqual([]);
+  });
+
+  it("each write updates last_activity_at and advances the position", async () => {
+    // §23.2: the route's contract is to autosave BOTH. The lifecycle depends on
+    // last_activity_at being real — a route that wrote the answer and left the
+    // clock alone is what produced the re-abandonment double-count found live.
+    const { captured } = await call({ itemId: "Q7", optionCodes: ["Q7_C"] });
+    expect(captured.sessionUpdate, "the session must be updated").not.toBeNull();
+    expect(captured.sessionUpdate?.last_activity_at, "activity must be stamped").toEqual(
+      expect.any(String),
+    );
+    expect(captured.sessionUpdate?.current_position, "position must advance").toBeGreaterThan(0);
+  });
+
+  it("an IN_PROGRESS answer carries no status change — nothing to resume", async () => {
+    const { captured } = await call(
+      { itemId: "Q7", optionCodes: ["Q7_C"] },
+      { session: { session_id: "s-1", status: "in_progress" } },
+    );
+    expect(
+      captured.sessionUpdate?.status,
+      "answering an in-progress session must not rewrite its status",
+    ).toBeUndefined();
+  });
+
+  it("answering an ABANDONED session resumes it in the SAME write", async () => {
+    // LIVE BUG, now pinned: the write left the session abandoned, so the next
+    // sweep re-abandoned it and recorded a second abandonment event for one
+    // abandonment. The resume has to travel WITH the answer, not after it.
+    const { res, captured } = await call(
+      { itemId: "Q7", optionCodes: ["Q7_C"] },
+      { session: { session_id: "s-1", status: "abandoned" } },
+    );
+    console.log(`  abandoned -> answering -> HTTP ${res.status}`);
+    expect(res.status).toBe(200);
+    expect(captured.sessionUpdate?.status, "the resume travels with the answer").toBe(
+      "in_progress",
+    );
+    expect(captured.sessionUpdate?.lifecycle_changed_at, "and is timestamped").toEqual(
+      expect.any(String),
+    );
+  });
+
+  it("answering an EXPIRED session is refused with 422 and writes nothing", async () => {
+    // The hole live verification found: this returned 200 and bumped activity
+    // on a session the operator's §3 says may never become current again.
+    const { res, body, captured } = await call(
+      { itemId: "Q7", optionCodes: ["Q7_C"] },
+      { session: { session_id: "s-1", status: "expired" } },
+    );
+    console.log(`  expired -> HTTP ${res.status} ${body?.error?.code}`);
+    expect(res.status).toBe(422);
+    expect(body?.error?.code).toBe("SESSION_EXPIRED");
+    expect(captured.inserted, "no answer may be stored").toBeNull();
+    expect(captured.deleted, "and nothing may be deleted first").toBe(false);
+    expect(captured.sessionUpdate, "and the activity clock must not move").toBeNull();
+  });
+
+  it("refuses an expired write BEFORE validating the selection", async () => {
+    // Ordering matters: a malformed body for an expired session must still say
+    // "expired", because that is the actionable fact. Reporting a validation
+    // error would send the participant back to fix a selection in an assessment
+    // that can no longer be completed at all.
+    const { res, body } = await call(
+      { itemId: "NOT_AN_ITEM", optionCodes: ["NOPE"] },
+      { session: { session_id: "s-1", status: "expired" } },
+    );
+    expect(res.status).toBe(422);
+    expect(body?.error?.code).toBe("SESSION_EXPIRED");
   });
 });

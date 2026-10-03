@@ -5,6 +5,7 @@ import {
   Inter,
   Playfair_Display,
 } from "next/font/google";
+import { BRAND_NAME } from "@/lib/brand";
 import "./globals.css";
 
 const playfair = Playfair_Display({
@@ -49,9 +50,9 @@ const allura = Allura({
 });
 
 export const metadata: Metadata = {
-  title: "Set for Life — Financial Assessment",
+  title: `${BRAND_NAME} — Financial Assessment`,
   description:
-    "A guided financial assessment to help you build a life of clarity, confidence, and lasting security.",
+    "A guided financial self-assessment designed to help you see your financial picture more clearly and understand what deserves your attention next.",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

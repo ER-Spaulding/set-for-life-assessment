@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
+import type { SupabaseClient } from "@supabase/supabase-js";
 
 /**
  * The remaining API routes — session creation, resume lookup, mobile capture,
@@ -22,6 +23,22 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
  */
 
 vi.mock("server-only", () => ({}));
+
+// The sweep route's whole job is to invoke `runSweep` under a token gate, so
+// the assertion that matters is "did it call the real sweep". Mocked at the
+// module boundary rather than faked through the db, because the thing under
+// test is the WIRING, not the sweep's logic — that logic has its own 32 tests
+// in assessment-lifecycle.test.ts.
+const runSweepMock = vi.fn(async (_now?: Date) => ({
+  abandoned: 0,
+  expired: 0,
+  untouched: 0,
+  thresholds: { savedWindowDays: 7, expirationWindowDays: 30 },
+}));
+vi.mock("@/lib/session/sweep", () => ({
+  runSweep: (now?: Date) => runSweepMock(now),
+  lifecycleThresholds: () => ({ savedWindowDays: 7, expirationWindowDays: 30 }),
+}));
 
 const isDbConfigured = vi.fn(() => true);
 vi.mock("@/lib/db/client", () => ({
@@ -89,11 +106,26 @@ function fakeDb(tables: Record<string, unknown> = {}, insertError: { code?: stri
       return chain;
     };
 
+    // `.in(col, values)` — the lifecycle query selects sessions whose status is
+    // one of several values. A real filter, for the same reason `.eq` is: if the
+    // fake ignored it, a route that correctly asked for
+    // `in ['in_progress','abandoned']` and one that asked for nothing would
+    // return identical results, and the test could not tell them apart.
+    const applyIn = (col: string, vals: unknown[]) => {
+      const src = Array.isArray(filtered) ? filtered : filtered ? [filtered] : [];
+      const kept = src.filter((r) =>
+        vals.includes((r as Record<string, unknown> | null)?.[col]),
+      );
+      filtered = kept.length === 0 ? null : kept.length === 1 ? kept[0] : kept;
+      return chain;
+    };
+
     const chain: Record<string, unknown> = {};
     const passthrough = () => chain;
     Object.assign(chain, {
       select: passthrough,
       eq: applyEq,
+      in: applyIn,
       not: applyNot,
       order: passthrough,
       limit: passthrough,
@@ -148,7 +180,12 @@ function fakeDb(tables: Record<string, unknown> = {}, insertError: { code?: stri
 
 async function bind(modulePath: string, db: unknown) {
   const { serviceClient } = await import("@/lib/db/client");
-  vi.mocked(serviceClient).mockReturnValue(db as never);
+  // `db` is a hand-built partial chainable double, not a real client: it
+  // implements only the handful of methods these routes call. The type system
+  // cannot express "the subset of SupabaseClient this fake provides", and
+  // `vi.mocked` refuses an `unknown` return regardless, so the two-step cast
+  // through `unknown` is the honest way to say "a deliberate stand-in".
+  vi.mocked(serviceClient).mockReturnValue(db as unknown as SupabaseClient);
   return import(/* @vite-ignore */ modulePath);
 }
 
@@ -253,7 +290,12 @@ describe("GET /api/session/resumable — existence and position only, never answ
     // correct behaviour, not a placeholder: the greeting must omit the name
     // rather than substitute one. The §15 gate itself is covered by
     // tests/integration/returning-greeting.test.ts.
-    expect(body).toEqual({ resumable: null, firstName: null });
+    //
+    // `expired` was added with the assessment-lifecycle feature: "no RESUMABLE
+    // session" is not the same as "no session at all", and a participant whose
+    // assessment expired must be told that rather than shown a generic welcome.
+    // False here because the fake has no expired session either.
+    expect(body).toEqual({ resumable: null, firstName: null, expired: false });
   });
 
   it("the greeting name is gated on verification, not merely returned", async () => {
@@ -567,5 +609,127 @@ describe("internal endpoints — the only ones exposing diagnostic machinery (PR
     );
     console.log("  wrong token ->", wrong.status);
     expect(wrong.status).toBe(401);
+  });
+});
+
+// ---------------------------------------------------------------------------
+
+/**
+ * The lifecycle sweep is REACHABLE.
+ *
+ * THE GAP THIS CLOSES. `runSweep` had no caller. Not a broken one — none. The
+ * classification logic was unit-tested, the transitions were integration-tested
+ * against a real Postgres, `planTransitions` was proven forward-only by a
+ * property test across 36 status×elapsed combinations... and nothing in the
+ * application ever invoked it. Every session would have sat at `in_progress`
+ * forever and the operator's 30-day rule would have been enforced only by
+ * tests that pass whether or not the feature runs.
+ *
+ * This is the failure mode this repo keeps re-learning: a green suite proves a
+ * unit behaves correctly, never that anything calls it. The tests below are
+ * deliberately about WIRING — that a route exists, that it is gated, and that
+ * it invokes the sweep — because the sweep's own behaviour is already covered.
+ *
+ * The last test is the one that would have caught the original gap: it asserts
+ * the route module can be resolved and that calling it reaches `runSweep`.
+ */
+describe("the lifecycle sweep has a reachable, gated entry point (operator #7)", () => {
+  const sweepUrl = "http://x/api/internal/lifecycle/sweep";
+
+  it("returns 404 when the harness token is unconfigured", async () => {
+    // Same posture as the audit route: an unconfigured deployment must not
+    // advertise an endpoint that writes lifecycle state.
+    const { db } = fakeDb();
+    const { POST } = await bind("@/app/api/internal/lifecycle/sweep/route", db);
+    const res = await POST(jsonReq(sweepUrl, {}));
+    console.log("  unconfigured ->", res.status);
+    expect(res.status).toBe(404);
+    expect(runSweepMock).not.toHaveBeenCalled();
+  });
+
+  it("returns 401 for a wrong, malformed, or missing token — and never sweeps", async () => {
+    process.env.INTERNAL_HARNESS_TOKEN = "the-real-token";
+    const { db } = fakeDb();
+    const { POST } = await bind("@/app/api/internal/lifecycle/sweep/route", db);
+
+    for (const header of [undefined, "Bearer wrong", "Bearer", "Basic the-real-token"]) {
+      const res = await POST(
+        jsonReq(sweepUrl, {}, "POST", header ? { authorization: header } : {}),
+      );
+      console.log(`  auth=${JSON.stringify(header)} ->`, res.status);
+      expect(res.status).toBe(401);
+    }
+    // The gate must run BEFORE the write. An unauthorized request that still
+    // swept would be the whole point of the gate, missed.
+    expect(runSweepMock).not.toHaveBeenCalled();
+  });
+
+  it("invokes the real sweep when authorized — this is the reachability assertion", async () => {
+    process.env.INTERNAL_HARNESS_TOKEN = "the-real-token";
+    runSweepMock.mockClear();
+    runSweepMock.mockResolvedValueOnce({
+      abandoned: 2,
+      expired: 1,
+      untouched: 5,
+      thresholds: { savedWindowDays: 7, expirationWindowDays: 30 },
+    });
+
+    const { db } = fakeDb();
+    const { POST } = await bind("@/app/api/internal/lifecycle/sweep/route", db);
+    const res = await POST(
+      jsonReq(sweepUrl, {}, "POST", { authorization: "Bearer the-real-token" }),
+    );
+    const body = await res.json();
+
+    console.log("  authorized ->", res.status, JSON.stringify(body));
+    expect(res.status).toBe(200);
+    // The wiring assertion. Without this, the route could exist and do nothing.
+    expect(runSweepMock).toHaveBeenCalledTimes(1);
+    // Counts are echoed so an operator running the sweep can see what it did.
+    expect(body).toMatchObject({ ok: true, abandoned: 2, expired: 1, untouched: 5 });
+    // The thresholds in force are self-describing in the response rather than
+    // only in a log — a sweep run against unexpected thresholds is a silent
+    // mass-expiration otherwise.
+    expect(body.thresholds).toEqual({ savedWindowDays: 7, expirationWindowDays: 30 });
+  });
+
+  it("passes an explicit `now` through, for boundary verification", async () => {
+    // The 7/30-day boundaries cannot be verified live by waiting. `now` is
+    // injectable for that reason, and this pins that it actually reaches the
+    // sweep rather than being accepted and dropped.
+    process.env.INTERNAL_HARNESS_TOKEN = "the-real-token";
+    runSweepMock.mockClear();
+
+    const { db } = fakeDb();
+    const { POST } = await bind("@/app/api/internal/lifecycle/sweep/route", db);
+    await POST(
+      jsonReq(`${sweepUrl}?now=2026-12-01T00:00:00.000Z`, {}, "POST", {
+        authorization: "Bearer the-real-token",
+      }),
+    );
+
+    const passed = runSweepMock.mock.calls[0]?.[0] as Date | undefined;
+    console.log("  now passed through ->", passed?.toISOString());
+    expect(passed).toBeInstanceOf(Date);
+    expect(passed?.toISOString()).toBe("2026-12-01T00:00:00.000Z");
+  });
+
+  it("rejects an unparseable `now` rather than silently sweeping against the wall clock", async () => {
+    // A typo'd timestamp that fell back to `new Date()` would sweep against the
+    // REAL present while the operator believed they were testing a boundary —
+    // and could expire live sessions during what they thought was a dry run.
+    process.env.INTERNAL_HARNESS_TOKEN = "the-real-token";
+    runSweepMock.mockClear();
+
+    const { db } = fakeDb();
+    const { POST } = await bind("@/app/api/internal/lifecycle/sweep/route", db);
+    const res = await POST(
+      jsonReq(`${sweepUrl}?now=not-a-date`, {}, "POST", {
+        authorization: "Bearer the-real-token",
+      }),
+    );
+    console.log("  bad now ->", res.status);
+    expect(res.status).toBe(400);
+    expect(runSweepMock).not.toHaveBeenCalled();
   });
 });

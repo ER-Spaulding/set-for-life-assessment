@@ -174,13 +174,58 @@ describe("GET /api/session/[id]/snapshot — no diagnostics reach the participan
 
   it("returns the snapshot when complete — and carries NO scoring internals", async () => {
     loadSnapshot.mockResolvedValue({
-      sessionId: "s-1",
+      snapshotId: "snap-1",
+      reportVersion: "1.0",
+      generatedAt: "2026-01-01T00:00:00.000Z",
       signals: [
         { signal: "SEE", state: "S5", narrativeKey: "signal_states.SEE.S5" },
       ],
       tensionCodes: ["HIGH_ACTIVITY_LOW_DIRECTION"],
       connectionKeys: ["HIGH_ACTIVITY_LOW_DIRECTION"],
       attentionArea: "DIRECTION",
+      attentionAreas: ["DIRECTION"],
+      // The raw payload PRD §24 keeps from participants. The mock carries it so
+      // this guard can FAIL if the route ever serializes it again: the route
+      // must whitelist, and the forbidden-string scan below proves it did.
+      payload: {
+        versions: {
+          assessment: "1.0",
+          scoring: "1.0",
+          narrative: "1.0",
+          report: "1.0",
+          interstitial: "1.0",
+        },
+        signals: [
+          {
+            signal: "SEE",
+            state: "S5",
+            specialState: "AIM_CAPACITY_CONSTRAINED_ALIGNMENT",
+            displayState: "AIM_CAPACITY_CONSTRAINED_ALIGNMENT",
+            narrativeKey:
+              "special_signal_states.AIM_CAPACITY_CONSTRAINED_ALIGNMENT",
+            evidence: { confidence: "high" },
+          },
+        ],
+        bigPicture: { template: "PRIMARY_FRICTION", parts: [] },
+        strengths: [],
+        frictions: [],
+        connections: [
+          {
+            code: "HIGH_ACTIVITY_LOW_DIRECTION",
+            narrativeKey: "connection_statements.HIGH_ACTIVITY_LOW_DIRECTION",
+          },
+        ],
+        context: [],
+        perceptionGap: null,
+        perceptionGapStatus: "not_ready",
+        activation: { A1: "LOW", A2: "MID", A3: "MID", A4: "LOW" },
+        activationPatterns: [],
+        attentionAreas: ["DIRECTION"],
+        nullFinding: false,
+        moveSubsignals: { MOVE_A: 3, MOVE_B: 4, MOVE_C: null },
+        q16Selections: ["Q16_A"],
+        openingB: 3,
+      },
     });
     const { GET } = await import("@/app/api/session/[id]/snapshot/route");
     const res = await GET(new Request("http://x"), ctx("s-1"));
@@ -189,16 +234,93 @@ describe("GET /api/session/[id]/snapshot — no diagnostics reach the participan
     console.log("  200 body keys:", JSON.stringify(Object.keys(body)));
     expect(res.status).toBe(200);
     expect(body.attentionArea).toBe("DIRECTION");
+    // The participant view is the flat fields, never the raw payload.
+    expect(body, "the raw payload must not be serialized").not.toHaveProperty(
+      "payload",
+    );
+
+    // ---- STRUCTURAL LEAK SCAN (the assertion that can actually fail) ----
+    //
+    // The whitelist above says what SHOULD be present. This says that NOTHING
+    // ELSE is — and a forbidden-string scan alone cannot do that. An earlier
+    // version of this test asserted only on strings whose names appear in the
+    // mock, so a route that leaked the payload under a RENAMED key, or copied
+    // over only the internal fields whose names were not on the list (versions,
+    // bigPicture, activation, q16Selections), passed green while shipping the
+    // internal model. That is the same class of vacuous guard this whole test
+    // exists to catch: passing on both correct and leaking code.
+    //
+    // So: walk the whole serialized body, collect every property name at every
+    // depth, and require the set to be EXACTLY the participant-facing fields.
+    // Any new key — renamed, nested, or invented — fails until it is added here
+    // on purpose. Exposure requires an explicit decision.
+    const collectKeys = (node: unknown, into: Set<string>): Set<string> => {
+      if (Array.isArray(node)) {
+        for (const item of node) collectKeys(item, into);
+      } else if (node && typeof node === "object") {
+        for (const [k, v] of Object.entries(node)) {
+          into.add(k);
+          collectKeys(v, into);
+        }
+      }
+      return into;
+    };
+    const bodyKeys = [...collectKeys(body, new Set<string>())].sort();
+    expect(
+      bodyKeys,
+      "the response may carry ONLY the participant-facing fields — " +
+        "any addition is an explicit decision, not an accident",
+    ).toEqual([
+      "attentionArea",
+      "attentionAreas",
+      "connectionKeys",
+      "generatedAt",
+      "narrativeKey",
+      "reportVersion",
+      "signal",
+      "signals",
+      "snapshotId",
+      "state",
+      "tensionCodes",
+    ]);
+    // And the field the page reads really was carried — the leak check cannot
+    // pass by the route returning an empty object.
+    expect(body.connectionKeys).toEqual(["HIGH_ACTIVITY_LOW_DIRECTION"]);
 
     // PRD §24: no raw numeric scores, no evidence-chain payload, no classifier
-    // tags. Assert on the serialized body so a nested field cannot slip past.
+    // tags, no internal state codes. Assert on the serialized body so a nested
+    // field cannot slip past. (Kept as a second layer: the key scan above
+    // catches rename/partial-copy leaks structurally; these strings also catch
+    // a leak whose KEY is innocuous, e.g. a stringified payload in a value.)
     const serialized = JSON.stringify(body);
     for (const forbidden of [
+      // DB / engine internal names.
       "evidence_confidence",
       "evidenceConfidence",
       "classifier",
       "rawValue",
       "raw_value",
+      // Internal SnapshotPayload fields §24 withholds from participants.
+      "specialState",
+      "displayState",
+      "nullFinding",
+      "moveSubsignals",
+      "openingB",
+      "evidence",
+      "perceptionGap",
+      // The rest of the internal payload vocabulary. These were missing, which
+      // meant a leak of exactly these fields satisfied the scan: their names
+      // never appear in a correct body, so adding them can only ever turn a
+      // false green into a true red.
+      "versions",
+      "bigPicture",
+      "activation",
+      "activationPatterns",
+      "q16Selections",
+      "strengths",
+      "frictions",
+      "context",
+      "perceptionGapStatus",
     ]) {
       expect(serialized, `snapshot must not expose ${forbidden}`).not.toContain(
         forbidden,

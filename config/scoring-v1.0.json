@@ -7,9 +7,9 @@
     "PRD §34: do not invent scoring logic, domain labels, diagnostic conclusions, product recommendations, continuation routing, consent assumptions, or CRM fields not specified in the PRD."
   ],
   "companion_libraries": {
-    "narratives": "SFL_narratives-v1.0.json (approved participant-facing copy; this config stores keys and thresholds only, never copy)",
-    "connection_statements": "SFL_connection-statements-v1.0.json (18 keys; tension codes here must match exactly)",
-    "signal_state_vocabulary": "SFL_signal-state-vocabulary-v1.0.json (state labels, language strength, rules)"
+    "narratives": "narratives-v1.0.json (approved participant-facing copy; this config stores keys and thresholds only, never copy)",
+    "connection_statements": "connection-statements-v1.0.json (18 keys; tension codes here must match exactly)",
+    "signal_state_vocabulary": "signal-state-vocabulary-v1.0.json (state labels, language strength, rules)"
   },
   "_notes": "Each major block carries a prd_section citing its source. Every numeric value the PRD does not state explicitly carries _calibration_status ASSUMED_PENDING_OPERATOR_REVIEW and is consolidated in calibration_assumptions for pre-launch calibration.",
   "directional_scale": {
@@ -59,10 +59,10 @@
   },
   "signals": {
     "_prd_section": "§13.2",
-    "_notes": "Formulas expressed as data (question lists + aggregation). Participant labels are the working §20.1 labels; internal construct names are unchanged. State copy lives in SFL_narratives-v1.0.json under the narrative_key shown; only keys, bands, and attention areas are stored here. All S1-S5 bands are ASSUMED (spec gives no numeric cutoffs).",
+    "_notes": "Formulas expressed as data (question lists + aggregation). The six signal codes (SEE / ROOM / DIRECT / PREPARE / AIM / MOVE) are internal diagnostic constructs, retired as the participant-facing framework (Addendum 01 v1.1 §2.3); presentation labels come from §2.4's six human questions. State copy lives in narratives-v1.0.json under the narrative_key shown; only keys, bands, and attention areas are stored here. All S1-S5 bands are ASSUMED (spec gives no numeric cutoffs).",
     "SEE": {
       "internal_construct": "Financial Visibility",
-      "participant_label": "SEE",
+      "internal_construct_id": "SEE",
       "formula": {
         "questions": [
           "Q4",
@@ -115,7 +115,7 @@
     },
     "ROOM": {
       "internal_construct": "Financial Capacity",
-      "participant_label": "ROOM",
+      "internal_construct_id": "ROOM",
       "formula": {
         "questions": [
           "Q7",
@@ -170,7 +170,7 @@
     },
     "DIRECT": {
       "internal_construct": "Financial Agency",
-      "participant_label": "DIRECT",
+      "internal_construct_id": "DIRECT",
       "formula": {
         "questions": [
           "Q10",
@@ -227,7 +227,7 @@
     },
     "PREPARE": {
       "internal_construct": "Preparedness & Resilience",
-      "participant_label": "PREPARE",
+      "internal_construct_id": "PREPARE",
       "formula": {
         "questions": [
           "Q13",
@@ -280,7 +280,7 @@
     },
     "AIM": {
       "internal_construct": "Financial Direction",
-      "participant_label": "AIM",
+      "internal_construct_id": "AIM",
       "formula": {
         "questions": [
           "Q17",
@@ -336,7 +336,7 @@
     },
     "MOVE": {
       "internal_construct": "Information-to-Action",
-      "participant_label": "MOVE",
+      "internal_construct_id": "MOVE",
       "formula": {
         "questions": [
           "Q23",
@@ -432,7 +432,7 @@
   },
   "special_signal_states": {
     "_prd_section": "§13.6, §13.7; approved narrative library SPECIAL",
-    "_notes": "Keys resolve copy in SFL_narratives-v1.0.json SPECIAL.*.",
+    "_notes": "Keys resolve copy in narratives-v1.0.json SPECIAL.*.",
     "DIRECT_CAPACITY_LIMITED": {
       "label": "Intentional — Capacity Constrained",
       "narrative_key": "SPECIAL.DIRECT_CAPACITY_LIMITED",
@@ -586,7 +586,7 @@
   },
   "tensions": {
     "_prd_section": "§15, plus §13.7 and §18.3 system codes",
-    "_notes": "16 cross-domain tensions from §15 plus the §13.7 capacity-constrained-alignment code and the §18.3 null-finding code = 18 codes, matching the 18 keys of SFL_connection-statements-v1.0.json exactly. Each connection_key resolves copy in that library. All high/low cutoffs reference tension_thresholds (assumed).",
+    "_notes": "16 cross-domain tensions from §15 plus the §13.7 capacity-constrained-alignment code and the §18.3 null-finding code = 18 codes, matching the 18 keys of connection-statements-v1.0.json exactly. Each connection_key resolves copy in that library. All high/low cutoffs reference tension_thresholds (assumed).",
     "HIGH_ACTIVITY_LOW_DIRECTION": {
       "provenance": "PRD §15",
       "connection_key": "HIGH_ACTIVITY_LOW_DIRECTION",
