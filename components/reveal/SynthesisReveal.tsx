@@ -32,10 +32,13 @@
 //
 // WHY THE COMPLETION CALL LIVES HERE. §3's state machine runs server validation
 // and payload persistence BEFORE the reveal, so the reveal cannot be the thing
-// that creates the Snapshot — it waits for one to exist. The POST below is the
-// existing server-authority gate (§23.5); the sequence plays while it is in
-// flight, and if it outlasts the sequence we hold on §4.4's honest state rather
-// than faking progress.
+// that creates the Snapshot — it waits for one to exist. The read-first gate
+// below is the server-authority gate (§23.5): it READS the completion state and
+// only POSTs for a genuinely unfinished session, so a completed participant who
+// reaches or reloads this screen never re-completes, re-scores, or re-creates
+// the Snapshot. The sequence plays while the gate is in flight, and if it
+// outlasts the sequence we hold on §4.4's honest state rather than faking
+// progress.
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -55,6 +58,7 @@ type Outcome =
   | { kind: "pending" }
   | { kind: "ready"; firstName: string | null }
   | { kind: "incomplete"; missing: string[]; present: number; required: number }
+  | { kind: "refused"; message: string }
   | { kind: "failed" };
 
 /**
@@ -132,27 +136,68 @@ export function SynthesisReveal({ sessionId }: { sessionId: string }) {
   }, []);
 
   // ---- the server-authority gate (§23.2, §23.5) ----
+  //
+  // READ-DRIVEN. Completion is a one-time transition, so an already-completed
+  // session is evidence the assessment has already crossed completion — not a
+  // signal to run it again. Read the authoritative state first (GET
+  // /api/session/:id, which returns `completed` and the verified `firstName`
+  // only for a completed session). A completed participant goes straight to
+  // the ready outcome with ZERO POSTs: no re-complete, no re-score, no
+  // re-create of the Snapshot. Only a session that has NOT completed falls
+  // through to the genuine completion POST.
   const complete = useCallback(async () => {
     setOutcome({ kind: "pending" });
     try {
+      // 1. Read the authoritative completion state.
+      const read = await fetch(`/api/session/${sessionId}`);
+      if (!alive.current) return;
+      if (read.ok) {
+        const state = (await read.json()) as {
+          completed?: boolean;
+          firstName?: string | null;
+        };
+        if (state.completed === true) {
+          setOutcome({ kind: "ready", firstName: state.firstName ?? null });
+          return;
+        }
+      }
+
+      // 2. The genuine completion path — the server-authority gate (§23.5).
       const res = await fetch(`/api/session/${sessionId}/complete`, {
         method: "POST",
       });
       if (!alive.current) return;
 
-      // 422 is a legitimate refusal: the assessment is unfinished, not broken.
+      // 422 is a legitimate refusal: the assessment cannot be completed as-is,
+      // not broken. Split on the field actually present rather than inventing
+      // a response count.
       if (res.status === 422) {
         const data = (await res.json()) as {
+          refused?: boolean;
+          message?: string;
           missing?: string[];
           present?: number;
           required?: number;
         };
-        setOutcome({
-          kind: "incomplete",
-          missing: data.missing ?? [],
-          present: data.present ?? 0,
-          required: data.required ?? 31,
-        });
+        if (data.refused === true) {
+          setOutcome({
+            kind: "refused",
+            message: typeof data.message === "string" ? data.message : "",
+          });
+          return;
+        }
+        if (typeof data.present === "number" && typeof data.required === "number") {
+          setOutcome({
+            kind: "incomplete",
+            missing: Array.isArray(data.missing) ? data.missing : [],
+            present: data.present,
+            required: data.required,
+          });
+          return;
+        }
+        // A 422 that is neither a refusal nor an incomplete set is malformed.
+        // Never render a response count for it.
+        setOutcome({ kind: "failed" });
         return;
       }
       if (!res.ok) {
@@ -215,6 +260,20 @@ export function SynthesisReveal({ sessionId }: { sessionId: string }) {
         </p>
         <PrimaryButton onClick={() => router.push(`/assessment/${sessionId}`)}>
           Return to my assessment
+        </PrimaryButton>
+      </Shell>
+    );
+  }
+
+  if (outcome.kind === "refused") {
+    return (
+      <Shell>
+        <Headline>Your Snapshot could not be prepared.</Headline>
+        <p className="prose-measure mt-6 font-body text-obsidian" style={BODY}>
+          {outcome.message}
+        </p>
+        <PrimaryButton onClick={() => router.push("/assessment/start")}>
+          Begin a new assessment
         </PrimaryButton>
       </Shell>
     );

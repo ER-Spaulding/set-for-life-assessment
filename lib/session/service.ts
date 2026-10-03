@@ -150,6 +150,10 @@ export interface ResumeState {
   currentPosition: number;
   /** item_id → option_code(s). Answers only — never diagnostics. */
   responses: Record<string, string | string[]>;
+  /** True when the session has already crossed completion. */
+  completed: boolean;
+  /** Verified first name, ONLY when completed; null otherwise. */
+  firstName: string | null;
 }
 
 /**
@@ -190,11 +194,24 @@ export async function loadResumeState(
     }
   }
 
+  // F-07 — the reveal is READ-DRIVEN. Both fields are gated on completion:
+  // `completed` is trivially false before the terminal status, and `firstName`
+  // is resolved through the SAME verifiedFirstName gate the identity flow uses
+  // (participant_contacts.verified_at) — never a second notion of verification.
+  // An in-progress participant's name therefore never leaves the server.
+  const completed = session.status === "completed";
+  let firstName: string | null = null;
+  if (completed) {
+    firstName = await verifiedFirstName(db, sessionId).catch(() => null);
+  }
+
   return {
     sessionId: session.session_id,
     status: session.status,
     currentPosition: session.current_position,
     responses,
+    completed,
+    firstName,
   };
 }
 
@@ -208,6 +225,48 @@ export function toResponseMap(rows: StoredResponse[]): Record<string, unknown> {
     else map[r.item_id] = [prior, r.option_code];
   }
   return map;
+}
+
+/**
+ * Seed the canonical Opening A response at session creation (F-06).
+ *
+ * Opening A is answered EXACTLY ONCE, at the front door, and that answer is the
+ * canonical stored OPEN_A response for the 31. It is chosen HERE, server-side,
+ * from WHICH door was used — never posted by the client:
+ *   - POST /api/participant/provisional  -> "OPEN_A_A" (Yes, first-time)
+ *   - POST /api/session                  -> "OPEN_A_B" (No, returning)
+ *
+ * The row shape matches the response route's own insert, so a reader cannot
+ * tell a seeded answer from a recorded one. The seed bypasses the response
+ * route's front-door lock naturally: it goes through the service at creation,
+ * not through the route.
+ *
+ * CALLED EXACTLY ONCE PER SESSION, at creation, on a row that cannot yet hold
+ * an OPEN_A answer — so a duplicate collision is impossible here and a plain
+ * INSERT is the honest write. (The unique key is (session_id, item_id,
+ * option_code); this is the only site that writes OPEN_A outside the response
+ * route, and the route is locked for front-door items.)
+ *
+ * NOT FATAL, DELIBERATELY — see the callers. This throws only so the caller can
+ * SEE the failure; both doors catch it and continue, because the fallback is
+ * already correct: a session with no seeded OPEN_A resumes to index 0 and the
+ * participant answers Opening A in-instrument, which is exactly the pre-F-06
+ * behaviour. Trading "one redundant question" for "a created participant whose
+ * start request 500s" is the right trade, and it keeps a transient write error
+ * from stranding an anonymous participant with no way back to their record.
+ */
+export async function recordCanonicalOpeningA(
+  sessionId: string,
+  optionCode: string,
+): Promise<void> {
+  const db = serviceClient();
+  const { error } = await db.from("responses").insert({
+    session_id: sessionId,
+    item_id: "OPEN_A",
+    option_code: optionCode,
+    open_text: null,
+  });
+  if (error) throw new Error(`session: canonical OPEN_A ${error.message}`);
 }
 
 export interface CompletionResult {

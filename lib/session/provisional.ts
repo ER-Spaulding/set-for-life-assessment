@@ -26,7 +26,7 @@
 // provisional participant grants exactly one capability — starting an assessment.
 
 import { serviceClient } from "../db/client";
-import { pinnedVersion } from "./service";
+import { pinnedVersion, recordCanonicalOpeningA } from "./service";
 
 export interface ProvisionalResult {
   participantId: string;
@@ -77,9 +77,28 @@ export async function createProvisionalParticipant(): Promise<ProvisionalResult>
     throw new Error(`provisional: session ${sErr?.message ?? "no row returned"}`);
   }
 
+  const sessionId = (session as { session_id: string }).session_id;
+
+  // F-06: Opening A is answered ONCE, at the front door. This is the first-time
+  // door, which selected "Yes" — so the canonical stored OPEN_A is OPEN_A_A.
+  // Written here, server-side, never posted by the client.
+  //
+  // SWALLOWED ON FAILURE, DELIBERATELY. The participant and session rows are
+  // committed by this point, so throwing would 500 a request that SUCCEEDED in
+  // creating both — and the participant, holding no id, would have no way back
+  // to the record while a retry minted a duplicate. The fallback is already
+  // correct: with no seeded OPEN_A the instrument starts at Opening A and the
+  // participant answers it there, which is the pre-F-06 behaviour. Degrading to
+  // one redundant question beats stranding an anonymous participant.
+  try {
+    await recordCanonicalOpeningA(sessionId, "OPEN_A_A");
+  } catch {
+    /* see above — the front-door answer is not worth failing a created session */
+  }
+
   return {
     participantId,
-    sessionId: (session as { session_id: string }).session_id,
+    sessionId,
     sflNumber,
   };
 }

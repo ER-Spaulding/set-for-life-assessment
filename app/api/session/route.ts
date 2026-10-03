@@ -13,7 +13,7 @@
 
 import { NextResponse } from "next/server";
 import { serviceClient, isDatabaseConfigured, errorBody } from "@/lib/db/client";
-import { pinnedVersion } from "@/lib/session/service";
+import { pinnedVersion, recordCanonicalOpeningA } from "@/lib/session/service";
 
 export const dynamic = "force-dynamic";
 
@@ -78,6 +78,21 @@ export async function POST(request: Request) {
     return NextResponse.json(errorBody("DB_ERROR", "Could not create the session."), {
       status: 500,
     });
+  }
+
+  // F-06: Opening A is answered ONCE, at the front door. This route is reached
+  // only from the returning "Begin a new assessment" path (number lookup →
+  // verification → welcome), so the door selected "No" — the canonical stored
+  // OPEN_A is OPEN_A_B. Written server-side, never posted by the client.
+  //
+  // SWALLOWED ON FAILURE, DELIBERATELY — same reasoning as the provisional door
+  // (lib/session/provisional.ts). The session row is committed, so the fallback
+  // is to let the participant answer Opening A in-instrument rather than 500 a
+  // request that already created their session.
+  try {
+    await recordCanonicalOpeningA(session.session_id, "OPEN_A_B");
+  } catch {
+    /* see above — the session exists; the seed is not worth failing it over */
   }
 
   return NextResponse.json(

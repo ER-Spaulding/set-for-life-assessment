@@ -23,6 +23,8 @@ import { useParams, useRouter } from "next/navigation";
 import {
   QUESTION_SEQUENCE,
   REQUIRED_QUESTION_COUNT,
+  FIRST_IN_INSTRUMENT_INDEX,
+  resumeIndex,
   isMultiSelect,
   maxSelections,
   moneyMomentPlacements,
@@ -111,10 +113,12 @@ export default function SessionPage() {
         // Resume at the first unanswered question rather than at the stored
         // position — a participant who used Back would otherwise be dropped
         // forward past questions they can still see.
-        const firstUnanswered = QUESTION_SEQUENCE.findIndex(
-          (q) => !(restored[q.internal_id]?.length > 0),
-        );
-        if (firstUnanswered > 0) setIndex(firstUnanswered);
+        //
+        // `resumeIndex` (lib/ui/questions.ts) guarantees the result is never a
+        // front-door index and never -1: Opening A is answered at the front door,
+        // and a fully-answered session lands on the last in-instrument item so
+        // Continue performs the normal handoff to /profile.
+        setIndex(resumeIndex(restored));
       } catch {
         /* first save will surface any real problem */
       } finally {
@@ -391,7 +395,9 @@ export default function SessionPage() {
       total={REQUIRED_QUESTION_COUNT}
       prompt={question.prompt}
       helper={multi ? multiHelper(question.type) : undefined}
-      onBack={index > 0 ? () => setIndex(index - 1) : undefined}
+      onBack={
+        index > FIRST_IN_INSTRUMENT_INDEX ? () => setIndex(index - 1) : undefined
+      }
       onContinue={onContinue}
       continueDisabled={selected.length === 0 || saving}
       saving={saving}

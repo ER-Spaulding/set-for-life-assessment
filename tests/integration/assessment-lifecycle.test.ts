@@ -351,28 +351,48 @@ describe("§4 a new session after expiration", () => {
       "expired must not be in the resumable set",
     ).not.toMatch(/\["in_progress", "abandoned", "expired"\]/);
 
-    // And the new-session route carries NO responses forward.
+    // And the new-session route copies NO prior diagnostic/activation answers
+    // forward. F-06 narrows the old blunt `/responses/` scan to the operator's
+    // actual rule: the ONE response written at creation is the participant's
+    // own Opening A answer, seeded through the shared service helper — never an
+    // inline responses read/write, and never a prior session's Q1–Q25 / A1–A4
+    // answers.
     const create = read("app/api/session/route.ts");
     expect(
       create,
-      "session creation must not copy responses from a prior session",
-    ).not.toMatch(/responses/);
+      "session creation must not copy prior answers forward — no inline responses access",
+    ).not.toMatch(/from\("responses"\)/);
+    expect(
+      create,
+      "the one allowed seed is delegated to the shared helper",
+    ).toMatch(/recordCanonicalOpeningA/);
   });
 
-  it("REQ 10 — expired diagnostic responses are NOT prepopulated", () => {
+  it("REQ 10 — the ONLY response written at creation is the participant's own OPEN_A", () => {
     // Operator instruction #4: "do not prepopulate the participant's previous 31
     // diagnostic responses or four Activation responses ... we do not want
     // previous answers anchoring the participant's current responses."
     //
-    // The strongest form this can take: session creation writes a session row
-    // and NOTHING else. There is no response-copying code to disable.
+    // F-06 narrows this from "creation writes NO responses" to the operator's
+    // ACTUAL rule: a PREVIOUS session's Q1–Q25 / A1–A4 answers are never copied
+    // forward, and the ONE response written at creation is the canonical OPEN_A
+    // seed — the participant's own front-door answer for THIS session.
     const create = read("app/api/session/route.ts");
     const code = create.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
 
     const writes = [...code.matchAll(/\.from\("([a-z_]+)"\)\.insert/g)].map((m) => m[1]);
     console.log(`  tables written at session creation: ${JSON.stringify(writes)}`);
-    expect(writes, "creation must not write responses").not.toContain("responses");
-    expect(writes, "creation must not write responses").not.toContain("computed_signals");
+    expect(writes, "no inline responses insert — the seed goes through the helper").not.toContain(
+      "responses",
+    );
+    expect(writes, "no inline computed_signals insert").not.toContain("computed_signals");
+
+    // The one allowed response write is the canonical OPEN_A seed, delegated to
+    // the shared service helper so it can never be a copy-forward of a prior
+    // answer. Removing the seed fails this; re-adding a Q/A copy fails the scan
+    // above.
+    expect(code, "the returning door seeds the canonical OPEN_A").toMatch(/recordCanonicalOpeningA\(/);
+    expect(code, "and the seed is the returning (No) answer").toMatch(/OPEN_A_B/);
   });
 
   it("REQ 11 — the same Participant ID and Set for Life Number survive", () => {

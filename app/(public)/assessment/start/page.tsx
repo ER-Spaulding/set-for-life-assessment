@@ -14,10 +14,11 @@
 //    Do not require full name, email verification, or a magic-link round trip
 //    before a first-time participant can answer this question and begin."
 //
-// So this screen asks ONE question and then gets out of the way. Opening A is
-// performed here and its answer is carried into the session as the real OPEN_A
-// response, so the instrument still receives all 31 responses and the participant
-// is never asked the same thing twice — which was the specific friction the
+// So this screen asks ONE question and then gets out of the way. The answer
+// selected here becomes the canonical stored OPEN_A response: the provisional
+// route seeds it server-side at session creation (recordCanonicalOpeningA with
+// option "OPEN_A_A"), so the instrument still holds all 31 responses and the
+// participant is never asked the same thing twice — the specific friction the
 // operator reported (L-01).
 //
 // WHAT DISAPPEARED FROM THIS ROUTE: the identity form, the returning-email form,
@@ -37,11 +38,11 @@ export default function StartPage() {
   /**
    * First-time (§3): create the provisional participant and go straight in.
    *
-   * Opening A's answer travels as a query parameter so the session screen can
-   * record it as the OPEN_A response without asking again. It is a UI hint about
-   * which branch the participant took — not a scoring input, and not trusted for
-   * anything but routing. The response itself is validated server-side like every
-   * other answer (§23.5).
+   * The Yes/No answer is NOT posted by this client. The provisional route
+   * chooses it server-side from the door that was used and seeds the canonical
+   * OPEN_A response ("OPEN_A_A") at session creation. This screen merely
+   * navigates into the session it was given; the instrument resumes at
+   * Opening B and never re-asks Opening A.
    */
   async function beginFirstTime() {
     setStarting("first-time");
@@ -81,7 +82,11 @@ export default function StartPage() {
         /* private mode: the participant can still complete; they just will not
            see the number offered again until they claim */
       }
-      router.push(`/assessment/${data.sessionId}?openingA=yes`);
+      // F-06: `replace`, not `push`. A push would leave the submittable front
+      // door in browser history, so Back would re-run the provisional POST and
+      // mint a SECOND participant + session (contradictory routing state).
+      // Replacing drops the door from history entirely.
+      router.replace(`/assessment/${data.sessionId}`);
     } catch {
       setError("We could not start your assessment just now. Please try again.");
       setStarting(null);

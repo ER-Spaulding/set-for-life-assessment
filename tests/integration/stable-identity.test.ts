@@ -212,7 +212,7 @@ beforeEach(() => {
 // ===========================================================================
 
 describe("POST /api/session resolves the participant it is given", () => {
-  it("a valid existing participantId returns 201 and inserts ONLY a session", async () => {
+  it("a valid existing participantId returns 201 and inserts the session plus the canonical OPEN_A seed", async () => {
     const { res, json, captured } = await callPost(
       // The caller also offers a `name`; the route must not copy unknown fields
       // into the write.
@@ -238,10 +238,23 @@ describe("POST /api/session resolves the participant it is given", () => {
 
     const tables = captured.inserts.map((i) => i.table);
     console.log("  tables inserted:", JSON.stringify(tables));
+    // F-06: the session row PLUS exactly one canonical OPEN_A response — the
+    // participant's own front-door answer for THIS session. The participant is
+    // still REUSED, never minted: no participant insert appears.
     expect(
       tables,
-      "the ONLY write is a session insert — the participant is REUSED, never minted",
-    ).toEqual(["assessment_sessions"]);
+      "the writes are the session insert + the one canonical OPEN_A seed — participant REUSED, never minted",
+    ).toEqual(["assessment_sessions", "responses"]);
+
+    // The seed row is the returning (No) answer, chosen server-side from the
+    // door, never posted by the client.
+    const responsesInsert = captured.inserts.find((i) => i.table === "responses");
+    expect(responsesInsert?.payload).toEqual({
+      session_id: "s-1",
+      item_id: "OPEN_A",
+      option_code: "OPEN_A_B",
+      open_text: null,
+    });
 
     const payload = captured.inserts[0].payload;
     console.log("  session insert payload:", JSON.stringify(payload));

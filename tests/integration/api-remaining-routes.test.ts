@@ -213,10 +213,25 @@ describe("POST /api/session — pins the version and validates the participant",
 
     console.log("  created ->", res.status, JSON.stringify(body));
     expect(res.status).toBe(201);
-    expect(captured.inserted).toMatchObject({
+    const sessionInsert = captured.allInserts.find((w) => w.table === "assessment_sessions");
+    expect(sessionInsert?.payload).toMatchObject({
       participant_id: PID,
       assessment_version: "1.0",
       status: "in_progress",
+    });
+    // F-06: the returning door also seeds the canonical OPEN_A_B response — the
+    // participant's own front-door answer, chosen server-side, never posted.
+    expect(captured.allInserts.map((w) => w.table)).toEqual([
+      "assessment_sessions",
+      "responses",
+    ]);
+    expect(
+      captured.allInserts.find((w) => w.table === "responses")?.payload,
+    ).toEqual({
+      session_id: "new-session",
+      item_id: "OPEN_A",
+      option_code: "OPEN_A_B",
+      open_text: null,
     });
   });
 

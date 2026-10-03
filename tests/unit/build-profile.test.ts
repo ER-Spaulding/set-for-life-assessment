@@ -3,6 +3,7 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { loadQuestionBank, requiredItems } from "@/lib/assessment/questions";
 import { REQUIRED_ITEM_IDS } from "@/lib/assessment/validation";
+import { FRONT_DOOR_ITEM_IDS } from "@/lib/ui/questions";
 import {
   buildProfile,
   buildAllStrong,
@@ -36,6 +37,22 @@ describe("build-profile — covers exactly the 31 required items (PRD §8)", () 
     expect(REQUIRED_ITEM_IDS.slice(-4)).toEqual(["A1", "A2", "A3", "A4"]);
     for (let n = 1; n <= 25; n++) {
       expect(REQUIRED_ITEM_IDS).toContain(`Q${n}`);
+    }
+  });
+
+  it("OPEN_A stays a required response even though the front door answers it (F-06)", () => {
+    // F-06: the front door records Opening A, but it must STAY in the 31. The
+    // "remove the question" shortcut the Owner explicitly ruled out would drop
+    // it from REQUIRED_ITEM_IDS and leave the instrument asking 30 — so this
+    // pins OPEN_A's place explicitly rather than relying on the slice above.
+    expect(REQUIRED_ITEM_IDS[0]).toBe("OPEN_A");
+    expect(REQUIRED_ITEM_IDS).toContain("OPEN_A");
+    expect(REQUIRED_ITEM_IDS).toHaveLength(31);
+    // And the derived front-door set (Opening A) is a subset of the required
+    // 31 — the front door answers a REQUIRED item, never a dropped one.
+    expect(FRONT_DOOR_ITEM_IDS).toEqual(["OPEN_A"]);
+    for (const id of FRONT_DOOR_ITEM_IDS) {
+      expect(REQUIRED_ITEM_IDS, `${id} must remain required`).toContain(id);
     }
   });
 

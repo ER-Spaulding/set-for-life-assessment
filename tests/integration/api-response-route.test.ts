@@ -67,6 +67,18 @@ function fakeDb(opts: { session?: Record<string, unknown> | null } = {}) {
       }
       if (table === "responses") {
         return {
+          // F-06: the route reads existing rows for a front-door item before
+          // deciding whether to lock it. The fake answers that read with NO
+          // existing row, so an OPEN_A write against a fresh session proceeds
+          // (the seed path is exercised in opening-a-once.test.ts).
+          select: () => {
+            const chain = {
+              eq: () => chain,
+              then: (resolve: (v: unknown) => unknown) =>
+                Promise.resolve({ data: [], error: null }).then(resolve),
+            };
+            return chain;
+          },
           delete: () => {
             captured.deleted = true;
             const chain = { eq: () => chain, then: undefined };

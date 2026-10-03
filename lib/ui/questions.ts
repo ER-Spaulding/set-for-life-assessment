@@ -126,6 +126,64 @@ export function questionById(id: string): UiQuestion | undefined {
   return QUESTION_SEQUENCE.find((q) => q.internal_id === id);
 }
 
+// ---------------------------------------------------------------------------
+// Front door vs. instrument (F-06)
+// ---------------------------------------------------------------------------
+
+/**
+ * The opening items answered at the FRONT DOOR rather than inside the
+ * instrument.
+ *
+ * Opening A ("Is this your first time…?") is the first meaningful participant
+ * interaction and is answered at /assessment/start, before a session exists. Its
+ * answer is seeded server-side at session creation and becomes the canonical
+ * stored OPEN_A response, so the instrument must NEVER present it. Opening B
+ * remains the first question the instrument itself shows.
+ *
+ * DERIVED from the opening bank, not a second literal list: the front door is
+ * every opening item other than OPEN_B. If the instrument's opening set ever
+ * changes, this follows it rather than silently listing stale ids.
+ */
+export const FRONT_DOOR_ITEM_IDS: readonly string[] = QUESTION_BANK.opening
+  .filter((q) => q.internal_id !== "OPEN_B")
+  .map((q) => q.internal_id);
+
+/**
+ * The first QUESTION_SEQUENCE index the instrument may show — i.e. the first
+ * question not answered at the front door (Opening B).
+ */
+export const FIRST_IN_INSTRUMENT_INDEX: number = QUESTION_SEQUENCE.findIndex(
+  (q) => !FRONT_DOOR_ITEM_IDS.includes(q.internal_id),
+);
+
+/** An answer counts as present when it is not null/empty. */
+function hasAnswerValue(value: unknown): boolean {
+  if (value === null || value === undefined) return false;
+  if (Array.isArray(value)) return value.length > 0;
+  if (typeof value === "string") return value.trim().length > 0;
+  return true;
+}
+
+/**
+ * The index the instrument should resume at, given the answers already stored.
+ *
+ * PURE — no I/O, no randomness. Two guarantees (F-06):
+ *   - it never returns a front-door index: Opening A is answered at the door,
+ *     never presented inside the instrument;
+ *   - it never returns -1: a fully-answered session lands on the LAST
+ *     in-instrument item, so Continue performs the normal handoff to /profile
+ *     instead of re-presenting Opening A.
+ */
+export function resumeIndex(answered: Record<string, unknown>): number {
+  const firstUnanswered = QUESTION_SEQUENCE.findIndex(
+    (q) => !hasAnswerValue(answered[q.internal_id]),
+  );
+  if (firstUnanswered === -1) {
+    return QUESTION_SEQUENCE.length - 1;
+  }
+  return Math.max(firstUnanswered, FIRST_IN_INSTRUMENT_INDEX);
+}
+
 /** How many options this item permits. Mirrors the server's own limits. */
 export function maxSelections(type: string): number {
   switch (type) {

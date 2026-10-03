@@ -293,7 +293,7 @@ const ROUTES = [
   ...(sessionId
     ? [
         {
-          path: `/assessment/${sessionId}?openingA=yes`,
+          path: `/assessment/${sessionId}`,
           name: "assessment-question",
           expect: "h1, [role=radiogroup], form",
         },

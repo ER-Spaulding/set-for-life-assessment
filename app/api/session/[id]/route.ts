@@ -9,6 +9,11 @@
 // A participant who is 20 questions in cannot learn from this endpoint how
 // they are scoring, because the response contains no scoring at all.
 //
+// The only additions beyond answers/position are `completed` (a boolean read
+// straight from the session's own status) and `firstName` (the participant's
+// own name, gated on completed AND verified contact). Both are gated in
+// loadResumeState so an in-progress session never surfaces a name.
+//
 // Even after completion the diagnostic surface stays out: this route does not
 // become an audit endpoint once the session is done. The Snapshot has its own
 // route with its own approved-copy shape.
@@ -46,12 +51,16 @@ export async function GET(
     });
   }
 
-  // Answers and position only. See the header: no diagnostic fields exist on
-  // this shape, so none can leak by accident.
+  // Answers and position, plus the two completion-gated fields (`completed`,
+  // `firstName`). Both are gated INSIDE loadResumeState on status === "completed"
+  // — for an in-progress session the name is null and completed is false — so no
+  // diagnostic field (and no unverified name) can leak by accident.
   return NextResponse.json({
     sessionId: state.sessionId,
     status: state.status,
     currentPosition: state.currentPosition,
     responses: state.responses,
+    completed: state.completed,
+    firstName: state.firstName,
   });
 }

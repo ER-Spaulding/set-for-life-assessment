@@ -134,6 +134,38 @@ describe("POST /api/session/[id]/complete — server owns completion (PRD §23.5
     expect(body.firstName).toBe("Avery");
   });
 
+  it("reports an already-complete session as refused (lifecycle), never an unfinished 422", async () => {
+    // F-07 test 14. The lifecycle gate: a completed session's completion request
+    // is a structured REFUSAL, not "some questions still need an answer". The
+    // reveal reads this and shows the server's own message instead of "0 of 31".
+    // (This branch was previously untested — no test set result.refusal.)
+    completeSession.mockResolvedValue({
+      sessionId: "s-1",
+      complete: false,
+      refusal:
+        "This assessment is already complete. Its Snapshot is an immutable historical record.",
+      missing: [],
+      present: 0,
+      required: 0,
+    });
+    const { POST } = await import("@/app/api/session/[id]/complete/route");
+    const res = await POST(new Request("http://x", { method: "POST" }), ctx("s-1"));
+    const body = await res.json();
+
+    console.log("  refused body:", JSON.stringify(body));
+    expect(res.status).toBe(422);
+    expect(body.complete).toBe(false);
+    expect(body.refused).toBe(true);
+    expect(body.message).toBe(
+      "This assessment is already complete. Its Snapshot is an immutable historical record.",
+    );
+    // The refused shape carries NO response count — a client that rendered
+    // present/required from this body would show "0 of 31".
+    expect(body).not.toHaveProperty("missing");
+    expect(body).not.toHaveProperty("present");
+    expect(body).not.toHaveProperty("required");
+  });
+
   it("returns 503 when the database is not configured", async () => {
     isDbConfigured.mockReturnValue(false);
     const { POST } = await import("@/app/api/session/[id]/complete/route");

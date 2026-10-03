@@ -16,6 +16,7 @@ import { NextResponse } from "next/server";
 import { serviceClient, isDatabaseConfigured, errorBody } from "@/lib/db/client";
 import { loadQuestionBank, applySelection, checkSelection } from "@/lib/assessment/questions";
 import { decideResponseWrite } from "@/lib/session/lifecycle";
+import { FRONT_DOOR_ITEM_IDS } from "@/lib/ui/questions";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
@@ -106,6 +107,35 @@ export async function PUT(
     return NextResponse.json(errorBody(decision.code, decision.message), {
       status: decision.code === "SESSION_EXPIRED" ? 422 : 409,
     });
+  }
+
+  // F-06: a front-door item (Opening A) is answered ONCE at entry and is not
+  // editable in place. Once the session already holds an answer for it, an
+  // ordinary response write is refused 409 — the canonical entry answer must
+  // never be mutated by editing. Deriving the set from FRONT_DOOR_ITEM_IDS
+  // rather than a bare `itemId === "OPEN_A"` keeps it tied to the instrument.
+  // (The seed itself bypasses this: it is written by the service at creation.)
+  if (FRONT_DOOR_ITEM_IDS.includes(itemId)) {
+    const { data: existing, error: exErr } = await db
+      .from("responses")
+      .select("item_id")
+      .eq("session_id", sessionId)
+      .eq("item_id", itemId);
+    if (exErr) {
+      return NextResponse.json(errorBody("DB_ERROR", "Could not record the response."), {
+        status: 500,
+      });
+    }
+    if ((existing ?? []).length > 0) {
+      return NextResponse.json(
+        errorBody(
+          "OPENING_A_LOCKED",
+          "This answer was recorded when you began and cannot be changed here. " +
+            "To choose differently, start a new assessment.",
+        ),
+        { status: 409 },
+      );
+    }
   }
 
   // --- validate against the instrument (PRD §9 types, §14 exclusivity) ---
