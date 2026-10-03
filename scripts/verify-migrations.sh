@@ -39,6 +39,8 @@ export PATH="/opt/homebrew/opt/postgresql@16/bin:$PATH"
 REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 MIGDIR="$REPO/supabase/migrations"
 ROLES_SQL="$REPO/scripts/supabase-local-roles.sql"
+STORAGE_SQL="$REPO/scripts/supabase-local-storage.sql"
+SEED_DIR="$REPO/supabase/seed"
 
 KEEP=0
 DB=""
@@ -54,6 +56,22 @@ done
 PGHOST_LOCAL="${SFL_PGHOST:-127.0.0.1}"
 PGPORT_LOCAL="${SFL_PGPORT:-5432}"
 psql_() { psql -h "$PGHOST_LOCAL" -p "$PGPORT_LOCAL" -d "$1" -qtA "${@:2}"; }
+
+# Apply one SQL file with ON_ERROR_STOP, echoing a labelled OK/FAIL line.
+# Returns 0 on success, 1 on failure (with the first lines of the error shown).
+apply_sql() {
+  local label="$1" file="$2"
+  local out
+  printf "%s %-58s " "$label" "$(basename "$file")"
+  out=$(psql -h "$PGHOST_LOCAL" -p "$PGPORT_LOCAL" -v ON_ERROR_STOP=1 -q -d "$DB" -f "$file" 2>&1)
+  if [ $? -eq 0 ]; then
+    echo "OK"
+    return 0
+  fi
+  echo "FAIL"
+  echo "$out" | head -20 | sed 's/^/      /'
+  return 1
+}
 
 cleanup() {
   if [ "$KEEP" -eq 0 ]; then dropdb -h "$PGHOST_LOCAL" -p "$PGPORT_LOCAL" --if-exists "$DB" >/dev/null 2>&1; fi
@@ -84,17 +102,43 @@ else
   echo "  WARNING: $ROLES_SQL missing — RLS policies may not be created"
 fi
 
+# Supabase provisions the `storage` schema in every project. The snapshot
+# documents migration (...00013) inserts its private bucket ONLY when that
+# schema exists — so on a plain Postgres without this stub the branch silently
+# skips and the bucket is never created (the exact defect that shipped to the
+# live environment). The stub makes the chain EXERCISE the bucket branch.
+if [ -f "$STORAGE_SQL" ]; then
+  if apply_sql "STUB " "$STORAGE_SQL"; then
+    : # storage schema stub applied
+  else
+    echo "RESULT: storage schema stub could not be applied — migration ...00013 would skip its bucket INSERT"
+    exit 3
+  fi
+else
+  echo "RESULT: $STORAGE_SQL missing — the bucket branch will NOT be exercised"
+  exit 3
+fi
+
 FAIL=0
 for f in $FILES; do
-  printf "APPLY %-58s " "$(basename "$f")"
-  OUT=$(psql -h "$PGHOST_LOCAL" -p "$PGPORT_LOCAL" -v ON_ERROR_STOP=1 -q -d "$DB" -f "$f" 2>&1)
-  if [ $? -eq 0 ]; then
-    echo "OK"
-  else
-    echo "FAIL"
-    echo "$OUT" | head -20 | sed 's/^/      /'
+  if ! apply_sql "APPLY" "$f"; then
     FAIL=1
     break
+  fi
+  # The initial schema creates the app tables. Seed the pinned assessment
+  # version AFTER it exists, so the migrations whose self-verification DO-blocks
+  # read `assessment_versions` (e.g. ...00012) find a row — on a zero-state DB
+  # this table is empty and those blocks abort with a null session_id, which is
+  # the reproducibility gap the seed (supabase/seed/*.sql) exists to close.
+  if [ "$(basename "$f")" = "20260930000001_initial_schema.sql" ] && [ -d "$SEED_DIR" ]; then
+    for s in "$SEED_DIR"/*.sql; do
+      [ -e "$s" ] || continue
+      if ! apply_sql "SEED " "$s"; then
+        FAIL=1
+        break
+      fi
+    done
+    [ $FAIL -eq 1 ] && break
   fi
 done
 
@@ -108,6 +152,17 @@ if [ $FAIL -eq 0 ]; then
     join pg_namespace n on n.oid = c.relnamespace
     where not t.tgisinternal and n.nspname='public' and (t.tgtype & 8) = 8
     order by c.relname;"
+  echo "--- storage: private PDF bucket ---"
+  BUCKET_PUBLIC=$(psql_ "$DB" -c "select public from storage.buckets where id = 'snapshot-documents';")
+  if [ -z "$BUCKET_PUBLIC" ]; then
+    echo "  FAIL: snapshot-documents bucket NOT created — migration ...00013 skipped its INSERT"
+    FAIL=1
+  elif [ "$BUCKET_PUBLIC" != "f" ]; then
+    echo "  FAIL: snapshot-documents bucket is PUBLIC ($BUCKET_PUBLIC) — it must be private"
+    FAIL=1
+  else
+    echo "  snapshot-documents: private (public=f) — present"
+  fi
 fi
 
 if [ "$KEEP" -eq 1 ] && [ $FAIL -eq 0 ]; then

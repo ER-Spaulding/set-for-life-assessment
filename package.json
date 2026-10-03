@@ -11,6 +11,7 @@
     "test:watch": "vitest",
     "typecheck": "tsc --noEmit",
     "test:guards": "node tests/unit/copy-library-consistency.mjs",
+    "verify:storage": "node scripts/verify-storage-bucket.mjs",
     "qa:320": "node tests/qa/viewport-320.mjs"
   },
   "dependencies": {
