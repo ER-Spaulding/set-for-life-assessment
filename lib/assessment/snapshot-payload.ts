@@ -712,8 +712,28 @@ export function assembleBigPicture(args: {
     parts.push(args.frictions[0].narrativeKey ?? '');
   }
 
-  // 3. one approved connection statement.
-  if (args.connections.length > 0) parts.push(args.connections[0].narrativeKey);
+  // 3. one approved connection statement — but NOT the one step 2 already named.
+  //
+  // THE DEFECT THIS PREVENTS, found in the rendered PDF rather than by a test:
+  // frictions and connections are both built from `connection_statements.*`
+  // codes (see the assembly above), so for a profile whose first friction is
+  // also its first connection, step 2 and step 3 pushed the IDENTICAL key. The
+  // Big Picture then rendered that paragraph twice — and the same statement
+  // appeared a third time in the Friction module and a fourth in The Connection,
+  // which the owner saw as one paragraph repeated four times in the PDF.
+  //
+  // The two libraries legitimately share wording; that is allowed. What is not
+  // allowed is the SAME statement being named twice inside ONE narration. The
+  // friction and the connection are the same finding, so the Big Picture names
+  // it once.
+  //
+  // This is a selection fix, not a wording fix: no approved sentence is altered
+  // or removed, and the connection still renders in full in its own module.
+  const alreadyNamed = new Set(parts);
+  if (args.connections.length > 0) {
+    const connectionKey = args.connections[0].narrativeKey;
+    if (!alreadyNamed.has(connectionKey)) parts.push(connectionKey);
+  }
 
   // 4. a capacity/context qualifier, when applicable (§12.2).
   if (args.template === 'CAPACITY_FIRST') {
