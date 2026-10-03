@@ -76,13 +76,20 @@ import cfg from "@/config/scoring-v1.0.json";
 const TENSION = "HIGH_FEAR_HIGH_ACTIVATION";
 const CONNECTION_KEY = `connection_statements.${TENSION}`;
 
-function signal(signal: string, state: PayloadSignal["state"], value: number) {
+function signal(
+  signal: string,
+  state: PayloadSignal["state"],
+  value: number,
+  specialState: string | null = null,
+) {
   return {
     signal,
     value,
     state,
-    specialState: null,
-    displayState: state,
+    specialState,
+    // The scorer's own rule: a capacity override IS what gets displayed, and
+    // therefore IS the narrativeKey the signal resolves to.
+    displayState: specialState ?? state,
     evidence: { confidence: "moderate" as const, limitedReason: null },
   };
 }
@@ -231,6 +238,64 @@ describe("guard (a) — the known duplicated paragraph cannot repeat in the rend
 // labels excluded.
 // ---------------------------------------------------------------------------
 
+describe("guard (c) — the Big Picture names no statement twice, whatever the step", () => {
+  /**
+   * THE SECOND INSTANCE OF THE SAME DEFECT CLASS.
+   *
+   * Guard (a) covers the friction/connection collision the owner saw. Probing
+   * for the same class elsewhere found a SECOND, independent one: when a
+   * capacity override applies, `template` is CAPACITY_FIRST, and the constraint
+   * is that step 1 (strongest signal) and step 4 (capacity qualifier) both push
+   * that signal's `special_signal_states.*` key — because the overridden
+   * signal's `narrativeKey` IS its special-state key (`displayState =
+   * specialState ?? state`), and §13.4's drop-the-overridden-item rule RAISES
+   * that signal's mean, making it the one `pickStrongest` tends to pick.
+   *
+   * The fix for that is not another per-step check — it is the `pushUnique`
+   * INVARIANT, so a THIRD collision site cannot be introduced unnoticed. These
+   * tests assert the invariant directly, and exercise the capacity profile
+   * through the REAL assembler so the collision path is genuinely reached.
+   */
+  it("the capacity-first profile does not name the constrained signal twice", () => {
+    const payload = assembleCapacityFirst();
+
+    expect(payload.bigPicture.template).toBe("CAPACITY_FIRST");
+    expect(new Set(payload.bigPicture.parts).size).toBe(payload.bigPicture.parts.length);
+    expect(
+      payload.bigPicture.parts.filter((p) => p.startsWith("special_signal_states.")),
+    ).toHaveLength(1);
+  });
+
+  it("the capacity-first profile still names the capacity constraint at all", () => {
+    // The invariant must SKIP a redundant naming, never drop a distinct part:
+    // if step 4 were simply deleted, the profile would lose its capacity
+    // qualifier and this test would catch it.
+    const payload = assembleCapacityFirst();
+    expect(
+      payload.bigPicture.parts.some((p) => p.startsWith("special_signal_states.")),
+      "the capacity qualifier must still be present",
+    ).toBe(true);
+  });
+
+  it("INVARIANT: every profile shape produces a duplicate-free Big Picture", () => {
+    // The structural property, asserted across every fixture this file builds.
+    // A future step that pushes without `pushUnique` fails here regardless of
+    // which two steps collide.
+    const payloads: Array<[string, SnapshotPayload]> = [
+      ["friction == connection", assembleFrictionIsConnection()],
+      ["capacity first", assembleCapacityFirst()],
+      ["multi-finding", multiFindingProfile()],
+      ["null finding", nullFindingProfile()],
+      ["empty signals", emptySignalsProfile()],
+    ];
+
+    for (const [name, payload] of payloads) {
+      const parts = payload.bigPicture.parts;
+      expect(new Set(parts).size, `${name}: duplicate key in bigPicture.parts`).toBe(parts.length);
+    }
+  });
+});
+
 describe("guard (b) — paragraph-level body copy is unique within each section", () => {
   // A sweep across profile shapes: the defect profile (via the real assembler),
   // a multi-finding profile, the null-finding profile, and the degenerate
@@ -361,6 +426,43 @@ function nullFindingProfile(): SnapshotPayload {
     bigPicture: { template: "NO_MEANINGFUL_FRICTION", parts: [] },
     context: [],
   };
+}
+
+/**
+ * The CAPACITY_FIRST profile, through the REAL assembler.
+ *
+ * SEE carries a capacity override, so its `displayState` — and therefore its
+ * `narrativeKey` — is `special_signal_states.DIRECT_CAPACITY_LIMITED`. It is
+ * also given the highest mean, so `pickStrongest` selects it: the exact
+ * condition under which step 1 and step 4 used to push the same key.
+ *
+ * This is not a contrived input. The scoring design makes it the LIKELY one:
+ * §13.4 drops capacity-overridden items from the mean precisely so they do not
+ * pull it down, which raises the constrained signal's state. The constrained
+ * signal being the strongest is the normal case, not the corner case.
+ */
+function assembleCapacityFirst(): SnapshotPayload {
+  const signals = {
+    SEE: signal("SEE", "S4", 4.0, "DIRECT_CAPACITY_LIMITED"),
+    ROOM: signal("ROOM", "S1", 1.2),
+    DIRECT: signal("DIRECT", "S1", 1.0),
+    PREPARE: signal("PREPARE", "S1", 1.0),
+    AIM: signal("AIM", "S1", 1.0),
+    MOVE: signal("MOVE", "S1", 1.0),
+  } as AssembleInput["signals"];
+
+  return assembleSnapshotPayload({
+    versions: VERSIONS,
+    signals,
+    tensionCodes: [],
+    classifierTags: [],
+    activationSelections: { A1: "C", A2: "C", A3: "C", A4: "C" },
+    openingB: 3,
+    q16Selections: ["Q16_A"],
+    signalMeans: { SEE: 4.0, ROOM: 1.2, DIRECT: 1.0, PREPARE: 1.0, AIM: 1.0, MOVE: 1.0 },
+    perceptionGapConfig: (cfg as { perception_gap?: unknown }).perception_gap,
+    moveSubsignals: { action: 1, analysis: 1, consumption: 1 },
+  });
 }
 
 function emptySignalsProfile(): SnapshotPayload {

@@ -694,9 +694,40 @@ export function assembleBigPicture(args: {
 }): SnapshotPayload['bigPicture'] {
   const parts: string[] = [];
 
+  /**
+   * Push a key unless this narration already names it.
+   *
+   * ONE NARRATION MUST NOT NAME THE SAME STATEMENT TWICE. The Big Picture is a
+   * single paragraph flow, so a key that lands here twice is the same approved
+   * sentence rendered twice back-to-back — the defect the owner saw as one
+   * paragraph repeated four times in the PDF.
+   *
+   * The duplicate arrived through TWO different steps. Step 2 (friction) and
+   * step 3 (connection) both name a `connection_statements.*` code, so a profile
+   * whose first friction IS its first connection pushed the identical key twice.
+   * Step 1 (strongest signal) and step 4 (capacity qualifier) collide the same
+   * way: when a capacity override applies, the overridden signal's narrativeKey
+   * IS its `special_signal_states.*` key, and the §13.4 drop-the-overridden-item
+   * rule RAISES that signal's mean — so the capacity-constrained signal is
+   * exactly the one `pickStrongest` tends to pick. Steps 1 and 4 then pushed the
+   * identical key.
+   *
+   * Patching step 3 alone left step 4 live; a per-step guard invites a third.
+   * This is the INVARIANT instead — every step pushes through `pushUnique`, so
+   * the property "no key appears twice in this narration" holds by construction
+   * and cannot depend on an author remembering to check.
+   *
+   * It is still a SELECTION fix, never a wording fix: no approved sentence is
+   * altered or removed, and every finding still renders in full in its own
+   * module. Only the redundant naming inside this one narration is skipped.
+   */
+  const pushUnique = (key: string | null | undefined): void => {
+    if (key && !parts.includes(key)) parts.push(key);
+  };
+
   // 1. one approved strength sentence — the strongest signal present.
   const strongest = pickStrongest(args.signals);
-  if (strongest?.narrativeKey) parts.push(strongest.narrativeKey);
+  pushUnique(strongest?.narrativeKey);
 
   // 2. one approved friction sentence, unless the null finding holds (§12.1).
   //
@@ -709,45 +740,30 @@ export function assembleBigPicture(args: {
     args.template === 'NO_MEANINGFUL_FRICTION' ||
     args.template === 'DEVELOPING_PICTURE';
   if (!hasNoFrictionToName && args.frictions.length > 0) {
-    parts.push(args.frictions[0].narrativeKey ?? '');
+    pushUnique(args.frictions[0].narrativeKey);
   }
 
   // 3. one approved connection statement — but NOT the one step 2 already named.
-  //
-  // THE DEFECT THIS PREVENTS, found in the rendered PDF rather than by a test:
-  // frictions and connections are both built from `connection_statements.*`
-  // codes (see the assembly above), so for a profile whose first friction is
-  // also its first connection, step 2 and step 3 pushed the IDENTICAL key. The
-  // Big Picture then rendered that paragraph twice — and the same statement
-  // appeared a third time in the Friction module and a fourth in The Connection,
-  // which the owner saw as one paragraph repeated four times in the PDF.
-  //
-  // The two libraries legitimately share wording; that is allowed. What is not
-  // allowed is the SAME statement being named twice inside ONE narration. The
-  // friction and the connection are the same finding, so the Big Picture names
-  // it once.
-  //
-  // This is a selection fix, not a wording fix: no approved sentence is altered
-  // or removed, and the connection still renders in full in its own module.
-  const alreadyNamed = new Set(parts);
+  //    (The library overlap is allowed; naming it twice in ONE narration is not.)
   if (args.connections.length > 0) {
-    const connectionKey = args.connections[0].narrativeKey;
-    if (!alreadyNamed.has(connectionKey)) parts.push(connectionKey);
+    pushUnique(args.connections[0].narrativeKey);
   }
 
-  // 4. a capacity/context qualifier, when applicable (§12.2).
+  // 4. a capacity/context qualifier, when applicable (§12.2) — and, per the
+  //    invariant above, NOT the key step 1 already named when the capacity-
+  //    constrained signal is also the strongest.
   if (args.template === 'CAPACITY_FIRST') {
     const constrained = args.signals.find((s) => s.specialState !== null);
-    if (constrained?.narrativeKey) parts.push(constrained.narrativeKey);
+    pushUnique(constrained?.narrativeKey);
   }
 
   // 5. a closing sentence pointing at the primary attention area, without
   //    prescribing a transaction (§11).
   if (args.attentionAreas.length > 0) {
-    parts.push(`attention_areas.${args.attentionAreas[0]}`);
+    pushUnique(`attention_areas.${args.attentionAreas[0]}`);
   }
 
-  return { template: args.template, parts: parts.filter(Boolean) };
+  return { template: args.template, parts };
 }
 
 /** The highest ladder state present, used as the Big Picture's strength. */
