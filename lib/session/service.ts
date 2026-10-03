@@ -339,8 +339,12 @@ export async function completeSession(sessionId: string): Promise<CompletionResu
     .maybeSingle();
   if (stateErr) throw new Error(`session: ${stateErr.message}`);
 
-  // The status is read here and carried forward so the F-08 resume below can
-  // act on it AFTER the completeness check but BEFORE any scoring write.
+  // THE EARLY-OUT GATE. This read decides whether scoring is worth doing at all,
+  // so a refusal costs no work and writes nothing. It is NOT the deciding check
+  // any more — see the atomic boundary at the end of this function, which
+  // re-reads the status under a row lock because this one can go stale while
+  // scoring runs. Both exist on purpose: this one saves the work, that one
+  // makes the answer binding.
   let status = "";
   if (sessionRow) {
     status = (sessionRow as { status?: string }).status ?? "";
