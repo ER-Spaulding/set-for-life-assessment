@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="2880" height="1024" viewBox="0 0 2880 1024">
+<defs>
+  <filter id="noise" x="-20%" y="-20%" width="140%" height="140%"><feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="2" seed="8"/><feColorMatrix type="saturate" values="0"/><feComponentTransfer><feFuncA type="table" tableValues="0 0.055"/></feComponentTransfer></filter>
+  <linearGradient id="ivoryFade" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#F7F2E9"/><stop offset="1" stop-color="#F1E7D8"/></linearGradient>
+  <linearGradient id="greenFade" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#28513F"/><stop offset="1" stop-color="#17382D"/></linearGradient>
+  <radialGradient id="spot" cx="50%" cy="38%" r="62%"><stop offset="0" stop-color="#FFF7D8"/><stop offset=".3" stop-color="#E2C98F" stop-opacity=".68"/><stop offset=".72" stop-color="#C49A45" stop-opacity=".14"/><stop offset="1" stop-color="#28513F" stop-opacity="0"/></radialGradient>
+</defs>
+<rect width="2880" height="1024" fill="#F7F2E9"/>
+<rect width="2880" height="1024" fill="url(#ivoryFade)"/>
+<path d="M410 980 C560 720 610 500 810 310 C990 140 1220 110 1430 170" fill="none" stroke="#C49A45" stroke-width="8" opacity=".75"/>
+<path d="M410 980 C520 760 560 600 720 430" fill="none" stroke="#28513F" stroke-width="18" opacity=".88"/>
+<ellipse cx="640" cy="610" rx="120" ry="42" transform="rotate(-32 640 610)" fill="#28513F" opacity="0.92"/><ellipse cx="760" cy="510" rx="145" ry="50" transform="rotate(28 760 510)" fill="#28513F" opacity="0.82"/><ellipse cx="865" cy="385" rx="125" ry="44" transform="rotate(-28 865 385)" fill="#C49A45" opacity="0.46"/><ellipse cx="1000" cy="300" rx="150" ry="52" transform="rotate(26 1000 300)" fill="#DAAAA6" opacity="0.54"/><ellipse cx="1140" cy="225" rx="135" ry="46" transform="rotate(-20 1140 225)" fill="#28513F" opacity="0.72"/>
+<path d="M1740 900 C1910 680 2090 550 2320 420 C2500 320 2670 280 2810 245" fill="none" stroke="#E2C98F" stroke-width="5" opacity=".7"/>
+<circle cx="2290" cy="440" r="230" fill="#DAAAA6" opacity=".08"/><circle cx="2290" cy="440" r="150" fill="#C49A45" opacity=".08"/><rect width="2880" height="1024" filter="url(#noise)" opacity=".22"/></svg>

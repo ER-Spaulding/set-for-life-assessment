@@ -1,0 +1,75 @@
+{
+  "section-02-big-picture-background-v1": {
+    "png": "section-02-big-picture-background-v1.png",
+    "svg": "section-02-big-picture-background-v1.svg",
+    "dimensions": "2880x1024",
+    "role": "static decorative production asset"
+  },
+  "section-04-strengths-background-v1": {
+    "png": "section-04-strengths-background-v1.png",
+    "svg": "section-04-strengths-background-v1.svg",
+    "dimensions": "2880x1024",
+    "role": "static decorative production asset"
+  },
+  "section-05-friction-background-v1": {
+    "png": "section-05-friction-background-v1.png",
+    "svg": "section-05-friction-background-v1.svg",
+    "dimensions": "2880x1024",
+    "role": "static decorative production asset"
+  },
+  "section-06-connection-background-v1": {
+    "png": "section-06-connection-background-v1.png",
+    "svg": "section-06-connection-background-v1.svg",
+    "dimensions": "2880x1024",
+    "role": "static decorative production asset"
+  },
+  "section-07-destination-background-v1": {
+    "png": "section-07-destination-background-v1.png",
+    "svg": "section-07-destination-background-v1.svg",
+    "dimensions": "2880x1024",
+    "role": "static decorative production asset"
+  },
+  "section-09-attention-background-v1": {
+    "png": "section-09-attention-background-v1.png",
+    "svg": "section-09-attention-background-v1.svg",
+    "dimensions": "2880x1024",
+    "role": "static decorative production asset"
+  },
+  "section-10-masterclass-cta-background-v1": {
+    "png": "section-10-masterclass-cta-background-v1.png",
+    "svg": "section-10-masterclass-cta-background-v1.svg",
+    "dimensions": "2880x1024",
+    "role": "static decorative production asset"
+  },
+  "section-11-download-background-v1": {
+    "png": "section-11-download-background-v1.png",
+    "svg": "section-11-download-background-v1.svg",
+    "dimensions": "2880x1024",
+    "role": "static decorative production asset"
+  },
+  "section-01-hero-female-v1": {
+    "png": "section-01-hero-female-v1.png",
+    "dimensions": "1122x1402",
+    "role": "dynamic hero production asset"
+  },
+  "section-01-hero-male-v1": {
+    "png": "section-01-hero-male-v1.png",
+    "dimensions": "1122x1402",
+    "role": "dynamic hero production asset"
+  },
+  "section-01-hero-neutral-v1": {
+    "png": "section-01-hero-neutral-v1.png",
+    "dimensions": "1122x1402",
+    "role": "dynamic hero production asset"
+  },
+  "set-for-life-logo": {
+    "png": "set-for-life-logo.png",
+    "dimensions": "2048x857",
+    "role": "official owner-supplied logo"
+  },
+  "_dynamic_components": {
+    "section-03-money-picture": "Build in HTML/CSS/SVG from live participant data; no flattened image.",
+    "section-08-readiness": "Build in HTML/CSS/SVG from live participant data; no flattened image.",
+    "section-12-footer": "Build with official logo + HTML/CSS; no background image required."
+  }
+}
