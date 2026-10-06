@@ -427,7 +427,14 @@ describe("the web results page and snapshot components resolve copy through one 
 // Follows the contentHash convention in lib/assessment/versions.ts (sha256 over
 // the canonical, sorted-key serialisation), so reformatting does not move the
 // hash — only a CONTENT change does.
-const PINNED_NARRATIVES_HASH = "3960a4d396f8eb68f53dc351e83e020ab9de548771a0cc6133451e33110f9a2d";
+//
+// MOVED 2026-10-05 (operator-approved re-issue, narrative library 1.0 -> 1.0.1):
+// four activation bands (A1.LOW, A2.LOW, A4.LOW, A4.HIGH) had internal /
+// methodology language removed from their second sentence. The approved library
+// MD was updated in the same act, and both were verified byte-identical across
+// all 12 activation bands. This is the deliberate, reviewable act this pin
+// exists to force — not a bypass of it. The connection library hash is unmoved.
+const PINNED_NARRATIVES_HASH = "0412dbee924e76bb2e93343f6a69ae7fc36551c458238a366ae7cc6e8bb06f5a";
 const PINNED_CONNECTION_HASH = "b28fd325207c324cb75a79263b89bd33b68e8c0bafcc27d1ce2439c3f1083ff2";
 
 describe("the narrative and connection libraries are PINNED by content hash", () => {

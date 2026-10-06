@@ -92,6 +92,55 @@ export interface SnapshotSection {
   blocks: SnapshotBlock[];
 }
 
+/**
+ * THE MAXIMUM PARTICIPANT-FACING FINDINGS PER FINDINGS MODULE (1–3 rule).
+ *
+ * ⚠️ THE RULE IS NOT INVENTED HERE — IT IS ENFORCED HERE, AND IT IS THE
+ * APPROVED RULE, STATED IN THREE GOVERNING ARTIFACTS AND THE OWNER'S BRIEF:
+ *
+ *   docs/design/snapshot/Set_for_Life_Snapshot_Wireframe_Spec_v1.md §4/§5
+ *     "1–3 evidence-supported strengths only"
+ *     "1–3 meaningful friction findings"
+ *   config/report-v1.0.json, screens[].notes (the operator's own config)
+ *     strengths: "1–3 evidence-supported strengths only."
+ *     friction:  "1–3 meaningful findings."
+ *   docs/design/snapshot/Set_for_Life_Snapshot_Wireframe_Prototype_v1.html
+ *     both count controls offer exactly 0 / 1 / 2 / 3 — there is no "4+" state
+ *     in the approved prototype, so the approved layout has never had a shape
+ *     for a fourth finding.
+ *
+ * THE ENGINE HAS NO CAP, AND THAT IS CORRECT. `assembleSnapshotPayload` pushes
+ * every triggered tension into `frictions` — no cap, no priority filter — and
+ * the payload must keep them: it is the immutable record of what the engine
+ * found, and `bigPicture` asks it "is there any friction at all?" to choose
+ * between PRIMARY_FRICTION and DEVELOPING_PICTURE. Measuring v1.0 against the
+ * live data, one real session (9aaf15f0) carries SIX triggered tensions, so six
+ * findings were reaching the renderer and six rendered.
+ *
+ * THE ORDER IS THE ENGINE'S OWN PRECEDENCE, NOT A NEW ONE. `evaluateTensions`
+ * builds its list by iterating the config's tension keys in listing order, and
+ * `interpretation.ts` records that same listing as the canonical
+ * `TENSION_PRIORITY`. So `frictions[0]` is ALREADY the primary — `assembleBigPicture`
+ * names exactly it ("one approved friction sentence"), and `selectConnections`
+ * takes `codes[0]` as the primary connection. Taking the first three therefore
+ * keeps the primary and its two highest-precedence supporting findings, and
+ * picks nothing that the engine did not already rank.
+ *
+ * WHY THE CAP LIVES HERE AND NOT IN THE COMPONENT. This module's stated job is
+ * to decide "WHICH findings are included (the resolved strengths/frictions)",
+ * once, for BOTH renderers. Capping in `FrictionSection.tsx` would (a) be the
+ * CSS-hiding the brief rules out, and (b) leave the PDF uncapped, so the web
+ * page and the PDF would print different numbers of findings off the same
+ * immutable payload — the exact web/PDF divergence this shared layer exists to
+ * prevent.
+ *
+ * NOTHING IS DISCARDED. The payload keeps every finding; this truncates the
+ * SECTION's view of them. A future config revision can raise this number and
+ * historical payloads will immediately show more, because the findings were
+ * never removed from the record.
+ */
+export const MAX_PARTICIPANT_FINDINGS = 3;
+
 /** Map each content module to the report-config screen id that owns its title. */
 const SCREEN_FOR_SECTION: Record<SnapshotSectionId, string> = {
   "big-picture": "big-picture",
@@ -141,19 +190,26 @@ export function resolveSnapshotSections(view: ResolvedSnapshotView): SnapshotSec
     })),
   });
 
-  if (view.strengths.length > 0) {
+  // Both findings modules carry the SAME 1–3 rule (see MAX_PARTICIPANT_FINDINGS)
+  // and both take the engine's own precedence order, so the first finding is the
+  // primary. The null behaviour is preserved exactly: 0 → the section is not
+  // pushed at all (the `> 0` guard is unchanged), 1 → one block, 2 → two, 3+ →
+  // three. `slice` never fabricates a finding to reach a count.
+  const strengths = view.strengths.slice(0, MAX_PARTICIPANT_FINDINGS);
+  if (strengths.length > 0) {
     sections.push({
       id: "strengths",
       heading: sectionHeading("strengths"),
-      blocks: view.strengths.map((f) => ({ label: f.label, body: f.copy })),
+      blocks: strengths.map((f) => ({ label: f.label, body: f.copy })),
     });
   }
 
-  if (view.frictions.length > 0) {
+  const frictions = view.frictions.slice(0, MAX_PARTICIPANT_FINDINGS);
+  if (frictions.length > 0) {
     sections.push({
       id: "friction",
       heading: sectionHeading("friction"),
-      blocks: view.frictions.map((f) => ({ label: f.label, body: f.copy })),
+      blocks: frictions.map((f) => ({ label: f.label, body: f.copy })),
     });
   }
 

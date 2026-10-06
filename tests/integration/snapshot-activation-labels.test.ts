@@ -49,6 +49,28 @@ const CANONICAL_LABELS = ["Urgency", "Readiness", "Commitment", "Support Readine
 // 1. One source: the four labels, verbatim, in canonical order.
 // ---------------------------------------------------------------------------
 
+
+/**
+ * EVERY FILE IN THE WEB RENDER LAYER, concatenated.
+ *
+ * The render layer used to be one file (`components/snapshot/results-view.tsx`);
+ * it is now a directory of focused components. These source-level guards assert
+ * properties of "the render layer", so they must read the WHOLE layer — scanning
+ * only results-view.tsx would silently stop checking the other twelve files, and
+ * the guard would pass for the wrong reason. Concatenating is safe because every
+ * assertion below is a negative (must-not-contain) or a whole-layer presence
+ * check; a per-file loop would be weaker for the presence checks.
+ */
+function renderLayerSource(ext: string[] = [".tsx", ".ts"]): string {
+  const dir = resolve(repo, "components/snapshot");
+  return readdirSync(dir)
+    .filter((f) => ext.some((e) => f.endsWith(e)))
+    .sort()
+    .map((f) => readFileSync(resolve(dir, f), "utf8"))
+    .join("\n");
+}
+
+
 describe("the activation labels have one verbatim source", () => {
   it("ACTIVATION_LABELS holds exactly the four owner-approved labels, keyed A1–A4", () => {
     expect(ACTIVATION_LABELS).toEqual({
@@ -130,7 +152,10 @@ describe("no second independent copy of the labels exists in a renderer", () => 
   });
 
   it("the web results view renders the model's resolved label, not a local map", () => {
-    const code = stripComments(read("components/snapshot/results-view.tsx"));
+    // The whole render layer: the readiness module is now its own component, and
+    // a local label map must not be able to hide in any file under
+    // components/snapshot/.
+    const code = stripComments(renderLayerSource());
     expect(code).toContain("block.label");
     // No local ACTIVATION_LABELS map of its own.
     expect(code).not.toMatch(/\bACTIVATION_LABELS\b/);

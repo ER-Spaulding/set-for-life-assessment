@@ -556,7 +556,15 @@ describe("Snapshot payload is persisted at completion (Addendum 01 §3, §5)", (
     expect(snap!.assessment_version).toBe("1.0");
     expect(snap!.question_bank_version).toBe("1.0");
     expect(snap!.scoring_config_version).toBe("1.0");
-    expect(snap!.narrative_version).toBe("1.0");
+    // Read from the artifact rather than hardcoded: the narrative library was
+    // re-issued (1.0 -> 1.0.1) for a copy-only patch, and a literal here would
+    // have to be edited on every future re-issue — the same "asserted from a
+    // constant" problem versions.ts exists to prevent. The property under test
+    // is that the row RECORDS the config's declared version, not that the
+    // version is any particular value.
+    expect(snap!.narrative_version).toBe(
+      JSON.parse(readFileSync(resolve(__dirname, "../../config/narratives-v1.0.json"), "utf8")).version,
+    );
     // §3.1's sixth pin. Asserted on the ROW, not just the payload — the two are
     // written from the same call, and a column that silently stopped being
     // populated would otherwise go unnoticed because the payload still had it.

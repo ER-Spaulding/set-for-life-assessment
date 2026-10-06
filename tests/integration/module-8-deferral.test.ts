@@ -49,6 +49,10 @@ const REPORT = readJson("config/report-v1.0.json");
 const REPORT_SCREENS = REPORT.screens as Array<{ id: string; title: string; lead?: string }>;
 const reportTitle = (id: string) => REPORT_SCREENS.find((s) => s.id === id)?.title ?? "";
 const REPORT_COVER_LEAD = REPORT_SCREENS.find((s) => s.id === "cover")?.lead ?? "";
+// The eight CONTENT MODULES, in report-config order. The `continuation` screen
+// is deliberately absent: it is web chrome rendered outside the shared section
+// model (it has no module marker), so it is not part of the module sequence this
+// guard checks for a hole.
 const RENDERED_SCREEN_IDS = [
   "big-picture",
   "operating-profile",
@@ -58,7 +62,6 @@ const RENDERED_SCREEN_IDS = [
   "destination-meaning",
   "readiness",
   "attention-area",
-  "continuation",
 ];
 const EXPECTED_HEADINGS = RENDERED_SCREEN_IDS.map((id) => reportTitle(id).toUpperCase());
 
@@ -214,10 +217,21 @@ function renderHtml(): string {
   return renderToStaticMarkup(React.createElement(SnapshotResults, { sections }));
 }
 
+/**
+ * The headings of the SHARED MODEL's content modules, in document order.
+ *
+ * Scoped by the `data-snapshot-module` marker rather than to every `<h2>`,
+ * because the page now legitimately carries approved non-module headings (the
+ * §10 campaign headline, the §11 utility heading, the continuation heading).
+ * The check that matters — "the module sequence has no hole where Module 8 would
+ * be" — is about the MODULES, and scoping to them keeps it exact.
+ */
 function headings(html: string): string[] {
   const c = document.createElement("div");
   c.innerHTML = html;
-  return Array.from(c.querySelectorAll("h2")).map((n) => n.textContent ?? "");
+  return Array.from(c.querySelectorAll("section[data-snapshot-module] h2")).map(
+    (n) => n.textContent ?? "",
+  );
 }
 
 describe("the results view closes naturally around supported modules", () => {

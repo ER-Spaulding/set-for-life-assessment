@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { readFileSync } from "node:fs";
+import { readFileSync, readdirSync } from "node:fs";
 import { resolve } from "node:path";
 import { signalLabel } from "@/lib/ui/narratives";
 import { HUMAN_QUESTIONS } from "@/lib/ui/human-questions";
@@ -38,6 +38,28 @@ const read = (p: string) => readFileSync(resolve(repo, p), "utf8");
 const QUESTIONS: Record<string, string> = Object.fromEntries(
   HUMAN_QUESTIONS.map((q) => [q.signal, q.question]),
 );
+
+
+/**
+ * EVERY FILE IN THE WEB RENDER LAYER, concatenated.
+ *
+ * The render layer used to be one file (`components/snapshot/results-view.tsx`);
+ * it is now a directory of focused components. These source-level guards assert
+ * properties of "the render layer", so they must read the WHOLE layer — scanning
+ * only results-view.tsx would silently stop checking the other twelve files, and
+ * the guard would pass for the wrong reason. Concatenating is safe because every
+ * assertion below is a negative (must-not-contain) or a whole-layer presence
+ * check; a per-file loop would be weaker for the presence checks.
+ */
+function renderLayerSource(ext: string[] = [".tsx", ".ts"]): string {
+  const dir = resolve(repo, "components/snapshot");
+  return readdirSync(dir)
+    .filter((f) => ext.some((e) => f.endsWith(e)))
+    .sort()
+    .map((f) => readFileSync(resolve(dir, f), "utf8"))
+    .join("\n");
+}
+
 
 describe("participant-facing signal treatment uses §2.4's human questions", () => {
   it("every signal maps to its approved question, verbatim", () => {
@@ -138,8 +160,9 @@ describe("the Money Picture is named as the participant-facing methodology", () 
     // This asserts the sourcing, while the first test in this file asserts the
     // report config names it "Your Set for Life Money Picture" and never
     // "Financial Operating Profile".
-    const view = read("components/snapshot/results-view.tsx");
-    const code = view.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
+    const code = renderLayerSource()
+      .replace(/\/\*[\s\S]*?\*\//g, "")
+      .replace(/^\s*\/\/.*$/gm, "");
     expect(code).not.toMatch(/Financial Operating Profile/);
     // The render layer prints the model's heading; it does not look the title up
     // itself.
@@ -153,9 +176,13 @@ describe("the Money Picture is named as the participant-facing methodology", () 
   it("no participant-facing source RENDERS an internal signal code", () => {
     // Targets RENDERING, not every mention. `key={row.signal}` is a correct
     // React identity and is invisible to a participant. The render layer
-    // (results-view) consumes the RESOLVED view and may only print its resolved
-    // fields (question / label / copy) — never a raw internal identifier.
-    const view = read("components/snapshot/results-view.tsx");
+    // consumes the RESOLVED view and may only print its resolved fields
+    // (question / label / copy) — never a raw internal identifier.
+    //
+    // The layer is now the WHOLE components/snapshot/ directory, so this scans
+    // every component in it: the decomposition must not become a place where an
+    // internal identifier can hide in a file the guard stopped reading.
+    const view = renderLayerSource();
 
     // Match JSX expressions that resolve a raw internal identifier — the
     // `.signal` code, a `.state`, a `.narrativeKey`, a `.specialState`, or a

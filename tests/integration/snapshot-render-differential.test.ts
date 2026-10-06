@@ -33,6 +33,7 @@ import { SnapshotResults } from "@/components/snapshot/results-view";
 import { resolveSnapshotContent } from "@/lib/render/snapshot-sections";
 import type { SnapshotPayload } from "@/lib/assessment/snapshot-payload";
 import { HUMAN_QUESTIONS } from "@/lib/ui/human-questions";
+import { questionById } from "@/lib/ui/questions";
 
 const repo = resolve(__dirname, "../..");
 const read = (p: string) => readFileSync(resolve(repo, p), "utf8");
@@ -299,7 +300,16 @@ describe("the rendered view and the pinned config agree, element for element", (
       expect(heading, `${key}: attention label heading missing`).not.toBeNull();
       expect(heading!.textContent, `${key}: attention label mismatch`).toBe(expected.label);
 
-      const paragraphs = section!.querySelectorAll("p");
+      // SCOPED TO THE AREA'S OWN REGION. The checkpoint is that no paragraph is
+      // MINTED alongside the approved body — the section's separate framing
+      // intro is not part of an area's copy and must not be counted as though it
+      // were. Scoping to the region the area renders in keeps the assertion
+      // exactly as strict about the thing it protects.
+      const regions = Array.from(section!.querySelectorAll("[data-attention-region]"));
+      const region = regions[regions.length - 1];
+      expect(region, `${key}: attention region missing`).toBeDefined();
+
+      const paragraphs = region!.querySelectorAll("p");
       expect(paragraphs.length, `${key}: attention body paragraph count`).toBe(1);
       expect(paragraphs[0].textContent, `${key}: attention body mismatch`).toBe(expected.body);
     }
@@ -308,11 +318,80 @@ describe("the rendered view and the pinned config agree, element for element", (
   it("the section headings are exactly the approved modules, in report-config order", () => {
     const html = renderHtml(fullPayload());
     const container = parse(html);
-    const renderedSections = Array.from(container.querySelectorAll("h2")).map(
+
+    // The SHARED MODEL's modules are identified by their `data-snapshot-module`
+    // marker, so this stays an EXACT ordered assertion about the eight content
+    // modules now that the page also carries approved non-module headings (the
+    // §10 campaign headline, the §11 utility heading, the continuation
+    // heading). The module heading text is still asserted verbatim against the
+    // report config — nothing about the original check is relaxed.
+    const moduleSections = Array.from(
+      container.querySelectorAll("section[data-snapshot-module]"),
+    );
+
+    // The marker carries the MODEL's section id; the expectation is the config's
+    // SCREEN id. The two name the same eight modules in the same order (the
+    // mapping is the model's own SCREEN_FOR_SECTION, asserted elsewhere), so this
+    // compares the RENDERED SEQUENCE against the report config's own order.
+    const EXPECTED_MODULE_ORDER = [
+      "big-picture",
+      "money-picture",
+      "strengths",
+      "friction",
+      "connection",
+      "destination",
+      "readiness",
+      "attention",
+    ];
+
+    expect(
+      moduleSections.map((s) => s.getAttribute("data-snapshot-module")),
+      "the rendered module sequence drifted from the approved module order",
+    ).toEqual(EXPECTED_MODULE_ORDER);
+
+    // And every heading is its report-config title, verbatim and uppercased.
+    const headingFor: Record<string, string> = {
+      "big-picture": "big-picture",
+      "money-picture": "operating-profile",
+      strengths: "strengths",
+      friction: "friction",
+      connection: "connection",
+      destination: "destination-meaning",
+      readiness: "readiness",
+      attention: "attention-area",
+    };
+    expect(
+      moduleSections.map((s) => s.querySelector("h2")?.textContent ?? ""),
+    ).toEqual(
+      EXPECTED_MODULE_ORDER.map((id) => reportTitle(headingFor[id]).toUpperCase()),
+    );
+  });
+
+  it("destination themes render UNRANKED, in the payload's own order", () => {
+    // The spec: "All selected themes display with equal dignity. No
+    // primary/secondary ranking." A renderer that sorted, reversed, or reordered
+    // the themes would be ranking them, and a guard that only checked membership
+    // would not notice — a mutation reversing this list escaped the membership
+    // suite during visual QA, so the order is asserted here.
+    const payload = {
+      ...keySpacePayload(),
+      q16Selections: ["Q16_A", "Q16_B", "Q16_C"],
+    };
+    const container = parse(renderHtml(payload));
+    const section = sectionByHeading(
+      container,
+      reportTitle("destination-meaning").toUpperCase(),
+    )!;
+    const rendered = Array.from(section.querySelectorAll("li")).map(
       (n) => n.textContent ?? "",
     );
-    expect(renderedSections).toEqual(
-      RENDERED_SECTION_IDS.map((id) => reportTitle(id).toUpperCase()),
+
+    const expected = ["Q16_A", "Q16_B", "Q16_C"].map(
+      (code) => questionById("Q16")?.options.find((o) => o.code === code)?.label ?? "",
+    );
+    expect(expected.every((s) => s.length > 0), "fixture codes must resolve to labels").toBe(true);
+    expect(rendered, "destination themes must render in the payload's order, unranked").toEqual(
+      expected,
     );
   });
 

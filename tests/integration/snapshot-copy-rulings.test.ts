@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { readFileSync } from "node:fs";
+import { readFileSync, readdirSync } from "node:fs";
 import { resolve } from "node:path";
 
 /**
@@ -30,6 +30,28 @@ import {
 const repo = resolve(__dirname, "../..");
 const read = (p: string) => readFileSync(resolve(repo, p), "utf8");
 
+
+/**
+ * EVERY FILE IN THE WEB RENDER LAYER, concatenated.
+ *
+ * The render layer used to be one file (`components/snapshot/results-view.tsx`);
+ * it is now a directory of focused components. These source-level guards assert
+ * properties of "the render layer", so they must read the WHOLE layer — scanning
+ * only results-view.tsx would silently stop checking the other twelve files, and
+ * the guard would pass for the wrong reason. Concatenating is safe because every
+ * assertion below is a negative (must-not-contain) or a whole-layer presence
+ * check; a per-file loop would be weaker for the presence checks.
+ */
+function renderLayerSource(ext: string[] = [".tsx", ".ts"]): string {
+  const dir = resolve(repo, "components/snapshot");
+  return readdirSync(dir)
+    .filter((f) => ext.some((e) => f.endsWith(e)))
+    .sort()
+    .map((f) => readFileSync(resolve(dir, f), "utf8"))
+    .join("\n");
+}
+
+
 describe("the brand token has one canonical constant", () => {
   it("BRAND_NAME is the approved brand token", () => {
     expect(BRAND_NAME).toBe("Set for Life");
@@ -44,7 +66,10 @@ describe("the brand token has one canonical constant", () => {
   });
 
   it("the results-view footer renders the brand from the constant (not a literal)", () => {
-    const code = read("components/snapshot/results-view.tsx")
+    // The footer is now its own component; the brand must still come from the
+    // canonical constant rather than a re-typed literal, so this scans the whole
+    // render layer for the JSX interpolation.
+    const code = renderLayerSource()
       .replace(/\/\*[\s\S]*?\*\//g, "")
       .replace(/^\s*\/\/.*$/gm, "");
     expect(code).toMatch(/\{BRAND_NAME\}/);
@@ -78,7 +103,10 @@ describe("the educational disclosure is fixed-by-ruling document furniture", () 
   });
 
   it("the web results render the disclosure from the canonical source", () => {
-    const code = read("components/snapshot/results-view.tsx")
+    // Scans the whole render layer: the footer that renders the disclosure is now
+    // its own component, and the disclosure must still be interpolated from the
+    // canonical module rather than re-typed.
+    const code = renderLayerSource()
       .replace(/\/\*[\s\S]*?\*\//g, "")
       .replace(/^\s*\/\/.*$/gm, "");
     expect(code).toMatch(/\{SNAPSHOT_DISCLOSURE\}/);

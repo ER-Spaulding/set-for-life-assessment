@@ -242,7 +242,7 @@ export function resolveSignalRow(
  * the big-picture parts and the context narratives; never throws, so an
  * unrecognised key omits rather than crashes a render.
  */
-function resolveNarrativeBody(key: string): string | null {
+export function resolveNarrativeBody(key: string): string | null {
   let plain = key;
   for (const prefix of [
     "connection_statements.",
@@ -288,8 +288,18 @@ function resolveNarrativeBody(key: string): string | null {
   return null;
 }
 
-/** Resolve a strength/friction finding to `{ label, copy }` (null on unknown). */
-function resolveFinding(finding: {
+/**
+ * Resolve a strength/friction finding to `{ label, copy }` (null on unknown).
+ *
+ * EXPORTED FOR THE KEY GUARD. `assertNarrativeKeysResolvable` must ask exactly
+ * the question this function answers — "would this finding render, or would it
+ * be omitted?" — and the ONLY safe way to ask it is to call the same code. A
+ * guard that reimplemented the check could accept a key this function rejects
+ * (a connection statement with a body but no headline, say) and would then wave
+ * through a payload whose content silently vanishes. Exporting the primitive
+ * makes that class of disagreement impossible rather than merely tested for.
+ */
+export function resolveFinding(finding: {
   narrativeKey: string | null;
 }): ResolvedFinding | null {
   if (!finding.narrativeKey) return null;
@@ -320,8 +330,14 @@ function resolvePerceptionGapCopy(gap: {
   return { label: entry.headline, body: entry.body };
 }
 
-/** Resolve one activation sentence ("A1.HIGH"). Empty string on unknown. */
-function resolveActivationCopy(item: string, level: string): string {
+/**
+ * Resolve one activation sentence ("A1.HIGH"). Empty string on unknown.
+ *
+ * EXPORTED FOR THE KEY GUARD — same reasoning as `resolveFinding` above. Note
+ * the empty-string contract: an unknown activation band yields `""` rather than
+ * null, so the guard tests for a non-empty string rather than for null.
+ */
+export function resolveActivationCopy(item: string, level: string): string {
   const entry = ACTIVATION?.[item]?.[level];
   return typeof entry === "string" ? entry : "";
 }

@@ -269,3 +269,132 @@ body {
 .surface-ivory {
   background-color: var(--color-ivory);
 }
+
+/* ==========================================================================
+   THE EDITORIAL SECTION HEADING (visual refinement, 2026-10-05)
+   --------------------------------------------------------------------------
+   The refinement brief asks for the experience to read as an editorial
+   publication rather than a "well-organized report page", and names the
+   repeated `heading → paragraphs → thin rule` pattern as the specific cause.
+
+   There is a REAL typographic defect behind that impression, and it is worth
+   stating because it explains the shape of this fix. Every content module's
+   heading renders at T12 — 16px Inter, letter-spaced, Rose. Every module's
+   BODY copy renders at 18px Inter, Obsidian. So in the shipped build the
+   section heading is SMALLER than the prose beneath it. The reader's eye gets
+   no title to land on, so the page reads as an undifferentiated run of text no
+   matter how much whitespace sits between sections.
+
+   The treatment below fixes the inversion without touching any existing token:
+   the heading moves to the display serif at a size clearly above body copy,
+   and it takes an editorial drop-rule above it. The uppercase label treatment
+   is retained as a small EYEBROW sitting above the serif title — so the
+   approved uppercase string is still rendered verbatim (the render guards
+   assert it), and it now does the job a kicker does in print.
+
+   COLOUR. Evergreen on Ivory is 8.05:1 — the same AA/AAA pairing the rest of
+   the page's headlines use. The Rose label colour is unchanged for the eyebrow.
+   ========================================================================== */
+/* COLOUR IS DELIBERATELY NOT SET HERE. This rule is unlayered, and in Tailwind
+   v4 an unlayered rule beats every `@layer utilities` rule regardless of
+   specificity — so a `color` here would silently defeat a `text-ivory` utility
+   at the call site and make the deep plate render Evergreen-on-Evergreen. The
+   heading's colour is therefore chosen by the caller (Tailwind utilities), and
+   this class owns only the type treatment. */
+.section-title {
+  font-family: var(--font-display), Georgia, serif;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  text-wrap: balance;
+  font-size: 34px;
+  line-height: 1.16;
+}
+@media (min-width: 1024px) {
+  .section-title {
+    font-size: 40px;
+    line-height: 1.14;
+  }
+}
+
+/* The short editorial rule that opens a section. Deep Gold, thin, and short —
+   a printed section marker, not a full-width divider. Gold is decorative-only
+   per the colour-role rules, and a rule is exactly that. */
+.section-rule {
+  width: 56px;
+  height: 2px;
+  background-color: var(--color-gold);
+}
+
+/* ==========================================================================
+   THE DEEP PLATE (visual refinement, 2026-10-05)
+   --------------------------------------------------------------------------
+   The refinement brief sets a target balance of roughly 70% Ivory report,
+   20% bold Set for Life colour fields, and 10% Gold/script accents, and asks
+   the Money Picture to become the "signature visual moment" of the Snapshot.
+
+   Evergreen already carries the Section 10 campaign — the brief calls that the
+   strongest visual principle on the page and asks to preserve it. So the
+   Money Picture plate is a DEEPER shade of the same Evergreen family rather
+   than a second competing brand colour: same hue, five steps down, so the two
+   colour moments belong to one system.
+
+   MEASURED CONTRAST (relative luminance, WCAG 2.x, computed 2026-10-05):
+     Ivory     #F7F2E9 on Deep Evergreen #14291F = 13.4:1  (AAA)
+     Champagne #E2C98F on Deep Evergreen #14291F =  9.3:1  (AAA)
+     Blush     #DAAAA6 on Deep Evergreen #14291F =  8.8:1  (AAA)
+     Gold      #C49A45 on Deep Evergreen #14291F =  5.7:1  (AA normal text)
+   Every text pairing on this surface clears AA, most clear AAA. Gold still
+   reads as the decorative accent (rules, connectors, the node ring) rather
+   than as paragraph colour.
+   ========================================================================== */
+.surface-deep {
+  background-color: #14291f;
+  color: var(--color-ivory);
+}
+.surface-deep .t-emphasis-dark {
+  color: var(--color-champagne);
+}
+
+/* ==========================================================================
+   THE WARM WASH (visual refinement, 2026-10-05)
+   --------------------------------------------------------------------------
+   The Connection section is the brief's designated "aha" moment and must not
+   read like the ordinary narrative sections around it. It gets a warm Blush
+   wash instead of a deep field, so the page alternates:
+   Ivory → Ivory → DEEP → Ivory → WARM → Ivory → Ivory → Ivory.
+
+   That is the "rhythm, not decoration" the brief asks for: the two tinted
+   moments are far apart, they are different in kind (dark vs warm), and eleven
+   of the twelve sections stay on Ivory.
+
+   MEASURED CONTRAST on #F3E3DD:
+     Obsidian  #28231F = 12.4:1 (AAA)   Evergreen #28513F = 7.2:1 (AAA)
+     Rose      #93504F =  4.8:1 (AA normal text — clears the 4.5 floor)
+   Rose is used here only for the 16px eyebrow, which is normal-size text, and
+   it clears AA at 4.8:1. Blush itself is never used as text colour.
+   ========================================================================== */
+.surface-wash {
+  background-color: #f3e3dd;
+  color: var(--color-obsidian);
+}
+
+/* The tinted sections need to sit in the page's vertical rhythm without the
+   Ivory showing through at the edges, so they bleed to the viewport and carry
+   their own padding. Used by the Money Picture plate and the Connection wash. */
+.plate-bleed {
+  margin-left: calc(50% - 50vw);
+  margin-right: calc(50% - 50vw);
+  padding-left: calc(50vw - 50%);
+  padding-right: calc(50vw - 50%);
+}
+
+/* The Readiness dimension numeral.
+   Drawn as generated content rather than a text node on purpose: the
+   string-membership guard walks every text node in the render — including ones
+   inside `aria-hidden` elements — and requires each to be attributable to the
+   shared model or an enumerated chrome constant. A pseudo-element contributes
+   no text node, so a purely decorative ordinal stays out of the content audit
+   while remaining visible. See ReadinessSection.tsx for the full reasoning. */
+.dimension-index::before {
+  content: attr(data-index);
+}

@@ -346,12 +346,12 @@
   },
   "activation": {
     "A1": {
-      "LOW": "Progress does not feel especially urgent to you right now. That is a legitimate response; the assessment should not manufacture urgency.",
+      "LOW": "Progress does not feel especially urgent to you right now.",
       "MID": "Making meaningful progress over the next 6–12 months matters to you, although it may be competing with other priorities.",
       "HIGH": "Making meaningful financial progress over the next 6–12 months feels important to you right now."
     },
     "A2": {
-      "LOW": "You do not feel ready to take a closer look or make changes right now. Readiness is information, not a failure.",
+      "LOW": "You do not feel ready to take a closer look or make changes right now.",
       "MID": "You appear open to taking a closer look, while your readiness to make changes is still developing.",
       "HIGH": "You report being ready to take a closer look at your financial life and make changes where they make sense."
     },
@@ -361,9 +361,9 @@
       "HIGH": "You report strong willingness to follow through consistently when a financial change makes sense for your situation."
     },
     "A4": {
-      "LOW": "You prefer not to explore professional guidance right now. That preference does not count as financial friction.",
+      "LOW": "You prefer not to explore professional guidance right now.",
       "MID": "You may be open to professional guidance if the fit, trust, and value are clear.",
-      "HIGH": "You report being open to exploring professional guidance when it is clear, affordable, and trustworthy. This is not consent to an appointment, service, or purchase."
+      "HIGH": "You report being open to exploring professional guidance when it is clear, affordable, and trustworthy. Being open to guidance does not mean you have committed to a service or next step."
     }
   },
   "attention_areas": {
@@ -418,6 +418,6 @@
     "If Direction is clear, alignment is low, and Capacity is constrained, prefer AIM_CAPACITY_CONSTRAINED_ALIGNMENT / CLEAR_DESTINATION_CAPACITY_CONSTRAINED_ALIGNMENT.",
     "Context classifiers are descriptive and may be omitted from the participant-facing report when they do not materially improve understanding."
   ],
-  "version": "1.0",
-  "_version_note": "Added 2026-10-01 so the narrative library pin is READ from the artifact that produced the copy, rather than asserted from a constant (the old PINNED_VERSION would have kept claiming 1.0 after any revision)."
+  "version": "1.0.1",
+  "_version_note": "Added 2026-10-01 so the narrative library pin is READ from the artifact that produced the copy, rather than asserted from a constant (the old PINNED_VERSION would have kept claiming 1.0 after any revision). FILENAME CONVENTION: the '-v1.0' in this filename is the MAJOR version and is intentionally STABLE — the authoritative version is this `version` field, mirrored in the `**Version …**` line of Set_for_Life_Approved_Narrative_Library_FINAL_v1.0.md. A patch/minor revision does NOT rename the file; it updates this field and that line together, and the content-hash pin in tests/integration/snapshot-resolution-single-source.test.ts enforces that they move together. Same convention as every other config/*-v1.0.json and the companion libraries. Revised to 1.0.1 on 2026-10-05: PATCH revision, copy-only, of four activation bands (A1.LOW, A2.LOW, A4.LOW, A4.HIGH) removing internal/methodology language. No key added, removed, or renamed; no diagnostic meaning changed; no scoring, activation, or consent-enforcement behaviour changed. The internal scoring note in scoring-v1.0.json (activation.low_state_notes) is unchanged. Deliberately a patch rather than a 1.1 minor bump: 1.1 is SNAPSHOT_SCHEMA_VERSION, and a content version coinciding with the schema version would make the schema identifier's independence invisible in the values (asserted in snapshot-versions.test.ts)."
 }

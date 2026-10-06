@@ -3,15 +3,30 @@
 // SERVER-SIDE PRESENTATION ONLY. This component receives the SHARED
 // content/section model (`SnapshotSection[]`, produced by
 // `resolveSnapshotContent(payload)` in lib/render/snapshot-sections.ts from the
-// stored immutable Snapshot payload) and renders it. It does NO resolution of
-// its own: every NARRATIVE string and every module's existence and heading
-// arrive already decided in the shared model, and this file contains no scoring,
-// no interpretation, no key→copy lookup of narrative copy. Its only job is to
-// lay out the shared model's blocks in the approved module order, applying the
-// web medium's typography.
+// stored immutable Snapshot payload) and arranges it into the twelve sections of
+// the approved visual design. It does NO resolution of its own: every NARRATIVE
+// string and every module's existence and heading arrive already decided in the
+// shared model, and this file contains no scoring, no interpretation, no key→copy
+// lookup of narrative copy.
+//
+// DECOMPOSED, NOT REWRITTEN. The former single-file renderer held all eight
+// modules inline. Each module now lives in its own component under
+// `components/snapshot/` (SnapshotHero, BigPictureSection, MoneyPictureSection,
+// StrengthsSection, FrictionSection, ConnectionSection, DestinationSection,
+// ReadinessSection, AttentionSection, ContinuationCTA, SnapshotDownload,
+// SnapshotFooter, plus the shared SnapshotSection frame). This file is the
+// COMPOSITION: it picks the module for each section id, in the model's order,
+// and passes the shared frame the page's own chrome.
+//
+// WHY THE DECOMPOSITION IS SAFE. The guards that bind this surface are
+// behavioural — they render this component and walk the output — so they test
+// the COMPOSITION, not the file layout. The one rule that follows the file
+// boundary is the legacy-resolver import ban, which applies to every file in
+// `components/snapshot/`, and every new module satisfies it: none imports a
+// resolver, and all copy reaches them through props or a canonical constant.
 //
 // THE SHARED MODEL IS THE CLIENT BOUNDARY. This component and everything below
-// it are server-rendered: the only thing that reaches the browser is the
+// it are server-rendered: the only thing that reaches the browser is
 // participant-facing HTML. Internal fields — `state`, `specialState`,
 // `displayState`, `evidence`, `openingB`, `moveSubsignals`, `classifierTags`,
 // tension codes, signal codes — never appear here and never serialize. The
@@ -22,30 +37,40 @@
 //   - the eight content SECTION HEADINGS resolve in the SHARED model
 //     (lib/render/snapshot-sections.ts) from config/report-v1.0.json screens[] —
 //     this file renders `section.heading` verbatim, never re-authoring a title.
-//   - the cover kicker/lead and the continuation options still resolve here from
-//     config/report-v1.0.json (web-only chrome with no PDF counterpart to drift
-//     against).
+//   - the cover title/lead come from the report config's cover screen; the hero
+//     reads them, and NOTHING here re-types the approved strings.
 //   - NARRATIVE copy (signal states, connection statements, attention areas,
 //     activation) arrives already resolved inside the shared model's blocks.
-//   - the four ACTIVATION DIMENSION LABELS (Urgency / Readiness / Commitment /
-//     Support Readiness) arrive inside the shared model's `activation` blocks —
-//     this file holds NO label map of its own.
+//   - WEB chrome the page owns (hero conceptual line + cue, section intros, the
+//     Section 11 block) lives in lib/ui/snapshot-web-copy.ts.
+//   - the Section 10 campaign lives in lib/ui/snapshot-campaign.ts.
 //   - the educational DISCLOSURE and the PDF cover/footer copy live in
 //     lib/ui/snapshot-doc-copy.ts (fixed-by-ruling document furniture).
 //   - the download CTA label lives in lib/ui/snapshot-copy.ts.
-//   - the standalone brand mark consumes lib/brand.ts BRAND_NAME.
+//   - the brand name and the official logo live in lib/brand.ts.
 
 import type { SnapshotSection } from "@/lib/render/snapshot-sections";
 import reportConfig from "@/config/report-v1.0.json";
-import { BRAND_NAME } from "@/lib/brand";
-import { SNAPSHOT_DISCLOSURE } from "@/lib/ui/snapshot-doc-copy";
-import { DownloadButton } from "./DownloadButton";
+import type { HeroVariant } from "@/lib/ui/snapshot-hero";
+import { SnapshotHero } from "./SnapshotHero";
+import { BigPictureSection } from "./BigPictureSection";
+import { MoneyPictureSection } from "./MoneyPictureSection";
+import { StrengthsSection } from "./StrengthsSection";
+import { FrictionSection } from "./FrictionSection";
+import { ConnectionSection } from "./ConnectionSection";
+import { DestinationSection } from "./DestinationSection";
+import { ReadinessSection } from "./ReadinessSection";
+import { AttentionSection } from "./AttentionSection";
+import { ActionTransition } from "./ActionTransition";
+import { ContinuationCTA } from "./ContinuationCTA";
+import { SnapshotDownload } from "./SnapshotDownload";
+import { SnapshotFooter } from "./SnapshotFooter";
+import { Shell } from "./SnapshotSection";
 
 interface ReportScreen {
   id: string;
   title: string;
   lead?: string;
-  continuation_options?: Array<{ code: string; label: string }>;
 }
 
 const SCREENS = reportConfig.screens as unknown as ReportScreen[];
@@ -58,337 +83,102 @@ function screenTitle(id: string): string {
 /** The cover lead (owner ruling 2), from the report config cover screen. */
 const COVER_LEAD = SCREENS.find((screen) => screen.id === "cover")?.lead ?? "";
 
-/** Module 13 — the approved continuation paths, from the report config. */
-const CONTINUATION_OPTIONS =
-  SCREENS.find((screen) => screen.id === "continuation")?.continuation_options ?? [];
+/** The hero's target: the first content section on the page. */
+const FIRST_SECTION_HREF = "#big-picture";
 
 export function SnapshotResults({
   sections,
   sessionId,
+  heroVariant = "neutral",
+  firstName = null,
 }: {
   sections: SnapshotSection[];
   sessionId?: string;
+  /**
+   * The Section 1 image variant, resolved SERVER-SIDE from the participant's
+   * explicit demographic response (lib/ui/snapshot-hero.server.ts). It defaults
+   * to the neutral hero so every existing caller — including the render guards,
+   * which construct this component directly — renders a complete, valid page
+   * without having to know about hero selection at all.
+   */
+  heroVariant?: HeroVariant;
+  /** The VERIFIED first name, or null. Omitting it drops the personalization
+   *  line rather than substituting a placeholder. */
+  firstName?: string | null;
 }) {
+  const byId = (id: SnapshotSection["id"]) => sections.find((s) => s.id === id);
+
   return (
     <Shell>
-      {/* S12 — cover / big picture. §14: oversized editorial declaration. */}
-      <header className="mb-20">
-        <p
-          className="font-body text-rose"
-          style={{ fontSize: "16px", lineHeight: "24px", letterSpacing: "0.08em" }}
-        >
-          {screenTitle("cover")}
-        </p>
-        <h1
-          className="mt-6 font-display text-evergreen"
-          style={{ fontSize: "var(--type-t01-size)", lineHeight: "var(--type-t01-line)" }}
-        >
-          {COVER_LEAD}
-        </h1>
-      </header>
+      {/* SECTION 1 — the hero. §14: oversized editorial declaration. */}
+      <SnapshotHero
+        eyebrow={screenTitle("cover")}
+        lead={COVER_LEAD}
+        variant={heroVariant}
+        firstName={firstName}
+        transitionHref={FIRST_SECTION_HREF}
+      />
 
+      {/* SECTIONS 2–9 — the content modules, each rendering only when the shared
+          model emitted it, in the model's report-config order. */}
       {sections.map((section) => {
-        if (section.id === "big-picture") {
-          return (
-            <Section key={section.id} title={section.heading}>
-              <div className="flex flex-col gap-6">
-                {section.blocks.map((block, i) => (
-                  <p
-                    key={i}
-                    className="prose-measure font-body text-obsidian"
-                    style={{ fontSize: "18px", lineHeight: "29px" }}
-                  >
-                    {block.body}
-                  </p>
-                ))}
-              </div>
-            </Section>
-          );
+        switch (section.id) {
+          case "big-picture":
+            return <BigPictureSection key={section.id} section={section} />;
+          case "money-picture":
+            return <MoneyPictureSection key={section.id} section={section} />;
+          case "strengths":
+            return <StrengthsSection key={section.id} section={section} />;
+          case "friction":
+            return <FrictionSection key={section.id} section={section} />;
+          case "connection":
+            return <ConnectionSection key={section.id} section={section} />;
+          case "destination":
+            return <DestinationSection key={section.id} section={section} />;
+          case "readiness":
+            return <ReadinessSection key={section.id} section={section} />;
+          case "attention":
+            return <AttentionSection key={section.id} section={section} />;
+          default:
+            return null;
         }
-
-        if (section.id === "money-picture") {
-          return (
-            <Section key={section.id} title={section.heading}>
-              <div className="flex flex-col gap-16">
-                {section.blocks.map((block, i) => (
-                  <article key={i}>
-                    <p
-                      className="font-body text-rose"
-                      style={{ fontSize: "16px", lineHeight: "24px", letterSpacing: "0.08em" }}
-                    >
-                      {block.kicker}
-                    </p>
-                    <h3
-                      className="mt-3 font-serif text-evergreen"
-                      style={{
-                        fontSize: "var(--type-t10-size)",
-                        lineHeight: "var(--type-t10-line)",
-                      }}
-                    >
-                      {block.label}
-                    </h3>
-                    <p
-                      className="prose-measure mt-4 font-body text-obsidian"
-                      style={{ fontSize: "18px", lineHeight: "29px" }}
-                    >
-                      {block.body}
-                    </p>
-                  </article>
-                ))}
-              </div>
-            </Section>
-          );
-        }
-
-        if (section.id === "strengths") {
-          return (
-            <Section key={section.id} title={section.heading}>
-              <div className="flex flex-col gap-14">
-                {section.blocks.map((block, i) => (
-                  <article key={i}>
-                    <h3
-                      className="font-display text-evergreen"
-                      style={{
-                        fontSize: "var(--type-t04-size)",
-                        lineHeight: "var(--type-t04-line)",
-                      }}
-                    >
-                      {block.label}
-                    </h3>
-                    <p
-                      className="prose-measure mt-5 font-body text-obsidian"
-                      style={{ fontSize: "18px", lineHeight: "29px" }}
-                    >
-                      {block.body}
-                    </p>
-                  </article>
-                ))}
-              </div>
-            </Section>
-          );
-        }
-
-        if (section.id === "friction") {
-          return (
-            <Section key={section.id} title={section.heading}>
-              <div className="flex flex-col gap-14">
-                {section.blocks.map((block, i) => (
-                  <article key={i}>
-                    <h3
-                      className="font-display text-terracotta"
-                      style={{
-                        fontSize: "var(--type-t04-size)",
-                        lineHeight: "var(--type-t04-line)",
-                      }}
-                    >
-                      {block.label}
-                    </h3>
-                    <p
-                      className="prose-measure mt-5 font-body text-obsidian"
-                      style={{ fontSize: "18px", lineHeight: "29px" }}
-                    >
-                      {block.body}
-                    </p>
-                  </article>
-                ))}
-              </div>
-            </Section>
-          );
-        }
-
-        if (section.id === "connection") {
-          return (
-            <Section key={section.id} title={section.heading}>
-              <div className="flex flex-col gap-14">
-                {section.blocks.map((block, i) => (
-                  <article key={i}>
-                    <h3
-                      className="font-display text-terracotta"
-                      style={{
-                        fontSize: "var(--type-t04-size)",
-                        lineHeight: "var(--type-t04-line)",
-                      }}
-                    >
-                      {block.label}
-                    </h3>
-                    <p
-                      className="prose-measure mt-5 font-body text-obsidian"
-                      style={{ fontSize: "18px", lineHeight: "29px" }}
-                    >
-                      {block.body}
-                    </p>
-                  </article>
-                ))}
-              </div>
-            </Section>
-          );
-        }
-
-        if (section.id === "destination") {
-          return (
-            <Section key={section.id} title={section.heading}>
-              <ul className="flex flex-col gap-4">
-                {section.blocks.map((block, i) => (
-                  <li
-                    key={i}
-                    className="font-body text-obsidian"
-                    style={{ fontSize: "18px", lineHeight: "29px" }}
-                  >
-                    {block.body}
-                  </li>
-                ))}
-              </ul>
-            </Section>
-          );
-        }
-
-        if (section.id === "readiness") {
-          return (
-            <Section key={section.id} title={section.heading}>
-              <div className="flex flex-col gap-14">
-                {section.blocks.map((block, i) => (
-                  <article key={i}>
-                    <h3
-                      className="font-serif text-evergreen"
-                      style={{
-                        fontSize: "var(--type-t10-size)",
-                        lineHeight: "var(--type-t10-line)",
-                      }}
-                    >
-                      {block.label}
-                    </h3>
-                    <p
-                      className="prose-measure mt-4 font-body text-obsidian"
-                      style={{ fontSize: "18px", lineHeight: "29px" }}
-                    >
-                      {block.body}
-                    </p>
-                  </article>
-                ))}
-              </div>
-            </Section>
-          );
-        }
-
-        // attention — primary area with visual priority, optional subordinate
-        // secondary (variant marks the resolver's selection; the heading level is
-        // the only layout difference).
-        const primary = section.blocks.find((block) => block.variant === "primary");
-        const secondary = section.blocks.find((block) => block.variant === "secondary");
-        return (
-          <Section key={section.id} title={section.heading}>
-            {primary ? (
-              <>
-                <h3
-                  className="font-display text-evergreen"
-                  style={{
-                    fontSize: "var(--type-t02-size)",
-                    lineHeight: "var(--type-t02-line)",
-                  }}
-                >
-                  {primary.label}
-                </h3>
-                <p
-                  className="prose-measure mt-6 font-body text-obsidian"
-                  style={{ fontSize: "18px", lineHeight: "29px" }}
-                >
-                  {primary.body}
-                </p>
-              </>
-            ) : null}
-            {secondary ? (
-              <div className="mt-12">
-                <h4
-                  className="font-serif text-evergreen"
-                  style={{
-                    fontSize: "var(--type-t10-size)",
-                    lineHeight: "var(--type-t10-line)",
-                  }}
-                >
-                  {secondary.label}
-                </h4>
-                <p
-                  className="prose-measure mt-3 font-body text-obsidian"
-                  style={{ fontSize: "18px", lineHeight: "29px" }}
-                >
-                  {secondary.body}
-                </p>
-              </div>
-            ) : null}
-          </Section>
-        );
       })}
 
-      {/* Module 12 — the signed PDF download affordance (approved CTA label). */}
-      {sessionId ? <DownloadButton sessionId={sessionId} /> : null}
+      {/* THE EDITORIAL PAUSE — the seam between the last interpretation module
+          and the continuation campaign. New in the visual refinement; carries a
+          DRAFT statement and no participant data. */}
+      <ActionTransition />
 
-      {/* Module 13 — You Decide What Happens Next. Wired from the approved
-          report config (id "continuation"); no invented language. */}
-      {CONTINUATION_OPTIONS.length > 0 ? (
-        <Section title={screenTitle("continuation")}>
-          <ul className="flex flex-col gap-4">
-            {CONTINUATION_OPTIONS.map((option) => (
-              <li
-                key={option.code}
-                className="font-body text-obsidian"
-                style={{ fontSize: "18px", lineHeight: "29px" }}
-              >
-                {option.label}
-              </li>
-            ))}
-          </ul>
-        </Section>
-      ) : null}
+      {/* SECTION 10 — the configurable next-step campaign. */}
+      <ContinuationCTA />
 
-      <footer className="mt-24">
-        <p
-          className="font-script text-rose"
-          style={{ fontSize: "var(--type-t15-size)", lineHeight: "var(--type-t15-line)" }}
-        >
-          {BRAND_NAME}
-        </p>
-      </footer>
+      {/* SECTION 11 — keep the results. Rendered AFTER the campaign because the
+          section numbering is the owner's approved order (§10 then §11). This
+          ordering does NOT gate the download: the button performs its own POST
+          and reads no state from the campaign above it. */}
+      {sessionId ? <SnapshotDownload sessionId={sessionId} /> : null}
 
-      {/* Module 14 — the approved educational disclosure, rendered on the web
-          results and in the PDF from the same single source in
-          lib/ui/snapshot-doc-copy.ts. */}
-      <p
-        className="prose-measure mt-10 font-body text-obsidian"
-        style={{ fontSize: "13px", lineHeight: "20px" }}
-      >
-        {SNAPSHOT_DISCLOSURE}
-      </p>
+      {/* ⛔ THE "YOU DECIDE WHAT HAPPENS NEXT." BLOCK WAS REMOVED HERE ON THE
+          OWNER'S INSTRUCTION (visual refinement, 2026-10-05). The directive:
+          "Remove its options such as Keep Learning / Look Closer at My
+          Financial Picture / Explore Ways to Create More Income / Not Right
+          Now ... This was not part of the approved Snapshot architecture and
+          dilutes the primary continuation path." The page now ends
+          CTA → Download → Footer.
+
+          The component file is KEPT in the tree, unrendered, rather than
+          deleted: its `continuation_options` entries are still present in
+          config/report-v1.0.json (a locked copy library this phase must not
+          edit), and restoring the block is one line. Its header comment — which
+          argued for retaining the non-promotional paths, including "Not Right
+          Now" — is retained as the record of the tradeoff the owner has now
+          decided. No automated test asserts this block either way. */}
+      {/* <ContinuationOptions /> */}
+
+      {/* SECTION 12 — the logo and the approved disclosure. No CTA after it. */}
+      <SnapshotFooter />
     </Shell>
   );
 }
 
-/** Shared page frame: ivory surface, 1080px max, generous vertical rhythm. */
-export function Shell({ children }: { children: React.ReactNode }) {
-  return (
-    <main className="surface-ivory min-h-screen w-full px-6 py-16 sm:px-10 lg:px-16">
-      <div className="mx-auto w-full max-w-[1080px]">{children}</div>
-    </main>
-  );
-}
-
-/** A titled section. Thin warm rule above the heading, per §14. */
-function Section({
-  title,
-  children,
-}: {
-  title: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <section className="mt-20">
-      <div className="border-t border-blush pt-8" aria-hidden="true" />
-      <h2
-        className="mb-10 font-body text-rose"
-        style={{ fontSize: "16px", lineHeight: "24px", letterSpacing: "0.08em" }}
-      >
-        {title.toUpperCase()}
-      </h2>
-      {children}
-    </section>
-  );
-}
+export { Shell } from "./SnapshotSection";

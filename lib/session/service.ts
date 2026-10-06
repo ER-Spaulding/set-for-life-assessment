@@ -48,6 +48,7 @@ import {
   type SnapshotPayload,
 } from "../assessment/snapshot-payload";
 import { resolveSnapshotVersions, assertSupportedSchema } from "../assessment/versions";
+import { assertNarrativeKeysResolvable } from "../render/narrative-key-guard";
 import { mayProduceSnapshot, snapshotRefusalReason } from "./lifecycle";
 import type {
   EvidenceConfidence,
@@ -752,48 +753,72 @@ export async function completeSession(sessionId: string): Promise<CompletionResu
     ]),
   ) as AssembleInput["signals"];
 
-  const payload = assembleSnapshotPayload({
-    versions: {
-      assessment: snapshotVersions.instrumentVersion,
-      questionBank: snapshotVersions.instrumentVersion,
-      scoring: snapshotVersions.scoringEngineVersion,
-      narrative: snapshotVersions.narrativeLibraryVersion,
-      report: reportVersion(),
-      // §3.1: read from the interstitial config, so a Money Moment or reveal
-      // revision moves this pin with it rather than needing a code edit.
-      interstitial: interstitialVersion(),
-      // The four identifiers the operator required, recorded explicitly so a
-      // reader can find them without knowing which legacy key maps to which.
-      instrument: snapshotVersions.instrumentVersion,
-      scoringEngine: snapshotVersions.scoringEngineVersion,
-      narrativeLibrary: snapshotVersions.narrativeLibraryVersion,
-      snapshotSchema: snapshotVersions.snapshotSchemaVersion,
-    },
-    signals: payloadSignals,
-    tensionCodes,
-    classifierTags: Object.values(tags).flat(),
-    activationSelections: {
-      A1: letterOf(codesFor("A1")[0] ?? ""),
-      A2: letterOf(codesFor("A2")[0] ?? ""),
-      A3: letterOf(codesFor("A3")[0] ?? ""),
-      A4: letterOf(codesFor("A4")[0] ?? ""),
-    },
-    openingB: items["OPEN_B"] ?? null,
-    q16Selections: codesFor("Q16"),
-    signalMeans: Object.fromEntries(
-      (Object.keys(scored.signals) as SignalId[]).map((s) => [
-        s,
-        scored.signals[s].value ?? 0,
-      ]),
-    ),
-    perceptionGapConfig: (cfg as Record<string, unknown>)["perception_gap"],
-    // Same config, same pass-through as the perception-gap block above: the
-    // assembler resolves activation levels from the config's bands rather than
-    // from a hardcoded copy.
-    activationLevelBands: (cfg as { activation?: { level_bands?: Record<string, unknown> } })
-      .activation?.level_bands,
-    moveSubsignals: scored.moveSubsignals as unknown as Record<string, number | null>,
-  });
+  // ── THE NARRATIVE-KEY GUARD (hardening 2026-10-05) ────────────────────────
+  //
+  // `assertNarrativeKeysResolvable` wraps the assembler call, so every key this
+  // payload asks the renderer to resolve is checked against the pinned
+  // narrative config BEFORE the atomic boundary — and therefore before the row
+  // exists. A key that does not resolve THROWS.
+  //
+  // WHY HERE AND NOT IN THE RESOLVER. The resolver is fail-soft by contract: it
+  // OMITS an unresolvable key, which is right for a HISTORICAL Snapshot (an
+  // immutable row must keep rendering after a config revision retires a key)
+  // and wrong for a NEW one. A new payload with a stale key would be persisted
+  // permanently — `snapshots` refuses every UPDATE (trg_snapshots_append_only) —
+  // and would render as a shorter, still-plausible report with nothing anywhere
+  // to say content was lost. Failing here costs a 500 in development and
+  // staging; failing to fail costs a silently incomplete participant report
+  // that cannot be corrected.
+  //
+  // ITS SCOPE IS THE KEY SPACE ONLY. It reads the finished payload and the
+  // narrative config and nothing else — no scoring, tension, classifier, or
+  // ordering code — so it cannot recompute, re-select, or disagree with how the
+  // payload was produced. A payload that fails here is one whose content is
+  // correct and whose keys are stale.
+  const payload = assertNarrativeKeysResolvable(
+    assembleSnapshotPayload({
+      versions: {
+        assessment: snapshotVersions.instrumentVersion,
+        questionBank: snapshotVersions.instrumentVersion,
+        scoring: snapshotVersions.scoringEngineVersion,
+        narrative: snapshotVersions.narrativeLibraryVersion,
+        report: reportVersion(),
+        // §3.1: read from the interstitial config, so a Money Moment or reveal
+        // revision moves this pin with it rather than needing a code edit.
+        interstitial: interstitialVersion(),
+        // The four identifiers the operator required, recorded explicitly so a
+        // reader can find them without knowing which legacy key maps to which.
+        instrument: snapshotVersions.instrumentVersion,
+        scoringEngine: snapshotVersions.scoringEngineVersion,
+        narrativeLibrary: snapshotVersions.narrativeLibraryVersion,
+        snapshotSchema: snapshotVersions.snapshotSchemaVersion,
+      },
+      signals: payloadSignals,
+      tensionCodes,
+      classifierTags: Object.values(tags).flat(),
+      activationSelections: {
+        A1: letterOf(codesFor("A1")[0] ?? ""),
+        A2: letterOf(codesFor("A2")[0] ?? ""),
+        A3: letterOf(codesFor("A3")[0] ?? ""),
+        A4: letterOf(codesFor("A4")[0] ?? ""),
+      },
+      openingB: items["OPEN_B"] ?? null,
+      q16Selections: codesFor("Q16"),
+      signalMeans: Object.fromEntries(
+        (Object.keys(scored.signals) as SignalId[]).map((s) => [
+          s,
+          scored.signals[s].value ?? 0,
+        ]),
+      ),
+      perceptionGapConfig: (cfg as Record<string, unknown>)["perception_gap"],
+      // Same config, same pass-through as the perception-gap block above: the
+      // assembler resolves activation levels from the config's bands rather than
+      // from a hardcoded copy.
+      activationLevelBands: (cfg as { activation?: { level_bands?: Record<string, unknown> } })
+        .activation?.level_bands,
+      moveSubsignals: scored.moveSubsignals as unknown as Record<string, number | null>,
+    }),
+  );
 
   const snapshotRow = {
     report_version: reportVersion(),

@@ -1,0 +1,170 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Set for Life Financial Snapshot — Wireframe Prototype v1</title>
+<style>
+:root{
+  --evergreen:#28513F;--gold:#C49A45;--champagne:#E2C98F;--ivory:#F7F2E9;
+  --rose:#93504F;--blush:#DAAAA6;--obsidian:#28231F;--paper:#fffdf9;
+  --ink2:#6a655f;--wire:#9e978e;--soft:#eee8df;--note:#fff7df;
+  --max:1240px;--radius:14px;
+}
+*{box-sizing:border-box}html{scroll-behavior:smooth}body{margin:0;background:#e8e2d9;color:var(--obsidian);font-family:Inter,Arial,sans-serif;line-height:1.45}
+button,select,input{font:inherit}
+.wf-toolbar{position:sticky;top:0;z-index:50;background:rgba(40,81,63,.97);color:white;border-bottom:3px solid var(--gold);box-shadow:0 6px 16px rgba(0,0,0,.15)}
+.wf-toolbar-inner{max-width:var(--max);margin:auto;padding:12px 20px;display:flex;gap:14px;align-items:center;flex-wrap:wrap}
+.wf-toolbar strong{font-family:Georgia,serif;font-size:18px;margin-right:auto}.control{display:flex;gap:6px;align-items:center;font-size:12px}.control label{opacity:.8}.control select,.control button{border:1px solid rgba(255,255,255,.35);background:#fff;color:#222;padding:7px 9px;border-radius:7px}.control button{cursor:pointer}
+.legend{max-width:var(--max);margin:18px auto 0;background:#fff;padding:14px 18px;border-radius:12px;border:1px solid #d9d2c9;display:flex;gap:20px;flex-wrap:wrap;font-size:12px}.legend b{color:var(--evergreen)}
+.swatch{display:inline-block;width:28px;height:16px;vertical-align:middle;margin-right:6px;border:2px dashed var(--wire);background:#faf8f3}.swatch.visual{background:repeating-linear-gradient(135deg,#f4efe7,#f4efe7 7px,#e5ded3 7px,#e5ded3 14px)}.swatch.dynamic{background:#fff7df}.swatch.fixed{background:#e6efe9}
+.prototype{max-width:var(--max);margin:18px auto 60px;background:var(--paper);box-shadow:0 18px 44px rgba(48,40,32,.17)}
+.section{padding:76px 70px;border-bottom:1px solid #ddd5ca;position:relative}.section-grid{display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:36px;align-items:start}.content{min-width:0}.spec-panel{position:sticky;top:92px;background:#fbf8f3;border:1px solid #d8d0c4;padding:16px;border-radius:12px;font-size:12px;color:#4d4945}.spec-panel h4{margin:0 0 9px;color:var(--rose);letter-spacing:.08em;text-transform:uppercase;font-size:11px}.spec-panel dl{margin:0}.spec-panel dt{font-weight:700;color:var(--evergreen);margin-top:10px}.spec-panel dd{margin:3px 0 0}.section-kicker{color:var(--rose);font-size:13px;font-weight:800;letter-spacing:.14em;text-transform:uppercase}.section h1,.section h2,.section h3{font-family:Georgia,'Times New Roman',serif;color:var(--evergreen);line-height:1.05}.section h1{font-size:clamp(42px,5vw,72px);margin:.2em 0}.section h2{font-size:clamp(30px,4vw,50px);margin:.25em 0 .6em}.section h3{font-size:24px;margin:.25em 0}.sublead{max-width:720px;color:#57524c;font-size:18px}.wirebox{border:2px dashed var(--wire);background:#fbf9f5;border-radius:var(--radius);padding:22px;position:relative}.wirebox::before{content:attr(data-wf);position:absolute;top:-10px;left:14px;background:var(--paper);padding:1px 7px;color:var(--rose);font-size:10px;font-weight:800;letter-spacing:.09em}.dynamic-slot{background:var(--note);border:1px dashed #c8ac62;padding:10px 12px;border-radius:7px}.fixed-slot{background:#e8f0ea;border:1px solid #b5c8bb;padding:10px 12px;border-radius:7px}.meta{font-size:11px;color:#6d655c;margin-top:7px}.placeholder{background:repeating-linear-gradient(135deg,#f5f1eb,#f5f1eb 10px,#e4ded6 10px,#e4ded6 20px);border:2px dashed #958d83;color:#5d5650;display:flex;align-items:center;justify-content:center;text-align:center;font-weight:800;letter-spacing:.04em;min-height:220px;padding:20px;border-radius:10px}.hero-layout{display:grid;grid-template-columns:1.08fr .92fr;gap:44px;align-items:center;min-height:650px}.hero-img{aspect-ratio:4/5;min-height:0}.hero-copy .prepared{margin:24px 0 4px}.scroll-cue{margin-top:30px;font-size:12px;font-weight:800;letter-spacing:.12em;color:var(--evergreen)}
+.big-summary{display:grid;gap:20px}.two-col{display:grid;grid-template-columns:1fr 1fr;gap:20px}.summary-list{padding:0;margin:10px 0 0;list-style:none}.summary-list li{margin:8px 0;padding-left:18px;position:relative}.summary-list li::before{content:'•';position:absolute;left:0;color:var(--gold);font-weight:900}.abstract-strip{min-height:230px}.worth{border-left:6px solid var(--gold);padding-left:24px}
+.money-map{display:grid;grid-template-columns:1fr 1fr 1fr;grid-template-rows:auto auto auto;gap:18px;align-items:center;margin:30px 0}.node{text-align:center;min-height:115px;display:flex;flex-direction:column;justify-content:center}.node .state{font-family:Georgia,serif;color:var(--evergreen);font-size:18px}.you-node{width:170px;height:170px;border-radius:50%;margin:auto;display:flex;align-items:center;justify-content:center;font-family:Georgia,serif;font-size:34px;color:var(--evergreen);background:#efe7d8;border:2px dashed var(--gold)}.n1{grid-column:2}.n4{grid-column:1;grid-row:2}.you{grid-column:2;grid-row:2}.n2{grid-column:3;grid-row:2}.n5{grid-column:1;grid-row:3}.n6{grid-column:2;grid-row:3}.n3{grid-column:3;grid-row:3}.dimension-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}.dim-card{min-height:180px}.num{font-size:11px;color:var(--rose);font-weight:800;letter-spacing:.14em}.label-placeholder{font-family:Georgia,serif;font-size:20px;color:var(--evergreen);margin:7px 0}.cards{display:grid;gap:18px}.cards.one{grid-template-columns:1fr}.cards.two{grid-template-columns:repeat(2,1fr)}.cards.three{grid-template-columns:repeat(3,1fr)}.strength-card,.friction-card{min-height:220px}.featured{max-width:900px;margin:auto}.friction-three{grid-template-columns:1fr}.friction-three .friction-card{min-height:140px}.relationship{display:grid;grid-template-columns:1fr 120px 1fr;gap:18px;align-items:center}.rel-line{height:2px;border-top:2px dashed var(--gold);position:relative}.rel-line::after{content:'↘';position:absolute;left:47%;top:8px;color:var(--gold);font-size:24px}.connection-result{max-width:720px;margin:24px auto 0}.themes{display:grid;grid-template-columns:repeat(2,1fr);gap:16px}.theme{min-height:140px;display:flex;align-items:center;justify-content:center;text-align:center;font-family:Georgia,serif;font-size:22px;color:var(--evergreen)}.readiness{display:grid;grid-template-columns:repeat(4,1fr);gap:0;border-top:1px solid #bfb7ad;border-bottom:1px solid #bfb7ad}.ready-item{padding:24px;border-right:1px solid #bfb7ad;min-height:240px}.ready-item:last-child{border-right:0}.indicator{height:70px;width:2px;background:#c8b998;margin:16px 0;position:relative}.indicator::after{content:'';position:absolute;width:12px;height:12px;border-radius:50%;background:var(--gold);left:-5px;top:28px}.spotlight{max-width:800px;margin:30px auto;padding:44px;text-align:center;background:radial-gradient(circle at center,#fff 0,#fff9e8 35%,#f3eee7 72%);border:2px dashed var(--gold)}.secondary{margin:24px auto 0;max-width:800px;border-top:1px solid #c9c0b5;padding-top:18px}.cta{background:var(--evergreen);color:var(--ivory);padding:82px 70px}.cta .section-grid{grid-template-columns:minmax(0,1fr) 300px}.cta h2,.cta h3{color:var(--ivory)}.cta .section-kicker{color:var(--champagne)}.cta .sublead{color:#f5eee4}.cta .spec-panel{background:#214435;color:#f8f1e8;border-color:#6f8b7c}.cta .spec-panel h4,.cta .spec-panel dt{color:var(--champagne)}.cta-list{list-style:none;padding:0}.cta-list li{margin:13px 0;padding-left:28px;position:relative}.cta-list li::before{content:'◆';position:absolute;left:0;color:var(--champagne);font-size:10px;top:5px}.cta-button{display:inline-block;margin-top:18px;background:var(--champagne);color:#213c31;text-decoration:none;font-weight:900;padding:16px 22px;border-radius:4px}.download-row{display:grid;grid-template-columns:180px 1fr;gap:32px;align-items:center}.pdf-preview{aspect-ratio:.72;background:#f7f1e7;border:1px solid #a79b8f;box-shadow:7px 9px 0 #e5ddcf;display:flex;flex-direction:column;justify-content:center;align-items:center;text-align:center;color:var(--evergreen);font-family:Georgia,serif;padding:10px}.download-btn{display:inline-block;margin-top:14px;border:2px solid var(--evergreen);color:var(--evergreen);padding:14px 18px;text-decoration:none;font-weight:900}.footer-section{text-align:center}.disclosure{max-width:820px;margin:24px auto;font-size:15px;line-height:1.6;color:#4a4641;border-top:1px solid var(--champagne);padding-top:24px}.brand-script{font-family:Georgia,serif;font-style:italic;color:var(--rose);font-size:34px}
+.annotation-hidden .spec-panel,.annotation-hidden .legend,.annotation-hidden .wirebox::before,.annotation-hidden .meta{display:none}.annotation-hidden .section-grid,.annotation-hidden .cta .section-grid{grid-template-columns:1fr}.annotation-hidden .wirebox{border-style:solid;border-color:#ded7ce}
+.hidden{display:none!important}
+@media(max-width:920px){.section,.cta{padding:54px 34px}.section-grid,.cta .section-grid{grid-template-columns:1fr}.spec-panel{position:static}.hero-layout{grid-template-columns:1fr;min-height:0}.hero-img{max-width:520px;width:100%;margin:auto}.two-col{grid-template-columns:1fr}.money-map{grid-template-columns:1fr 1fr}.n1,.n4,.you,.n2,.n5,.n6,.n3{grid-column:auto;grid-row:auto}.you{grid-column:1/-1;grid-row:1}.node{min-height:110px}.dimension-grid{grid-template-columns:1fr 1fr}.cards.three{grid-template-columns:1fr 1fr}.themes{grid-template-columns:1fr 1fr}.readiness{grid-template-columns:1fr 1fr}.ready-item:nth-child(2){border-right:0}.ready-item:nth-child(-n+2){border-bottom:1px solid #bfb7ad}.relationship{grid-template-columns:1fr}.rel-line{height:45px;width:2px;border-top:0;border-left:2px dashed var(--gold);margin:auto}.rel-line::after{content:'↓';left:-10px;top:12px}.download-row{grid-template-columns:150px 1fr}}
+@media(max-width:600px){.wf-toolbar{position:relative}.wf-toolbar-inner{padding:12px}.wf-toolbar strong{width:100%}.legend{margin:10px;border-radius:0}.prototype{margin:0;box-shadow:none}.section,.cta{padding:46px 20px}.section h1{font-size:40px}.section h2{font-size:34px}.hero-copy{order:1}.hero-img{order:2}.dimension-grid,.cards.two,.cards.three,.themes,.readiness{grid-template-columns:1fr}.ready-item{border-right:0;border-bottom:1px solid #bfb7ad}.ready-item:last-child{border-bottom:0}.money-map{grid-template-columns:1fr}.you{grid-column:auto}.node{min-height:90px}.placeholder{min-height:180px}.download-row{grid-template-columns:1fr;text-align:center}.pdf-preview{width:120px;margin:auto}.spotlight{padding:30px 18px}}
+</style>
+</head>
+<body>
+<div class="wf-toolbar" role="region" aria-label="Wireframe preview controls">
+  <div class="wf-toolbar-inner">
+    <strong>Set for Life Snapshot — Wireframe v1</strong>
+    <div class="control"><label for="heroVariant">Hero</label><select id="heroVariant"><option value="female">Female</option><option value="male">Male</option><option value="neutral">Prefer not to say / neutral</option></select></div>
+    <div class="control"><label for="strengthCount">Strengths</label><select id="strengthCount"><option>0</option><option selected>1</option><option>2</option><option>3</option></select></div>
+    <div class="control"><label for="frictionCount">Frictions</label><select id="frictionCount"><option>0</option><option selected>1</option><option>2</option><option>3</option></select></div>
+    <div class="control"><label for="connectionCount">Connections</label><select id="connectionCount"><option>0</option><option selected>1</option><option>2</option></select></div>
+    <div class="control"><label for="themeCount">Themes</label><select id="themeCount"><option>1</option><option selected>3</option><option>4</option><option>5</option></select></div>
+    <div class="control"><label for="secondaryAttention">2nd attention</label><select id="secondaryAttention"><option value="yes" selected>Yes</option><option value="no">No</option></select></div>
+    <div class="control"><button id="toggleAnnotations" type="button">Hide annotations</button></div>
+  </div>
+</div>
+<div class="legend" aria-label="Wireframe legend">
+  <span><span class="swatch visual"></span><b>Visual placeholder</b> — image / abstract / chart area</span>
+  <span><span class="swatch dynamic"></span><b>Dynamic slot</b> — populated from participant result/config</span>
+  <span><span class="swatch fixed"></span><b>Fixed copy/structure</b> — locked or structural</span>
+  <span><b>Purpose:</b> show content placement, dimensions, word limits and responsive behavior before polished design.</span>
+</div>
+<main class="prototype" id="prototype">
+
+<section class="section" id="s1">
+  <div class="section-grid"><div class="content">
+    <div class="hero-layout">
+      <div class="hero-copy">
+        <div class="section-kicker fixed-slot">YOUR SET FOR LIFE FINANCIAL SNAPSHOT</div>
+        <p class="prepared dynamic-slot">Prepared for {FIRST_NAME}</p>
+        <h1>Here is what your responses reveal.</h1>
+        <p class="sublead fixed-slot">One answer is a detail. Together, they make a picture.</p>
+        <div class="scroll-cue">SEE MY PICTURE ↓</div>
+      </div>
+      <div id="heroImage" class="placeholder hero-img">HERO IMAGE — 4:5 PORTRAIT<br>Approved editorial portrait: Black woman<br><small>Source master ≥1600×1800</small></div>
+    </div>
+  </div><aside class="spec-panel"><h4>Section 01 spec</h4><dl><dt>Role</dt><dd>Emotion + identity. No diagnostic content.</dd><dt>Image</dt><dd>42–48% desktop width; 4:5 crop.</dd><dt>Copy</dt><dd>Declaration 6–12 words; support 10–18.</dd><dt>Dynamic</dt><dd>First name + explicit gender hero variant only.</dd><dt>Mobile</dt><dd>Words first, image second.</dd></dl></aside></div>
+</section>
+
+<section class="section" id="s2"><div class="section-grid"><div class="content">
+  <div class="section-kicker">SECTION 02</div><h2>Your Big Picture</h2><p class="sublead">A 30-second executive summary before the deeper six-dimension interpretation.</p>
+  <div class="big-summary">
+    <div class="wirebox dynamic-slot" data-wf="DYNAMIC • 30–55 WORDS"><h3>Overall Picture</h3><p>{BIG_PICTURE_OVERALL}</p></div>
+    <div class="two-col"><div class="wirebox dynamic-slot" data-wf="DYNAMIC • 1–2 BULLETS"><h3>What’s Working</h3><ul class="summary-list"><li>{PRIMARY_STRENGTH}</li><li>{SECONDARY_STRENGTH?}</li></ul></div><div class="wirebox dynamic-slot" data-wf="DYNAMIC • 1–2 BULLETS"><h3>Where There’s Friction</h3><ul class="summary-list"><li>{PRIMARY_FRICTION}</li><li>{SECONDARY_FRICTION?}</li></ul></div></div>
+    <div class="placeholder abstract-strip">ABSTRACT EDITORIAL TRANSITION<br>Suggested asset zone: ~1200×250–350<br><small>pieces → coherence / focus</small></div>
+    <div class="wirebox dynamic-slot worth" data-wf="DYNAMIC • 30–60 WORDS"><div class="section-kicker">HERE’S THE PART WORTH NOTICING</div><h3>{PRIMARY_CONNECTION_HEADLINE}</h3><p>{PRIMARY_CONNECTION_BODY}</p></div>
+  </div>
+</div><aside class="spec-panel"><h4>Section 02 spec</h4><dl><dt>Role</dt><dd>Executive understanding.</dd><dt>Logic</dt><dd>Strength + Friction + Context + Connection + Activation.</dd><dt>Web target</dt><dd>~125–220 words total.</dd><dt>No-friction rule</dt><dd>Never manufacture friction for symmetry.</dd></dl></aside></div></section>
+
+<section class="section" id="s3"><div class="section-grid"><div class="content">
+  <div class="section-kicker">SECTION 03</div><h2>Your Set for Life Money Picture™</h2><p class="sublead fixed-slot">Six parts of your financial life. One connected picture. No overall score.</p>
+  <div class="wirebox" data-wf="SIGNATURE INFOGRAPHIC • ~1100–1200×650–760">
+    <div class="money-map">
+      <div class="wirebox node n1 dynamic-slot"><b>WHAT CAN YOU SEE?</b><span class="state">{STATE}</span></div>
+      <div class="wirebox node n4 dynamic-slot"><b>HOW PREPARED ARE YOU FOR DISRUPTION?</b><span class="state">{STATE}</span></div>
+      <div class="you"><div class="you-node">YOU</div></div>
+      <div class="wirebox node n2 dynamic-slot"><b>HOW MUCH ROOM DO YOU HAVE?</b><span class="state">{STATE}</span></div>
+      <div class="wirebox node n5 dynamic-slot"><b>WHERE ARE YOU HEADED?</b><span class="state">{STATE}</span></div>
+      <div class="wirebox node n6 dynamic-slot"><b>WHAT HAPPENS AFTER YOU KNOW?</b><span class="state">{STATE}</span></div>
+      <div class="wirebox node n3 dynamic-slot"><b>HOW ARE YOU MAKING DECISIONS?</b><span class="state">{STATE}</span></div>
+    </div>
+  </div>
+  <div class="dimension-grid" style="margin-top:28px">
+    <div class="wirebox dim-card dynamic-slot" data-wf="20–40 WORDS"><span class="num">01</span><div class="label-placeholder">WHAT CAN YOU SEE?</div><b>{STATE LABEL}</b><p>{INTERPRETATION}</p></div>
+    <div class="wirebox dim-card dynamic-slot" data-wf="20–40 WORDS"><span class="num">02</span><div class="label-placeholder">HOW MUCH ROOM DO YOU HAVE?</div><b>{STATE LABEL}</b><p>{INTERPRETATION}</p></div>
+    <div class="wirebox dim-card dynamic-slot" data-wf="20–40 WORDS"><span class="num">03</span><div class="label-placeholder">HOW ARE YOU MAKING DECISIONS?</div><b>{STATE LABEL}</b><p>{INTERPRETATION}</p></div>
+    <div class="wirebox dim-card dynamic-slot" data-wf="20–40 WORDS"><span class="num">04</span><div class="label-placeholder">HOW PREPARED ARE YOU FOR DISRUPTION?</div><b>{STATE LABEL}</b><p>{INTERPRETATION}</p></div>
+    <div class="wirebox dim-card dynamic-slot" data-wf="20–40 WORDS"><span class="num">05</span><div class="label-placeholder">WHERE ARE YOU HEADED?</div><b>{STATE LABEL}</b><p>{INTERPRETATION}</p></div>
+    <div class="wirebox dim-card dynamic-slot" data-wf="20–40 WORDS"><span class="num">06</span><div class="label-placeholder">WHAT HAPPENS AFTER YOU KNOW?</div><b>{STATE LABEL}</b><p>{INTERPRETATION}</p></div>
+  </div>
+</div><aside class="spec-panel"><h4>Section 03 spec</h4><dl><dt>Signature visual</dt><dd>YOU centered; six equal nodes.</dd><dt>Never</dt><dd>Radar chart, overall score, traffic-light colors, raw 1–5 values.</dd><dt>Mobile</dt><dd>Simplified overview + stacked interpretations.</dd></dl></aside></div></section>
+
+<section class="section" id="s4"><div class="section-grid"><div class="content">
+  <div class="section-kicker">SECTION 04</div><h2>What’s Already Working for You</h2><p class="sublead">Evidence-supported strengths only. Never pad the section to fill space.</p>
+  <div id="strengthCards" class="cards one"></div>
+</div><aside class="spec-panel"><h4>Section 04 spec</h4><dl><dt>Count</dt><dd>0–3. Zero means omit section.</dd><dt>Copy</dt><dd>Label 2–7; body 25–45 words.</dd><dt>Layout</dt><dd>1 feature / 2 split / 3 panels.</dd></dl></aside></div></section>
+
+<section class="section" id="s5"><div class="section-grid"><div class="content">
+  <div class="section-kicker">SECTION 05</div><h2>Where There’s Friction</h2><p class="sublead">Pressure, inconsistency or misalignment—without shame, alarm or invented problems.</p>
+  <div id="frictionCards" class="cards one"></div>
+</div><aside class="spec-panel"><h4>Section 05 spec</h4><dl><dt>Count</dt><dd>0–3. Zero means omit section.</dd><dt>Copy</dt><dd>Body 30–50 words; optional context 15–30.</dd><dt>Rule</dt><dd>Do not confuse low capacity with low agency.</dd></dl></aside></div></section>
+
+<section class="section" id="s6"><div class="section-grid"><div class="content">
+  <div class="section-kicker">THE CONNECTION</div><h2>Here’s the Part Worth Noticing</h2>
+  <div id="primaryConnection">
+    <div class="relationship"><div class="wirebox dynamic-slot" data-wf="SIDE A • ONLY IF SUPPORTED">{PARTICIPANT-FACING FINDING A}</div><div class="rel-line" aria-hidden="true"></div><div class="wirebox dynamic-slot" data-wf="SIDE B • ONLY IF SUPPORTED">{PARTICIPANT-FACING FINDING B}</div></div>
+    <div class="wirebox dynamic-slot connection-result" data-wf="PRIMARY CONNECTION • 40–70 WORDS"><h3>{PRIMARY_CONNECTION_HEADLINE}</h3><p>{PRIMARY_CONNECTION_BODY}</p></div>
+  </div>
+  <div id="secondaryConnection" class="secondary dynamic-slot"><div class="section-kicker">ANOTHER CONNECTION WORTH NOTICING</div><h3>{SECONDARY_CONNECTION_HEADLINE}</h3><p>{SECONDARY_CONNECTION_BODY — 25–45 WORDS}</p></div>
+</div><aside class="spec-panel"><h4>Section 06 spec</h4><dl><dt>Count</dt><dd>0–2. Primary featured; secondary subordinate.</dd><dt>Data rule</dt><dd>If Side A/B labels are not reliably resolved, leave diagram abstract rather than invent labels.</dd><dt>Language</dt><dd>Relationship, not causation.</dd></dl></aside></div></section>
+
+<section class="section" id="s7"><div class="section-grid"><div class="content">
+  <div class="section-kicker">SECTION 07</div><h2>What “Set for Life” Means to You</h2><p class="sublead fixed-slot">Reflect the participant’s own stated aspirations. Display unranked.</p>
+  <div id="themes" class="themes"></div>
+</div><aside class="spec-panel"><h4>Section 07 spec</h4><dl><dt>Source</dt><dd>Q16 selections.</dd><dt>Ranking</dt><dd>None.</dd><dt>Still forming</dt><dd>Neutral treatment; no warning state.</dd><dt>Visual</dt><dd>Spacious aspiration/horizon motif.</dd></dl></aside></div></section>
+
+<section class="section" id="s8"><div class="section-grid"><div class="content">
+  <div class="section-kicker">SECTION 08</div><h2>Your Readiness Right Now</h2><p class="sublead fixed-slot">Four separate dimensions. No combined readiness score.</p>
+  <div class="readiness">
+    <div class="ready-item"><b>URGENCY</b><div class="indicator" aria-hidden="true"></div><div class="dynamic-slot">{STATE}</div><p>{INTERPRETATION — 20–40 WORDS}</p></div>
+    <div class="ready-item"><b>READINESS</b><div class="indicator" aria-hidden="true"></div><div class="dynamic-slot">{STATE}</div><p>{INTERPRETATION — 20–40 WORDS}</p></div>
+    <div class="ready-item"><b>COMMITMENT</b><div class="indicator" aria-hidden="true"></div><div class="dynamic-slot">{STATE}</div><p>{INTERPRETATION — 20–40 WORDS}</p></div>
+    <div class="ready-item"><b>SUPPORT READINESS</b><div class="indicator" aria-hidden="true"></div><div class="dynamic-slot">{STATE}</div><p>{INTERPRETATION — 20–40 WORDS}</p></div>
+  </div>
+</div><aside class="spec-panel"><h4>Section 08 spec</h4><dl><dt>Structure</dt><dd>4 equal dimensions.</dd><dt>Never</dt><dd>Average, total score, or funnel label.</dd><dt>Visual</dt><dd>Independent indicators, not one shared scale.</dd></dl></aside></div></section>
+
+<section class="section" id="s9"><div class="section-grid"><div class="content">
+  <div class="section-kicker">SECTION 09</div><h2>One Area Worth Examining Next</h2><p class="sublead">Focus, not advice. One area comes forward so the participant does not leave with ten things to fix.</p>
+  <div class="spotlight dynamic-slot"><div class="section-kicker">PRIMARY ATTENTION AREA</div><h3>{ATTENTION_LABEL}</h3><p>{WHY THIS AREA RISES TO THE SURFACE — 40–70 WORDS}</p></div>
+  <div id="secondaryAttentionBlock" class="secondary dynamic-slot"><div class="section-kicker">ANOTHER AREA TO KEEP IN VIEW</div><h3>{SECONDARY_ATTENTION_LABEL}</h3><p>{SECONDARY_ATTENTION_BODY — 20–40 WORDS}</p></div>
+</div><aside class="spec-panel"><h4>Section 09 spec</h4><dl><dt>Primary</dt><dd>Visually dominant.</dd><dt>Secondary</dt><dd>Optional and subordinate.</dd><dt>Boundary</dt><dd>Educational direction only; no product recommendation.</dd></dl></aside></div></section>
+
+<section class="cta" id="s10"><div class="section-grid"><div class="content">
+  <div class="section-kicker">READY TO GO DEEPER?</div><h2>Your Snapshot helped you see the picture.<br>Now let’s help you understand what to do with what you see.</h2>
+  <p class="sublead">{SUPPORTING MASTERCLASS INVITATION — 35–60 WORDS}</p>
+  <ul class="cta-list"><li>See your financial picture more clearly</li><li>Understand which areas deserve your attention</li><li>Learn how to think about your next moves with greater intention</li></ul>
+  <a class="cta-button" href="https://masterclass.setforlifelive.com/register" target="_blank" rel="noopener">SAVE MY SEAT FOR THE MASTERCLASS</a>
+  <p class="meta" style="color:#d9ccaa">Current campaign URL: https://masterclass.setforlifelive.com/register</p>
+</div><aside class="spec-panel"><h4>Section 10 spec</h4><dl><dt>LOCKED visual</dt><dd>Option A: Evergreen field, Ivory text, Champagne/Gold accents.</dd><dt>Bullets</dt><dd>Exactly 3 current bullets.</dd><dt>Architecture</dt><dd>Config-driven campaign block. Future CTA can become appointment scheduling without redesign.</dd></dl></aside></div></section>
+
+<section class="section" id="s11"><div class="section-grid"><div class="content">
+  <div class="section-kicker">SECTION 11</div><h2>Keep Your Snapshot</h2>
+  <div class="download-row"><div class="pdf-preview"><b>SET FOR LIFE</b><br><span>FINANCIAL<br>SNAPSHOT</span><small style="margin-top:12px">{FIRST_NAME}</small></div><div><p class="sublead fixed-slot">Download your personalized Set for Life Financial Snapshot to save, review, or bring with you to a future financial conversation.</p><a class="download-btn" href="#">DOWNLOAD MY FINANCIAL SNAPSHOT</a><p class="meta">Dynamic signed/private PDF URL. Ready / Preparing / Failed states.</p></div></div>
+</div><aside class="spec-panel"><h4>Section 11 spec</h4><dl><dt>Preview</dt><dd>~140–180px desktop; ~110–140px mobile.</dd><dt>Role</dt><dd>Utility, not promotion.</dd><dt>Rule</dt><dd>Never require Masterclass registration or new form completion.</dd></dl></aside></div></section>
+
+<section class="section footer-section" id="s12"><div class="section-grid"><div class="content">
+  <div class="brand-script">Set for Life</div>
+  <p class="disclosure">This Financial Snapshot is based on your responses to the Set for Life Financial Assessment and is provided for educational and informational purposes. It is not a recommendation to buy, sell, replace, surrender, allocate, or change any financial product, investment, insurance coverage, account, or strategy. Individualized recommendations, when appropriate, belong in an appropriately licensed and supervised conversation.</p>
+  <div class="section-kicker">END OF SNAPSHOT</div>
+</div><aside class="spec-panel"><h4>Section 12 spec</h4><dl><dt>Disclosure</dt><dd>Approved copy verbatim.</dd><dt>Web type</dt><dd>Minimum 14–15px, 21–24px line height.</dd><dt>Visual</dt><dd>Quiet close. No new CTA or interpretation.</dd></dl></aside></div></section>
+</main>
+<script>
+const $=s=>document.querySelector(s);
+function setHero(){const v=$('#heroVariant').value; const label=v==='female'?'Approved editorial portrait: Black woman':v==='male'?'Approved editorial portrait: Black man':'Approved neutral editorial scene: Black woman + Black man'; $('#heroImage').innerHTML=`HERO IMAGE — 4:5 PORTRAIT<br>${label}<br><small>Source master ≥1600×1800</small>`}
+function renderCards(kind,count){const root=$(`#${kind}Cards`), section=$(`#s${kind==='strength'?4:5}`); count=+count; if(count===0){section.classList.add('hidden');return}else section.classList.remove('hidden'); root.className='cards '+(count===1?'one':count===2?'two':kind==='friction'?'friction-three':'three');root.innerHTML='';for(let i=1;i<=count;i++){let d=document.createElement('div');d.className=`wirebox ${kind}-card dynamic-slot ${count===1?'featured':''}`;d.setAttribute('data-wf',`${kind.toUpperCase()} ${i} • ${kind==='strength'?'25–45':'30–50'} WORDS`);d.innerHTML=`<span class="num">0${i}</span><h3>{${kind.toUpperCase()}_${i}_LABEL}</h3><p>{${kind.toUpperCase()}_${i}_BODY}</p>${kind==='friction'?'<p class="meta">{OPTIONAL_CONTEXT?}</p>':''}`;root.appendChild(d)}}
+function renderConnections(){let n=+$('#connectionCount').value;$('#s6').classList.toggle('hidden',n===0);$('#secondaryConnection').classList.toggle('hidden',n<2)}
+function renderThemes(){let n=+$('#themeCount').value,root=$('#themes');root.innerHTML='';for(let i=1;i<=n;i++){let d=document.createElement('div');d.className='wirebox theme dynamic-slot';d.setAttribute('data-wf','Q16 THEME • UNRANKED');d.textContent=`{DESTINATION_THEME_${i}}`;root.appendChild(d)} if(n===1){root.style.gridTemplateColumns='1fr';root.style.maxWidth='760px';root.style.margin='0 auto'} else {root.style.gridTemplateColumns='';root.style.maxWidth='';root.style.margin=''}}
+function renderSecondaryAttention(){ $('#secondaryAttentionBlock').classList.toggle('hidden',$('#secondaryAttention').value==='no') }
+setHero();renderCards('strength',$('#strengthCount').value);renderCards('friction',$('#frictionCount').value);renderConnections();renderThemes();renderSecondaryAttention();
+$('#heroVariant').addEventListener('change',setHero);$('#strengthCount').addEventListener('change',e=>renderCards('strength',e.target.value));$('#frictionCount').addEventListener('change',e=>renderCards('friction',e.target.value));$('#connectionCount').addEventListener('change',renderConnections);$('#themeCount').addEventListener('change',renderThemes);$('#secondaryAttention').addEventListener('change',renderSecondaryAttention);
+$('#toggleAnnotations').addEventListener('click',e=>{document.body.classList.toggle('annotation-hidden');e.target.textContent=document.body.classList.contains('annotation-hidden')?'Show annotations':'Hide annotations'});
+</script>
+</body></html>

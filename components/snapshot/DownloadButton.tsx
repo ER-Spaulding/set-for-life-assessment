@@ -36,7 +36,20 @@ export function DownloadButton({ sessionId }: { sessionId: string }) {
       type="button"
       onClick={handleClick}
       disabled={busy}
-      className="mt-10 inline-block bg-evergreen px-8 py-4 font-serif text-ivory transition-colors hover:bg-evergreen/90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-evergreen"
+      // OUTLINED, NOT FILLED — the visual-refinement hierarchy rule. The
+      // Masterclass button above this one is a filled Gold field; a second
+      // filled field here would put the utility action at the campaign's visual
+      // weight, which the spec forbids ("Do not make the actions compete
+      // visually"). An Evergreen outline keeps the full 56px target, the
+      // approved label, and clear affordance while sitting a step below.
+      //
+      // Gold is deliberately not used: Gold is the campaign's colour on this
+      // page, and borrowing it would tie the PDF to the promotion.
+      //
+      // The hover state fills the field, so the affordance is unmistakable on
+      // interaction; the resting state is what stays quiet. The focus ring is
+      // unchanged and still 2px, so keyboard visibility is not reduced.
+      className="mt-8 inline-block border border-evergreen bg-transparent px-8 py-4 font-serif text-evergreen transition-colors hover:bg-evergreen hover:text-ivory focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-evergreen disabled:opacity-60"
       style={{
         fontSize: "var(--type-t13-size)",
         lineHeight: "var(--type-t13-line)",

@@ -22,6 +22,7 @@ import { createHash } from "node:crypto";
 import { serviceClient } from "../db/client";
 import { loadSnapshotForDownload, verifiedFirstNameForParticipant } from "../session/service";
 import { resolveSnapshotContent } from "../render/snapshot-sections";
+import { logUnresolvedNarrativeKeys } from "../render/narrative-key-guard";
 import { renderSnapshotPdf, type SnapshotPdfMeta } from "../render/snapshot-pdf";
 
 /** The private bucket the PDF artifacts live in (migration ...00013). */
@@ -107,6 +108,12 @@ export async function ensureSnapshotDocument(sessionId: string): Promise<{
 
   const db = serviceClient();
   const { snapshotId, reportVersion, generatedAt, payload } = stored;
+
+  // §C — the PDF half of the historical-read observation. Same reasoning as the
+  // web page: log what the resolver had to omit, change nothing about the
+  // render. `surface` distinguishes the two so an operator can tell a web read
+  // from a download.
+  logUnresolvedNarrativeKeys(payload, { sessionId, surface: "pdf" });
 
   // Reuse the SAME resolver + SAME shared section model as the web page — the
   // PDF cannot disagree because it starts from the identical resolved content

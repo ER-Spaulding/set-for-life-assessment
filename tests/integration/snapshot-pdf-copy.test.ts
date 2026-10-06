@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { inflateSync } from "node:zlib";
-import { readFileSync } from "node:fs";
+import { readFileSync, readdirSync } from "node:fs";
 import { resolve } from "node:path";
 import {
   SNAPSHOT_TITLE,
@@ -182,6 +182,28 @@ function decodedPdfText(buf: Buffer): string {
 // 1. The footer — exact format, U+2022 bullet, and the canonical brand constant.
 // ---------------------------------------------------------------------------
 
+
+/**
+ * EVERY FILE IN THE WEB RENDER LAYER, concatenated.
+ *
+ * The render layer used to be one file (`components/snapshot/results-view.tsx`);
+ * it is now a directory of focused components. These source-level guards assert
+ * properties of "the render layer", so they must read the WHOLE layer — scanning
+ * only results-view.tsx would silently stop checking the other twelve files, and
+ * the guard would pass for the wrong reason. Concatenating is safe because every
+ * assertion below is a negative (must-not-contain) or a whole-layer presence
+ * check; a per-file loop would be weaker for the presence checks.
+ */
+function renderLayerSource(ext: string[] = [".tsx", ".ts"]): string {
+  const dir = resolve(repo, "components/snapshot");
+  return readdirSync(dir)
+    .filter((f) => ext.some((e) => f.endsWith(e)))
+    .sort()
+    .map((f) => readFileSync(resolve(dir, f), "utf8"))
+    .join("\n");
+}
+
+
 describe("the standardized footer is exact and consumes the canonical brand constant", () => {
   it("uses U+2022 BULLET as the separator — not a hyphen, en-dash, or pipe", () => {
     expect(FOOTER_SEPARATOR).toBe("•");
@@ -258,7 +280,10 @@ describe("the educational disclosure is the approved string, verbatim", () => {
 
 describe("the disclosure has one source, consumed by both renderers", () => {
   it("the web results view imports the disclosure from the shared module", () => {
-    const web = read("components/snapshot/results-view.tsx");
+    // The whole render layer, not one file: the disclosure is rendered by the
+    // footer component, and a duplicate sentence must not be able to hide in any
+    // other component under components/snapshot/.
+    const web = renderLayerSource();
     expect(web).toMatch(/SNAPSHOT_DISCLOSURE/);
     expect(web).toMatch(/from\s+"@\/lib\/ui\/snapshot-doc-copy"/);
     // No hardcoded duplicate of the disclosure sentence in the web source.

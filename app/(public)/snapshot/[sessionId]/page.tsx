@@ -19,6 +19,8 @@
 import Link from "next/link";
 import { loadSnapshotPayload } from "@/lib/session/service";
 import { resolveSnapshotContent } from "@/lib/render/snapshot-sections";
+import { logUnresolvedNarrativeKeys } from "@/lib/render/narrative-key-guard";
+import { resolveSnapshotHero } from "@/lib/ui/snapshot-hero.server";
 import { recordEventInBackground } from "@/lib/analytics/write";
 import { UNAVAILABLE_COPY, SERVER_ERROR_COPY } from "@/lib/ui/snapshot-failure";
 import { SnapshotResults, Shell } from "@/components/snapshot/results-view";
@@ -108,11 +110,42 @@ export default async function SnapshotPage({
   // "reports actually delivered" semantics the snapshot route used to carry.
   recordEventInBackground({ eventName: "snapshot_viewed", sessionId });
 
+  // §C — OBSERVE, BUT DO NOT ALTER, THE HISTORICAL READ.
+  //
+  // A stored Snapshot is immutable, so a narrative key it carries may have been
+  // retired by a later config revision. The resolver OMITS such a key — correct,
+  // because the participant's report is a record of what they were given and
+  // must keep rendering. The cost of that correctness is silence: the page looks
+  // normal and the only symptom is content quietly missing.
+  //
+  // This logs what was omitted so the operator can see it. It returns the refs
+  // and the render proceeds EXACTLY as it would have without this call — no
+  // throw, no fallback copy, no change to the section model, and no internal
+  // error shown to the participant. On a healthy payload it logs nothing.
+  logUnresolvedNarrativeKeys(payload, { sessionId, surface: "web" });
+
   // ONE SNAPSHOT PAYLOAD -> ONE RESOLVER -> ONE SHARED SECTION MODEL -> TWO
   // RENDERERS. Everything below is participant-facing resolved copy arranged into
   // the shared content/section model; no scoring internals, evidence, openingB,
   // moveSubsignals, or signal codes cross into the render.
   const sections = resolveSnapshotContent(payload);
 
-  return <SnapshotResults sections={sections} sessionId={sessionId} />;
+  // THE ONE PLACE THE PARTICIPANT'S GENDER IS READ. It is deliberately OUTSIDE
+  // the shared resolver: that resolver is a pure function of the immutable
+  // payload (enforced by `snapshot-resolution-single-source.test.ts`), and
+  // gender is not in the payload — `demographics` is a separate table the
+  // scoring engine must never read. So the hero choice is made here, at the
+  // server seam, and only the RESOLVED variant and the verified first name cross
+  // into the renderer. No demographic value, and no self-describe string,
+  // reaches the browser.
+  const hero = await resolveSnapshotHero(sessionId);
+
+  return (
+    <SnapshotResults
+      sections={sections}
+      sessionId={sessionId}
+      heroVariant={hero.variant}
+      firstName={hero.firstName}
+    />
+  );
 }
