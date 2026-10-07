@@ -38,7 +38,16 @@ const VERSIONS = {
   // Addendum 01 v1.1 §3.1 requires this sixth pin. The type makes it
   // non-optional, which is the point: a fixture cannot quietly omit a version
   // the payload is required to carry.
-  interstitial: "1.0",
+  //
+  // Read from the config rather than hardcoded so a re-issue moves this fixture
+  // with it. The test below still asserts the pin MATCHES the config's declared
+  // version — that linkage is the property under test, and reading the value
+  // here does not weaken it.
+  interstitial: (
+    JSON.parse(readFileSync(resolve(__dirname, "../../config/interstitial-v1.0.json"), "utf8")) as {
+      version: string;
+    }
+  ).version,
 };
 
 /**
@@ -320,7 +329,12 @@ describe("interstitial version pin (Addendum 01 v1.1 §3.1)", () => {
     expect(Object.keys(r.versions).sort()).toEqual(
       ["assessment", "interstitial", "narrative", "questionBank", "report", "scoring"].sort(),
     );
-    expect(r.versions.interstitial).toBe("1.0");
+    // Asserted as PASS-THROUGH rather than against a literal: the property is
+    // that the assembler records whatever version it was given, unaltered. A
+    // literal here would need editing on every interstitial re-issue (1.0 ->
+    // 1.0.1 on 2026-10-06) and would make a re-issue look like an assembler
+    // defect. The linkage to the real config is asserted in the test below.
+    expect(r.versions.interstitial).toBe(VERSIONS.interstitial);
   });
 
   it("the interstitial config it pins is the one the Money Moments come from", () => {

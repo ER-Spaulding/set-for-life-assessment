@@ -1,12 +1,13 @@
 {
-  "version": "1.0",
+  "version": "1.0.1",
+  "_versionNote": "Revised to 1.0.1 on 2026-10-06: PATCH, presentation-only. The Money Moment eyebrow is now 'MONEY MOMENT' with no ordinal. Addendum 02 v1.1 §11 specified 'small `MONEY MOMENT · 0X OF 05` eyebrow', but the Owner ruled on 2026-10-06 that the ordinal must NOT be displayed, superseding §11 on this point. ONLY the eyebrow changed: id, placement, milestoneLabel, headline, body, cta and internalPurpose are untouched, so no moment moved and no content changed. The 01-of-05 ordinal is retained in no participant-visible surface anywhere in the app. tests/integration/interstitial-copy-verbatim.test.ts asserts the eyebrow against this ruling rather than against the superseded §11 line.",
   "sourceDocument": "PRD ADDENDUM 02 - ENTRY, IDENTITY, ASSESSMENT PACING & MONEY MOMENTS, v1.1 FINAL BUILD AUTHORITY",
   "sourceSection": "§9 LOCKED MONEY MOMENT PLACEMENTS & COPY",
   "_placementNote": "§9 headers read 'AFTER DIAGNOSTIC Q5/Q10/Q15/Q20/Q25'. The presentation order is NOT numeric, so two readings were possible. This config uses the Nth-DIAGNOSTIC reading (even intervals: 20/15/10/5/0 diagnostics remaining across the five moments). Three independent checks confirm it, and the third is decisive because it comes from the locked copy itself rather than from inference: (1) the literal-item reading is non-monotonic — Q20 is presented BEFORE Q15, so MM04 would fire before MM03; (2) MM05's own header says 'BEFORE ACTIVATION', true only under this reading; (3) MM05's approved copy says 'Just four more questions before we bring everything together' — under this reading exactly 4 remain (the A1-A4 activation set), under the literal-item reading 10 remain.",
   "moneyMoments": [
     {
       "id": "MM01",
-      "eyebrow": "MONEY MOMENT · 01 OF 05",
+      "eyebrow": "MONEY MOMENT",
       "placement": {
         "afterDiagnosticIndex": 5,
         "afterItemId": "Q5",
@@ -23,7 +24,7 @@
     },
     {
       "id": "MM02",
-      "eyebrow": "MONEY MOMENT · 02 OF 05",
+      "eyebrow": "MONEY MOMENT",
       "placement": {
         "afterDiagnosticIndex": 10,
         "afterItemId": "Q3",
@@ -40,7 +41,7 @@
     },
     {
       "id": "MM03",
-      "eyebrow": "MONEY MOMENT · 03 OF 05",
+      "eyebrow": "MONEY MOMENT",
       "placement": {
         "afterDiagnosticIndex": 15,
         "afterItemId": "Q11",
@@ -58,7 +59,7 @@
     },
     {
       "id": "MM04",
-      "eyebrow": "MONEY MOMENT · 04 OF 05",
+      "eyebrow": "MONEY MOMENT",
       "placement": {
         "afterDiagnosticIndex": 20,
         "afterItemId": "Q12",
@@ -75,7 +76,7 @@
     },
     {
       "id": "MM05",
-      "eyebrow": "MONEY MOMENT · 05 OF 05",
+      "eyebrow": "MONEY MOMENT",
       "placement": {
         "afterDiagnosticIndex": 25,
         "afterItemId": "Q16",

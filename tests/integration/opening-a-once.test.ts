@@ -255,6 +255,33 @@ describe("F-06 — Opening A is answered once", () => {
     expect(QUESTION_SEQUENCE[FIRST_IN_INSTRUMENT_INDEX].internal_id).toBe("OPEN_B");
   });
 
+  it("1b. once OPEN_B is ANSWERED, resume skips past it — it is never re-asked", () => {
+    // OWNER RULING 2026-10-06. This is the other half of carrying OPEN_B
+    // forward: carrying the row is only useful if the instrument then STEPS
+    // OVER it. OPEN_B is the participant's pre-assessment baseline, and
+    // re-presenting it after several assessment questions would collect an
+    // answer to a different question — how they feel having been primed by the
+    // instrument rather than before it.
+    //
+    // The rule is general (§"should not require them to answer that item
+    // again") and rests on `resumeIndex` finding the first UNANSWERED item, so
+    // it holds for every carried item, not just this one.
+    const answered = { OPEN_A: ["OPEN_A_A"], OPEN_B: ["OPEN_B_D"] };
+    const at = resumeIndex(answered);
+    expect(QUESTION_SEQUENCE[at].internal_id, "must not land on OPEN_B").not.toBe("OPEN_B");
+    expect(at, "must be past OPEN_B").toBeGreaterThan(FIRST_IN_INSTRUMENT_INDEX);
+
+    // A recovered sitting with a few diagnostics answers resumes at the first
+    // gap, and every carried item is stepped over.
+    const carried = {
+      OPEN_A: ["OPEN_A_A"],
+      OPEN_B: ["OPEN_B_D"],
+      Q4: ["Q4_C"], // the FIRST diagnostic in presentation order
+    };
+    const at2 = resumeIndex(carried);
+    expect(QUESTION_SEQUENCE[at2].internal_id, "skips the carried Q4").toBe("Q1");
+  });
+
   it("2. returning: the session route seeds exactly one OPEN_A_B and the instrument resumes at Opening B", async () => {
     const { res, captured } = await runSessionRoute();
     expect(res.status).toBe(201);

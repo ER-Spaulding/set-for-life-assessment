@@ -133,6 +133,80 @@ export function verifyParticipantToken(token: string): string | null {
   return p.pid;
 }
 
+/** How long a carried-forward sitting may wait for the participant to decide. */
+export const RECOVERY_TTL_MS = 30 * 60 * 1000; // 30 min — the verification link's own TTL
+
+/**
+ * Issue the token that lets a JUST-VERIFIED participant choose how to continue.
+ *
+ * WHY THIS IS SIGNED RATHER THAN A PLAIN COOKIE. It names the provisional
+ * sitting whose answers may be carried forward. If it were an unsigned value,
+ * anyone holding a valid verification link could rewrite it to point at a
+ * DIFFERENT provisional session and pull a stranger's answers into their own
+ * record. Signing it means the server minted this exact (participant, sitting)
+ * pair, so the pairing cannot be altered in the browser.
+ *
+ * `purpose: "recovery"` keeps it unreplayable as a participant session or a
+ * download token, exactly as those two are kept from each other.
+ */
+export function signRecoveryToken(pid: string, src: string): string {
+  return sign({
+    purpose: "recovery",
+    pid,
+    src,
+    exp: Date.now() + RECOVERY_TTL_MS,
+  });
+}
+
+/**
+ * Verify a recovery token. Returns the verified participant and the provisional
+ * sitting it was minted for, or null when signature, purpose, shape or expiry is
+ * wrong — never a distinguishing reason.
+ */
+export function verifyRecoveryToken(
+  token: string,
+): { pid: string; src: string } | null {
+  const p = verify<{ pid: string; src: string }>(token, "recovery");
+  if (!p || typeof p.pid !== "string" || p.pid === "") return null;
+  if (typeof p.src !== "string" || p.src === "") return null;
+  return { pid: p.pid, src: p.src };
+}
+
+/** How long a browser stays bound to the provisional participant it created. */
+export const PROVISIONAL_TTL_MS = 30 * 24 * 3600 * 1000; // 30 days
+
+/**
+ * Bind a BROWSER to the provisional participant it just created.
+ *
+ * WHY THIS EXISTS — and it is the fix for a real cross-participant leak. The
+ * Save My Progress flow has the client send back the provisional `participantId`
+ * it was given at creation. Before this token, that id was taken at face value,
+ * so anyone could post SOMEONE ELSE's id and have a verification link minted for
+ * that stranger's sitting — and then carry that stranger's answers into their own
+ * record. Nothing about the client-held id proved the caller had started it.
+ *
+ * The token is the missing proof: it is minted only by the route that CREATED
+ * the participant, stored HttpOnly, and cannot be forged or re-pointed at
+ * another participant.
+ *
+ * `purpose: "provisional"` keeps it unreplayable as a session, recovery, verify,
+ * or download token — the same separation those four already keep from each other.
+ */
+export function signProvisionalToken(pid: string): string {
+  return sign({
+    purpose: "provisional",
+    pid,
+    exp: Date.now() + PROVISIONAL_TTL_MS,
+  });
+}
+
+/** Verify a provisional-ownership token. Returns the bound participant id or null. */
+export function verifyProvisionalToken(token: string): string | null {
+  const p = verify<{ pid: string }>(token, "provisional");
+  if (!p || typeof p.pid !== "string" || p.pid === "") return null;
+  return p.pid;
+}
+
 /** Normalize an email for lookup/storage: trim + lowercase. */
 export function normalizeEmail(raw: unknown): string | null {
   if (typeof raw !== "string") return null;

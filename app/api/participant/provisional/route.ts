@@ -25,6 +25,7 @@ import { NextResponse } from "next/server";
 import { isDatabaseConfigured, errorBody } from "@/lib/db/client";
 import { createProvisionalParticipant } from "@/lib/session/provisional";
 import { recordEventInBackground } from "@/lib/analytics/write";
+import { signProvisionalToken, PROVISIONAL_TTL_MS } from "@/lib/auth/session";
 
 export const dynamic = "force-dynamic";
 
@@ -49,7 +50,7 @@ export async function POST() {
       payload: { channel: "first_time" },
     });
 
-    return NextResponse.json(
+    const res = NextResponse.json(
       {
         participantId,
         sessionId,
@@ -60,6 +61,26 @@ export async function POST() {
       },
       { status: 201 },
     );
+
+    // BIND THIS BROWSER TO THE PARTICIPANT IT JUST CREATED.
+    //
+    // Without this, the Save My Progress flow has the client post back a
+    // `participantId` that nothing has proven the client owns — so anyone could
+    // name someone else's provisional participant and have a verification link
+    // minted for that stranger's sitting. This cookie is the proof: minted only
+    // here, HttpOnly, signed, and un-repointable.
+    //
+    // HttpOnly deliberately. The client already has the id in sessionStorage for
+    // its own use; this token exists to be presented back to the server, never to
+    // be read by script.
+    res.headers.append(
+      "set-cookie",
+      `sfl_provisional=${encodeURIComponent(signProvisionalToken(participantId))}; ` +
+        `Path=/; Max-Age=${Math.floor(PROVISIONAL_TTL_MS / 1000)}; SameSite=Lax; HttpOnly` +
+        (process.env.NODE_ENV === "production" ? "; Secure" : ""),
+    );
+
+    return res;
   } catch {
     // No internal detail is surfaced: a participant starting an assessment has
     // no use for a database error and it would leak schema information.

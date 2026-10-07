@@ -568,7 +568,18 @@ describe("Snapshot payload is persisted at completion (Addendum 01 §3, §5)", (
     // §3.1's sixth pin. Asserted on the ROW, not just the payload — the two are
     // written from the same call, and a column that silently stopped being
     // populated would otherwise go unnoticed because the payload still had it.
-    expect(snap!.interstitial_version).toBe("1.0");
+    //
+    // Read from the artifact rather than hardcoded, for the same reason as the
+    // narrative version above: the interstitial library was re-issued
+    // (1.0 -> 1.0.1) for a presentation-only eyebrow change on 2026-10-06, and a
+    // literal here would need editing on every future re-issue — the exact
+    // "asserted from a constant" problem versions.ts exists to prevent. The
+    // property under test is that the row RECORDS the config's declared
+    // version, not that the version is any particular value.
+    expect(snap!.interstitial_version).toBe(
+      JSON.parse(readFileSync(resolve(__dirname, "../../config/interstitial-v1.0.json"), "utf8"))
+        .version,
+    );
 
     // And the payload must agree with the column, or the two names drift.
     const payload = snap!.payload_json as { versions: Record<string, string> };

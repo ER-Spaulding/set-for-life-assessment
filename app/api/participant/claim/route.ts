@@ -34,10 +34,26 @@ import { NextResponse } from "next/server";
 import { isDatabaseConfigured, errorBody } from "@/lib/db/client";
 import { normaliseEmail, issueVerificationToken, verificationStartedBody } from "@/lib/auth";
 import { sendVerificationEmail } from "@/lib/email/verification";
-import { queryIfEmailBelongsToAnother } from "@/lib/session/provisional";
 import { recordEventInBackground } from "@/lib/analytics/write";
+import { verifyProvisionalToken } from "@/lib/auth/session";
 
 export const dynamic = "force-dynamic";
+
+/** Read one cookie value from the request, or null. */
+function readCookie(request: Request, name: string): string | null {
+  const header = request.headers.get("cookie") ?? "";
+  const raw = header
+    .split(";")
+    .map((p) => p.trim())
+    .find((p) => p.startsWith(`${name}=`))
+    ?.slice(name.length + 1);
+  if (!raw) return null;
+  try {
+    return decodeURIComponent(raw);
+  } catch {
+    return null;
+  }
+}
 
 export async function POST(request: Request) {
   if (!isDatabaseConfigured()) {
@@ -68,6 +84,29 @@ export async function POST(request: Request) {
       { status: 400 },
     );
   }
+
+  // THE PARTICIPANT ID MUST BE THE ONE THIS BROWSER CREATED.
+  //
+  // A UUID SHAPE IS NOT OWNERSHIP. Without this check the route would mint a
+  // verification link for any participant id a caller typed — including another
+  // participant's — and the recovery flow would then carry that stranger's
+  // answers into the caller's own record. That was a real cross-participant leak,
+  // not a theoretical one.
+  //
+  // The binding is the HttpOnly `sfl_provisional` token minted by
+  // /api/participant/provisional, the only route that creates these rows. It
+  // cannot be forged (HMAC) or re-pointed (the pid is inside the signature).
+  //
+  // 403 rather than 400: the id is well-formed and the request is understood —
+  // it is simply not this caller's to use. The body stays deliberately vague so
+  // it cannot be used to probe which participant ids exist.
+  const boundPid = verifyProvisionalToken(readCookie(request, "sfl_provisional") ?? "");
+  if (!boundPid || boundPid !== participantId) {
+    return NextResponse.json(
+      errorBody("NOT_YOUR_SESSION", "We could not save progress for this assessment."),
+      { status: 403 },
+    );
+  }
   if (!firstName) {
     return NextResponse.json(
       errorBody("INVALID_NAME", "A first name is required to save your progress."),
@@ -81,23 +120,25 @@ export async function POST(request: Request) {
     );
   }
 
-  // If this address already belongs to a DIFFERENT participant, refuse rather
-  // than merge. §5 of the Master PRD forbids automatic merging, and silently
-  // folding two people's records together because they typed the same address is
-  // exactly the identity error that rule exists to prevent. The participant is
-  // told plainly and can use a different address.
-  const belongsToAnother = await queryIfEmailBelongsToAnother(participantId, email).catch(
-    () => false,
-  );
-  if (belongsToAnother) {
-    return NextResponse.json(
-      errorBody(
-        "EMAIL_IN_USE",
-        "That email is already connected to a different Set for Life record. Please use a different email, or continue without saving.",
-      ),
-      { status: 409 },
-    );
-  }
+  // D-1 (Owner policy 2026-10-06): an address that already belongs to a
+  // different participant NO LONGER DEAD-ENDS HERE.
+  //
+  // The old behaviour was a 409 telling the participant to "use a different
+  // email", which stranded the answers they had just entered and offered them
+  // no way back to their own record. The address is now simply VERIFIED, and
+  // the CALLBACK routes them into their own identity with a choice about what
+  // to do with today's sitting.
+  //
+  // NOTHING IS MERGED, and the anti-enumeration posture IMPROVES: this route
+  // now answers identically whether the address is known or not — the same 202
+  // body the other identity routes return — so it can no longer be used to ask
+  // "is this email registered?". §5's ban on automatic merging is untouched:
+  // the merge question is answered by the participant on the recovery screen,
+  // and the answer is never "fold two records together".
+  //
+  // The ownership lookup that used to live here still happens — in the callback,
+  // where it is needed to decide WHICH record to route to. Doing it here too
+  // would be a second, redundant read with a different failure mode.
 
   const { token, payload } = issueVerificationToken(email, "email", "new");
 

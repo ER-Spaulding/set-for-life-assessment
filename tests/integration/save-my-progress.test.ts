@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { decideResponseWrite, mayProduceSnapshot } from "@/lib/session/lifecycle";
+import { signProvisionalToken } from "@/lib/auth/session";
 
 /**
  * Save My Progress, exercised end-to-end as a LIFECYCLE concept.
@@ -307,15 +308,36 @@ describe("the sweep derives `saved` from the verified contact", () => {
   });
 });
 
-describe("the claim route refuses an identity conflict instead of merging", () => {
-  const claimRequest = (body: unknown) =>
-    new Request("http://x/api/participant/claim", {
+describe("the claim route no longer dead-ends on an existing email (D-1)", () => {
+  /**
+   * A claim request carrying the OWNERSHIP BINDING the route now requires.
+   *
+   * The binding is the HttpOnly `sfl_provisional` token minted when the
+   * participant was created. Without it the route refuses (403) — which is the
+   * fix for a real cross-participant leak: a bare UUID is not proof the caller
+   * started that sitting. Signed with the same test secret the route verifies
+   * against, so the token is genuine rather than mocked.
+   */
+  const claimRequest = (body: unknown, opts: { pid?: string; omitBinding?: boolean } = {}) => {
+    const pid = opts.pid ?? PID;
+    const headers: Record<string, string> = { "content-type": "application/json" };
+    if (!opts.omitBinding) {
+      headers.cookie = `sfl_provisional=${encodeURIComponent(signProvisionalToken(pid))}`;
+    }
+    return new Request("http://x/api/participant/claim", {
       method: "POST",
-      headers: { "content-type": "application/json" },
+      headers,
       body: JSON.stringify(body),
     });
+  };
 
-  it("returns 409 EMAIL_IN_USE when the email belongs to a DIFFERENT participant", async () => {
+  // THE BEHAVIOUR THIS REPLACES, recorded so the change is deliberate rather
+  // than a test edited to match new code. Until 2026-10-06 this route returned
+  // 409 EMAIL_IN_USE — "Please use a different email, or continue without
+  // saving" — which stranded the answers the participant had just entered and
+  // offered no route back to their own record. Owner policy replaced that with
+  // verification + a recovery choice.
+  it("sends the verification link EVEN WHEN the email belongs to another participant", async () => {
     m.queryIfEmailBelongsToAnother.mockResolvedValue(true);
     const { POST } = await import("@/app/api/participant/claim/route");
 
@@ -324,27 +346,111 @@ describe("the claim route refuses an identity conflict instead of merging", () =
     );
     const body = await res.json();
 
-    console.log("  409 body:", JSON.stringify(body));
-    expect(res.status).toBe(409);
-    expect(body.error.code).toBe("EMAIL_IN_USE");
+    // 202 with the SAME body as any other address — the route can no longer be
+    // used to ask "is this email registered?".
+    expect(res.status).toBe(202);
+    expect(body.status).toBe("verification_started");
+    expect(JSON.stringify(body)).not.toMatch(/different email/i);
+    expect(JSON.stringify(body)).not.toMatch(/already/i);
 
-    // Refusing is a clean stop: no verification link and no analytics event.
-    expect(m.sendVerificationEmail).not.toHaveBeenCalled();
-    expect(m.recordEventInBackground).not.toHaveBeenCalled();
+    // The link IS sent: that is what lets the participant prove ownership and
+    // reach their own record.
+    expect(m.sendVerificationEmail).toHaveBeenCalledTimes(1);
   });
 
-  it("consults the record server-side with the NORMALISED email before sending", async () => {
-    m.queryIfEmailBelongsToAnother.mockResolvedValue(false);
+  it("REFUSES a participantId this browser did not create — the cross-participant leak", async () => {
+    // REGRESSION TEST FOR A REAL LEAK, found by an adversarial probe on
+    // 2026-10-06 and fixed the same day.
+    //
+    // Before the fix, this route accepted any well-formed UUID. An attacker
+    // could post a STRANGER's participant id, have a verification link minted
+    // for that stranger's sitting, click it, and then carry the stranger's
+    // answers into their own record. Nothing about the client-held id proved
+    // the caller had started it — a UUID shape is not ownership.
+    //
+    // The fix binds the browser to the participant it created via the signed
+    // HttpOnly `sfl_provisional` token. This test posts a VALID id with NO
+    // binding, which is exactly the attacker's position.
     const { POST } = await import("@/app/api/participant/claim/route");
 
     const res = await POST(
-      claimRequest({ participantId: PID, firstName: "Ada", email: "MixedCase@Example.COM" }),
+      claimRequest(
+        { participantId: PID, firstName: "Attacker", email: "attacker@example.com" },
+        { omitBinding: true },
+      ),
     );
-    expect(res.status).toBe(202);
-    expect(m.queryIfEmailBelongsToAnother).toHaveBeenCalledWith(
-      PID,
-      "mixedcase@example.com",
+    expect(res.status, "an unbound id must be refused").toBe(403);
+    const body = await res.json();
+    expect(body.error.code).toBe("NOT_YOUR_SESSION");
+    // Refused means refused: no link is sent, so no route to the victim exists.
+    expect(m.sendVerificationEmail).not.toHaveBeenCalled();
+  });
+
+  it("REFUSES a binding minted for a DIFFERENT participant", async () => {
+    // The attacker's other option: present a VALID token that simply is not for
+    // this id. The signature covers the pid, so the pair cannot be mixed.
+    const { POST } = await import("@/app/api/participant/claim/route");
+    const OTHER = "99999999-9999-4999-8999-999999999999";
+
+    const res = await POST(
+      claimRequest(
+        { participantId: PID, firstName: "Attacker", email: "attacker@example.com" },
+        { pid: OTHER },
+      ),
     );
+    expect(res.status).toBe(403);
+    expect(m.sendVerificationEmail).not.toHaveBeenCalled();
+  });
+
+  it("REFUSES a forged binding", async () => {
+    const { POST } = await import("@/app/api/participant/claim/route");
+    const res = await POST(
+      new Request("http://x/api/participant/claim", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          cookie: "sfl_provisional=forged.value",
+        },
+        body: JSON.stringify({ participantId: PID, firstName: "A", email: "a@example.com" }),
+      }),
+    );
+    expect(res.status).toBe(403);
+    expect(m.sendVerificationEmail).not.toHaveBeenCalled();
+  });
+
+  it("answers IDENTICALLY whether or not the address is already known", async () => {
+    const { POST } = await import("@/app/api/participant/claim/route");
+
+    m.queryIfEmailBelongsToAnother.mockResolvedValue(true);
+    const known = await POST(
+      claimRequest({ participantId: PID, firstName: "Ada", email: "ada@example.com" }),
+    );
+    const knownBody = await known.json();
+
+    m.queryIfEmailBelongsToAnother.mockResolvedValue(false);
+    const unknown = await POST(
+      claimRequest({ participantId: PID, firstName: "Ada", email: "ada@example.com" }),
+    );
+    const unknownBody = await unknown.json();
+
+    expect(known.status, "status must not distinguish known from unknown").toBe(
+      unknown.status,
+    );
+    // Compared on the PARTICIPANT-VISIBLE body only. `devToken` is excluded
+    // deliberately: it is a dev-only field whose signature covers `Date.now()`,
+    // so two calls a millisecond apart legitimately differ. Deep-comparing the
+    // whole object made this test pass only when both calls happened to land in
+    // the same millisecond — a flake, and one that would have read as "the
+    // oracle came back" the first time CI was slow.
+    const visible = ({ status, message }: { status: string; message: string }) => ({
+      status,
+      message,
+    });
+    expect(visible(knownBody)).toEqual(visible(unknownBody));
+    expect(visible(knownBody)).toEqual({
+      status: "verification_started",
+      message: "If that email can be used with the assessment, a verification link is on its way.",
+    });
   });
 
   it("records save_progress_used server-side with NO name, NO email, NO content", async () => {

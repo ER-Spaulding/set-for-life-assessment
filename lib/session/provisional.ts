@@ -124,7 +124,10 @@ export async function claimProvisionalParticipant(args: {
   firstName: string;
   lastName: string;
   email: string;
-}): Promise<{ claimed: true } | { claimed: false; reason: "email_belongs_to_another" }> {
+}): Promise<
+  | { claimed: true }
+  | { claimed: false; reason: "email_belongs_to_another"; ownerId: string }
+> {
   const db = serviceClient();
 
   // Does this email already belong to someone else? Checked BEFORE any write, so
@@ -138,7 +141,11 @@ export async function claimProvisionalParticipant(args: {
 
   const ownerId = (existing as { participant_id?: string } | null)?.participant_id;
   if (ownerId && ownerId !== args.participantId) {
-    return { claimed: false, reason: "email_belongs_to_another" };
+    // The OWNER is returned, not merely the fact of a conflict. D-1 recovery
+    // needs it: the participant who just proved they own this address must be
+    // routed to THAT record, and the decision belongs here, where the ownership
+    // lookup already happened, rather than in a second query in the callback.
+    return { claimed: false, reason: "email_belongs_to_another", ownerId };
   }
 
   // Name + claim stamp together. `claimed_at` is what marks the row no longer

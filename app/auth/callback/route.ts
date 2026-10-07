@@ -27,6 +27,7 @@ import {
   errorBody,
 } from "@/lib/db/client";
 import { normaliseEmail, isVerificationFresh } from "@/lib/auth";
+import { signParticipantToken, signRecoveryToken } from "@/lib/auth/session";
 
 export const dynamic = "force-dynamic";
 
@@ -46,6 +47,32 @@ function tokensEqual(a: string, b: string): boolean {
  */
 const PID_COOKIE = "sfl_pid";
 const PID_COOKIE_MAX_AGE = 60 * 60 * 24 * 30; // 30 days
+
+/** The signed participant-session cookie, read by `getParticipantIdFromRequest`. */
+const SESSION_COOKIE_NAME = "sfl_session";
+/** The signed recovery token, read by POST /api/participant/recover. */
+const RECOVERY_COOKIE = "sfl_recovery";
+
+function cookieAttrs(maxAge: number): string {
+  return (
+    `Path=/; Max-Age=${maxAge}; SameSite=Lax; HttpOnly` +
+    (process.env.NODE_ENV === "production" ? "; Secure" : "")
+  );
+}
+
+/** The verified participant's session, signed — the actor for /api/participant/recover. */
+function participantCookie(participantId: string): string {
+  return `${SESSION_COOKIE_NAME}=${encodeURIComponent(
+    signParticipantToken(participantId, ""),
+  )}; ${cookieAttrs(PID_COOKIE_MAX_AGE)}`;
+}
+
+/** Binds (participant, provisional sitting) so the browser cannot re-point it. */
+function recoveryCookie(participantId: string, provisionalSessionId: string): string {
+  return `${RECOVERY_COOKIE}=${encodeURIComponent(
+    signRecoveryToken(participantId, provisionalSessionId),
+  )}; ${cookieAttrs(60 * 30)}`;
+}
 
 /**
  * Respond to a successful redemption.
@@ -175,15 +202,53 @@ export async function GET(request: Request) {
       email: contact,
     });
 
-    // A conflict is NOT merged. §5 forbids automatic merging, so if the address
-    // already belongs to someone else the participant is sent back to choose a
-    // different address rather than having two people's records silently folded
-    // together.
+    // A conflict is NOT merged — but it no longer dead-ends.
+    //
+    // §5 still forbids automatic merging, and nothing here merges: no
+    // participant_id is rewritten, no contact moves, no row changes owner. What
+    // changed (Owner policy 2026-10-06) is that the participant is no longer
+    // told to "use a different email" and left with stranded answers. They have
+    // just PROVEN they own this address, so they are routed into their own
+    // record and offered a choice about what to do with today's sitting.
+    //
+    // WHY THE DECISION IS NOT MADE HERE. This is a redirect target — a mail
+    // client or a scanner can PREFETCH it. Creating a session or copying
+    // answers on a prefetch would act before the participant ever clicked.
+    // So this branch only VERIFIES and ROUTES; the write happens on a screen
+    // the participant actually presses.
     if (!result.claimed) {
-      return NextResponse.redirect(
-        new URL("/assessment/start?claimConflict=1", request.url),
+      // RESOLVE THE SESSION FROM THE PARTICIPANT — do not assume they are the
+      // same id. `claimId` is a PARTICIPANT id (the client stores the one it was
+      // given at creation); the recovery flow needs the SESSION id that holds
+      // the sitting's answers. Passing one where the other is expected was a real
+      // defect: the carry-forward 409'd on every genuine recovery, and the only
+      // values that "worked" were the ones an attacker could not have obtained
+      // legitimately.
+      const { data: provSession } = await db
+        .from("assessment_sessions")
+        .select("session_id")
+        .eq("participant_id", claimId)
+        .order("started_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      const provisionalSessionId = (provSession as { session_id: string } | null)?.session_id;
+      if (!provisionalSessionId) {
+        // Nothing to carry. Route to the welcome screen, which handles a
+        // participant with no resumable session correctly.
+        return redemptionResponse(request, result.ownerId, false);
+      }
+
+      const res = NextResponse.redirect(
+        new URL(`/auth/recover?src=${encodeURIComponent(provisionalSessionId)}`, request.url),
         303,
       );
+      // The verified participant's own session, so the recovery screen can act
+      // as them without trusting anything the browser might send back.
+      res.headers.append("set-cookie", participantCookie(result.ownerId));
+      // WHICH provisional sitting is in play, SIGNED — see signRecoveryToken
+      // for why an unsigned value here would be a cross-participant read.
+      res.headers.append("set-cookie", recoveryCookie(result.ownerId, provisionalSessionId));
+      return res;
     }
 
     // Stamp the contact verified — the click just proved ownership of it.

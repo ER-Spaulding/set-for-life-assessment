@@ -114,8 +114,12 @@ describe("Money Moment copy matches Addendum 02 v1.1 §9 verbatim", () => {
       const a = got[i];
       const b = want[i];
       if (a.id !== b.id) mismatches.push(`${b.id}: id is ${a.id}`);
-      if (a.eyebrow !== b.eyebrow)
-        mismatches.push(`${b.id} eyebrow\n      app: ${JSON.stringify(a.eyebrow)}\n      src: ${JSON.stringify(b.eyebrow)}`);
+      // EYEBROW IS DELIBERATELY NOT COMPARED TO THE SOURCE. The Owner ruled on
+      // 2026-10-06 that the ordinal must not be displayed, which supersedes
+      // §11's "small `MONEY MOMENT · 0X OF 05` eyebrow". The eyebrow is instead
+      // pinned by its own test below, so it is still guarded — just against the
+      // governing requirement rather than the superseded line. Every OTHER
+      // string here remains a raw, unnormalised comparison against §9.
       if (a.headline !== b.headline)
         mismatches.push(`${b.id} headline\n      app: ${JSON.stringify(a.headline)}\n      src: ${JSON.stringify(b.headline)}`);
       if (a.cta !== b.cta)
@@ -149,12 +153,24 @@ describe("Money Moment copy matches Addendum 02 v1.1 §9 verbatim", () => {
     expect(offenders).toEqual([]);
   });
 
-  it("the eyebrow carries the §11 progress marker, with its middle dot", () => {
-    // §11: "small `MONEY MOMENT · 0X OF 05` eyebrow". U+00B7 is the approved
-    // separator here, unlike the CTAs where ASCII is required.
-    shipped().forEach((m, i) => {
-      expect(m.eyebrow).toBe(`MONEY MOMENT · 0${i + 1} OF 05`);
+  it("the eyebrow shows NO ordinal — Owner ruling 2026-10-06", () => {
+    // SUPERSEDES §11. Addendum 02 v1.1 §11 specified "small
+    // `MONEY MOMENT · 0X OF 05` eyebrow"; the Owner ruled on 2026-10-06 that
+    // Money Moments display ONLY "MONEY MOMENT" — no "01 OF 05", no "02 OF 05",
+    // no ordinal/total numbering of any kind.
+    //
+    // Asserted as a PROPERTY rather than the literal string, so a future edit
+    // that reintroduces numbering in another spelling ("1/5", "Moment 1",
+    // "01 of 05") fails here instead of passing a literal comparison.
+    shipped().forEach((m) => {
+      expect(m.eyebrow, `${m.id} eyebrow`).toBe("MONEY MOMENT");
+      // Belt and braces: nothing that looks like an ordinal or a fraction.
+      expect(m.eyebrow, `${m.id} must carry no number`).not.toMatch(/\d/);
+      expect(m.eyebrow, `${m.id} must carry no ordinal word`).not.toMatch(
+        /\bOF\b|\bof\b|\/|moment\s*\d/i,
+      );
     });
+    console.log("  eyebrows:", JSON.stringify(shipped().map((m) => m.eyebrow)));
   });
 });
 
