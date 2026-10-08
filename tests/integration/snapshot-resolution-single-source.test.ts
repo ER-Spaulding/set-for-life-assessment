@@ -445,8 +445,8 @@ describe("the web results page and snapshot components resolve copy through one 
 // connection library gained the connection {headline, framing} sub-object.
 // _version_note in each config records the full rationale; both hashes were
 // recomputed with contentHash's canonical algorithm (verified reproducible
-// against both pre-move pins). Golden fixture: Owner walkthrough session
-// 660fef00, 2026-10-07. The approved-library MDs follow in the same revision
+// against both pre-move pins). Golden fixture: an Owner walkthrough session
+// (session id redacted), 2026-10-07. The approved-library MDs follow in the same revision
 // (Phase 5 close-out).
 //
 // MOVED 2026-10-07 (Phase 3 copy authoring): the 2.0.0 families moved from
@@ -456,7 +456,17 @@ describe("the web results page and snapshot components resolve copy through one 
 // synthesis family, section_intros, activation bodies, attention bodies, and
 // the compositional destination family (theme_clauses). Same reviewable act:
 // hash + approved-library MD move together in Phase 5.
-const PINNED_NARRATIVES_HASH = "9a79a6315e00deb73774d8685cd40c0274ba82301e682baef156973c3f634b61";
+//
+// MOVED 2026-10-08 (security redaction): the narratives _version_note's
+// provenance line no longer names the live walkthrough session id; the
+// redaction removed that identifier from the config's metadata only. No
+// participant-facing copy, key, or behaviour changed — the connection library
+// hash is unmoved. Hash recomputed with contentHash's canonical algorithm
+// (verified reproducible against the pre-redaction pin). Provenance is intact
+// as a DESCRIPTION (an Owner walkthrough session on 2026-10-07); only the id
+// was withdrawn. The approved-library MDs are historical, unedited archives
+// unaffected by this change.
+const PINNED_NARRATIVES_HASH = "d094398a7381b2f4584979f4800cafb7c07c3a1e825a87030f877c16f06d8c94";
 const PINNED_CONNECTION_HASH = "a66978227eaca0820de270772cbb0d1ff5c99ad4d53aff62bb05eec42e00c7ff";
 
 describe("the narrative and connection libraries are PINNED by content hash", () => {

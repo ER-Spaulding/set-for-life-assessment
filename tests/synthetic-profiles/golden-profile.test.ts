@@ -5,8 +5,8 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 // Direction of travel: ASSESSMENT EVIDENCE → diagnosis → narrative. Never the
 // reverse. These answers are NOT chosen to make the Owner's approved sample
 // copy read nicely — they ARE the sample's evidence: the exact 31 responses of
-// session 660fef00-69a1-42da-871c-200e57038bda (snapshot 263373da, generated
-// 2026-10-07), the live walkthrough the Owner performed before approving the
+// a live walkthrough session (session id redacted; snapshot id redacted,
+// generated 2026-10-07), the live walkthrough the Owner performed before approving the
 // narrative-rewrite standard. Pulled read-only from the production `responses`
 // table on 2026-10-07.
 //

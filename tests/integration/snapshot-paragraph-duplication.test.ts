@@ -68,8 +68,8 @@ import cfg from "@/config/scoring-v1.0.json";
 
 // ---------------------------------------------------------------------------
 // The exact profile the owner saw: first friction == first connection.
-// Built through the REAL assembler from the live session's data (session
-// 30cbb52f-a549-49d4-873a-5734c8edd549): SEE S4 strongest, one tension
+// Built through the REAL assembler from a live session's data (session id
+// redacted): SEE S4 strongest, one tension
 // HIGH_FEAR_HIGH_ACTIVATION.
 // ---------------------------------------------------------------------------
 
