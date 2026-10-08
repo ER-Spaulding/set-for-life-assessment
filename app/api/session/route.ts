@@ -81,8 +81,8 @@ export async function POST(request: Request) {
   }
 
   // F-06: Opening A is answered ONCE, at the front door. This route is reached
-  // only from the returning "Begin a new assessment" path (number lookup →
-  // verification → welcome), so the door selected "No" — the canonical stored
+  // only from the returning "Begin a new assessment" path (verified email
+  // recovery → verification → welcome), so the door selected "No" — the canonical stored
   // OPEN_A is OPEN_A_B. Written server-side, never posted by the client.
   //
   // SWALLOWED ON FAILURE, DELIBERATELY — same reasoning as the provisional door

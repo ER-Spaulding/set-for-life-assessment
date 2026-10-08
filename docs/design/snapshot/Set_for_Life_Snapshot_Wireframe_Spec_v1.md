@@ -11,7 +11,7 @@
 - Dynamic hero selection uses only the participant’s explicit gender response; never infer.
 - Web copy is concise; expanded connective narrative belongs in the PDF.
 - Perception Gap remains deferred for pilot and is not shown as a placeholder or missing section.
-- The CTA is a replaceable campaign block. Current campaign: Financial Makeover Masterclass.
+- The CTA is a replaceable campaign block. Current campaign: Girl, I Got You Masterclass (same registration URL; updated with the approved narrative rewrite, 2026-10-07).
 
 ## 1. Snapshot Hero / Opening
 
@@ -211,7 +211,7 @@
 
 **Implementation notes:** Educational focus, not advice. Avoid “you need to,” product recommendations, allocations, replacement/surrender language.
 
-## 10. Configurable Next-Step CTA — Current Campaign: Financial Makeover Masterclass
+## 10. Configurable Next-Step CTA — Current Campaign: Girl, I Got You Masterclass
 
 **Purpose:** Invite the participant to continue the experience after substantive Snapshot value has already been delivered. The section is permanent; the campaign content is replaceable.
 

@@ -25,13 +25,13 @@
 //
 // TWO STAGES:
 //   offer    — the §3.1 copy and its two CTAs
-//   claimed  — first name + email collected, verification sent, and now the Set
-//              for Life Number is shown with the operator's retention copy
+//   claimed  — first name + email collected, verification sent: a governed
+//              "check your email" confirmation (config saveMyProgress.sent).
 //
-// The number is shown at the CLAIM moment, not at entry, because that is when it
-// becomes the thing that gets them back to their record — before an identity
-// exists there is nothing for it to unlock, and showing it earlier would imply
-// the recoverability §14 says must not be promised yet.
+// NO IDENTIFIER IS SHOWN HERE ANYMORE (Owner decision, narrative-rewrite
+// scope, 2026-10-07): the Set for Life Number is internal-system-only, so the
+// claimed screen confirms the EMAIL verification flow instead. Recovery is
+// verified identity (§4.4), never something the participant memorizes.
 
 import { useState } from "react";
 import saveMyProgress from "../../config/interstitial-v1.0.json";
@@ -39,15 +39,12 @@ import saveMyProgress from "../../config/interstitial-v1.0.json";
 const COPY = saveMyProgress.saveMyProgress;
 
 export function SaveMyProgress({
-  sflNumber,
   onKeepGoing,
   onClaim,
   claimed = false,
   sending = false,
   error = null,
 }: {
-  /** The participant's Set for Life Number, shown once claimed. */
-  sflNumber: string | null;
   /** "KEEP GOING WITHOUT SAVING" — continue in the current session. */
   onKeepGoing: () => void;
   /** "SAVE MY PROGRESS" — collect identity and verify. */
@@ -67,33 +64,17 @@ export function SaveMyProgress({
             className="font-body uppercase text-rose"
             style={{ fontSize: "16px", lineHeight: "24px", fontWeight: 600, letterSpacing: "0.14em" }}
           >
-            {COPY.keepNumber.label}
+            {COPY.sent.label}
           </p>
-          {/* The number is the visual anchor of this screen — it is the one
-              thing the participant needs to retain. */}
-          <p
-            className="mt-4 font-display text-evergreen"
-            style={{ fontSize: "var(--type-t02-size)", lineHeight: "var(--type-t02-line)", letterSpacing: "0.04em" }}
-          >
-            {sflNumber ?? "—"}
-          </p>
-          <p
-            className="prose-measure mt-5 font-body text-obsidian"
-            style={{ fontSize: "18px", lineHeight: "29px" }}
-          >
-            {COPY.keepNumber.instructions}
-          </p>
-
-          {/* Deliberately NOT framed as a credential. Operator: "Do not overstate
-              the number as a security credential." The number finds the record;
-              verification is what protects it. */}
-          <p
-            className="prose-measure mt-4 font-body text-rose"
-            style={{ fontSize: "16px", lineHeight: "24px" }}
-          >
-            Your number helps us find your record. We will always confirm it is
-            you before showing anything private.
-          </p>
+          {COPY.sent.body.map((line: string, i: number) => (
+            <p
+              key={i}
+              className="prose-measure mt-5 font-body text-obsidian"
+              style={{ fontSize: "18px", lineHeight: "29px" }}
+            >
+              {line}
+            </p>
+          ))}
 
           <button
             type="button"
@@ -106,7 +87,7 @@ export function SaveMyProgress({
               minHeight: "56px",
             }}
           >
-            {COPY.primaryCta}
+            {COPY.sent.cta}
           </button>
         </div>
       </main>

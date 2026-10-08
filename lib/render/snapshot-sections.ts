@@ -61,14 +61,19 @@ export type SnapshotSectionId =
 
 /** One resolved block of participant-facing copy. */
 export interface SnapshotBlock {
-  /** A leading emphasis line, e.g. one of §2.4's six human questions. */
+  /** A leading emphasis line, e.g. one of §2.4's six human questions — or the
+   *  Readiness dimension name (the state label rides `label`). */
   kicker?: string;
   /** An emphasized title: a state label, finding title, connection headline,
-   *  activation label, or attention label. */
+   *  activation state label, Big Picture headline, or attention label. */
   label?: string;
-  /** The narrative body (or the sole string for body-only blocks: big-picture
-   *  sentences and destination-theme labels). */
+  /** The FIRST narrative paragraph (or the sole string for body-only blocks:
+   *  destination-theme labels). Empty string when the block is label-only
+   *  during scaffolding — renderers must tolerate it. */
   body: string;
+  /** Additional approved paragraphs after `body` (Owner §8 multi-paragraph
+   *  copy). Absent when there are none. */
+  paragraphs?: string[];
   /**
    * Marks the resolver's PRIMARY vs SECONDARY selection where one exists
    * (connection: connections[0] is primary; attention: primaryAttentionArea vs
@@ -89,6 +94,16 @@ export interface SnapshotSection {
    * that is a layout choice, not a second heading source.
    */
   heading: string;
+  /**
+   * Fixed framing paragraphs rendered above the blocks, from the governed
+   * `section_intros` family (and, for destination, its framing + synthesis).
+   * Absent when the section has none. The PDF skips these — a recorded
+   * renderer difference, not an accident.
+   */
+  intro?: string[];
+  /** Closing paragraphs rendered below the blocks (destination synthesis
+   *  outro). Absent when there are none. */
+  outro?: string[];
   blocks: SnapshotBlock[];
 }
 
@@ -170,12 +185,25 @@ function sectionHeading(id: SnapshotSectionId): string {
 export function resolveSnapshotSections(view: ResolvedSnapshotView): SnapshotSection[] {
   const sections: SnapshotSection[] = [];
 
-  // big-picture — present only when it has sentences to render.
-  const bigPicture: SnapshotBlock[] = (view.bigPicture?.sentences ?? []).map((s) => ({
-    body: s,
-  }));
-  if (bigPicture.length > 0) {
-    sections.push({ id: "big-picture", heading: sectionHeading("big-picture"), blocks: bigPicture });
+  // big-picture — ONE block: the editorial synthesis headline plus its body
+  // paragraphs. It deliberately does NOT render `bigPicture.parts`, whose keys
+  // are the sentences the later sections render in full (Owner §1: unfold, not
+  // echo). Present only when the synthesis entry resolved.
+  if (view.bigPicture && view.bigPicture.body.length > 0) {
+    sections.push({
+      id: "big-picture",
+      heading: sectionHeading("big-picture"),
+      ...(view.sectionIntros["big-picture"] ? { intro: view.sectionIntros["big-picture"] } : {}),
+      blocks: [
+        {
+          label: view.bigPicture.headline,
+          body: view.bigPicture.body[0],
+          ...(view.bigPicture.body.length > 1
+            ? { paragraphs: view.bigPicture.body.slice(1) }
+            : {}),
+        },
+      ],
+    });
   }
 
   // money-picture — always a module (the web renders its heading even under the
@@ -183,6 +211,7 @@ export function resolveSnapshotSections(view: ResolvedSnapshotView): SnapshotSec
   sections.push({
     id: "money-picture",
     heading: sectionHeading("money-picture"),
+    ...(view.sectionIntros["money-picture"] ? { intro: view.sectionIntros["money-picture"] } : {}),
     blocks: view.signals.map((row) => ({
       kicker: row.question,
       label: row.label,
@@ -200,6 +229,7 @@ export function resolveSnapshotSections(view: ResolvedSnapshotView): SnapshotSec
     sections.push({
       id: "strengths",
       heading: sectionHeading("strengths"),
+      ...(view.sectionIntros["strengths"] ? { intro: view.sectionIntros["strengths"] } : {}),
       blocks: strengths.map((f) => ({ label: f.label, body: f.copy })),
     });
   }
@@ -209,19 +239,33 @@ export function resolveSnapshotSections(view: ResolvedSnapshotView): SnapshotSec
     sections.push({
       id: "friction",
       heading: sectionHeading("friction"),
+      ...(view.sectionIntros["friction"] ? { intro: view.sectionIntros["friction"] } : {}),
       blocks: frictions.map((f) => ({ label: f.label, body: f.copy })),
     });
   }
 
+  // connection — the section's OWN headline and framing prose. The statement
+  // body joins the block ONLY when it renders nowhere else (not a rendered
+  // friction or strength), so one approved string lives in exactly one section
+  // (Owner §14 / plan D5). A block can therefore be headline-only (`body: ""`)
+  // while its statement body renders in the Friction module.
   if (view.connections.length > 0) {
     sections.push({
       id: "connection",
       heading: sectionHeading("connection"),
-      blocks: view.connections.map((c, i) => ({
-        label: c.headline,
-        body: c.body,
-        variant: i === 0 ? ("primary" as const) : ("secondary" as const),
-      })),
+      ...(view.sectionIntros["connection"] ? { intro: view.sectionIntros["connection"] } : {}),
+      blocks: view.connections.map((c, i) => {
+        const paras = [
+          ...c.connectionFraming,
+          ...(c.bodyRenderedElsewhere ? [] : [c.body]),
+        ];
+        return {
+          label: c.connectionHeadline,
+          body: paras[0] ?? "",
+          ...(paras.length > 1 ? { paragraphs: paras.slice(1) } : {}),
+          variant: i === 0 ? ("primary" as const) : ("secondary" as const),
+        };
+      }),
     });
   }
 
@@ -229,35 +273,62 @@ export function resolveSnapshotSections(view: ResolvedSnapshotView): SnapshotSec
     sections.push({
       id: "destination",
       heading: sectionHeading("destination"),
+      // The fixed framing PLUS any selection-set synthesis body precede the
+      // verbatim themes; the closing outro follows them. The themes themselves
+      // are never rewritten, ranked, or diagnosed (Owner §10).
+      ...(view.destinationFrame.intro.length > 0 ? { intro: view.destinationFrame.intro } : {}),
+      ...(view.destinationFrame.outro.length > 0 ? { outro: view.destinationFrame.outro } : {}),
       blocks: view.destinationThemes.map((t) => ({ body: t.label })),
     });
   }
 
   // readiness — always a module: four separate dimensions, never averaged, always
-  // present (the resolver maps the fixed A1–A4 items unconditionally).
+  // present (the resolver maps the fixed A1–A4 items unconditionally). The
+  // dimension NAME rides as the kicker; the band's STATE label is the block
+  // label; the approved paragraphs carry the copy.
   sections.push({
     id: "readiness",
     heading: sectionHeading("readiness"),
-    blocks: view.activation.map((a) => ({ label: a.label, body: a.copy })),
+    ...(view.sectionIntros["readiness"] ? { intro: view.sectionIntros["readiness"] } : {}),
+    blocks: view.activation.map((a) => ({
+      kicker: a.dimension,
+      label: a.label,
+      body: a.paragraphs[0] ?? "",
+      ...(a.paragraphs.length > 1 ? { paragraphs: a.paragraphs.slice(1) } : {}),
+    })),
   });
 
   const attention: SnapshotBlock[] = [];
   if (view.primaryAttentionArea) {
     attention.push({
       label: view.primaryAttentionArea.label,
-      body: view.primaryAttentionArea.body,
+      body: view.primaryAttentionArea.paragraphs[0],
+      ...(view.primaryAttentionArea.paragraphs.length > 1
+        ? { paragraphs: view.primaryAttentionArea.paragraphs.slice(1) }
+        : {}),
       variant: "primary",
     });
   }
   if (view.secondaryAttentionArea) {
+    // The subordinate secondary is composed HERE, in the shared model, so the
+    // composed string is a model string both renderers and the membership
+    // guards see — never ad-hoc copy in a component.
     attention.push({
-      label: view.secondaryAttentionArea.label,
-      body: view.secondaryAttentionArea.body,
+      label: `KEEP IN VIEW — ${view.secondaryAttentionArea.shortLabel}`,
+      body: view.secondaryAttentionArea.paragraphs[0],
+      ...(view.secondaryAttentionArea.paragraphs.length > 1
+        ? { paragraphs: view.secondaryAttentionArea.paragraphs.slice(1) }
+        : {}),
       variant: "secondary",
     });
   }
   if (attention.length > 0) {
-    sections.push({ id: "attention", heading: sectionHeading("attention"), blocks: attention });
+    sections.push({
+      id: "attention",
+      heading: sectionHeading("attention"),
+      ...(view.sectionIntros["attention"] ? { intro: view.sectionIntros["attention"] } : {}),
+      blocks: attention,
+    });
   }
 
   return sections;

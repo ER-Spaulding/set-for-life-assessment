@@ -154,7 +154,12 @@ function nullFindingProfile(): SnapshotPayload {
 // on, and (for a full profile) exactly what both renderers emit.
 // ---------------------------------------------------------------------------
 
-/** EVERY string the shared section model carries (kicker + label + body). */
+/**
+ * EVERY string the shared section model carries FOR THE PDF (kicker + label +
+ * body + paragraphs). Section intro/outro are web-only by renderer decision —
+ * recorded in snapshot-pdf.tsx and asserted below — so they are deliberately
+ * NOT in this universe.
+ */
 function sectionBlockStrings(sections: SnapshotSection[]): string[] {
   const out: string[] = [];
   for (const section of sections) {
@@ -162,9 +167,13 @@ function sectionBlockStrings(sections: SnapshotSection[]): string[] {
       if (block.kicker) out.push(block.kicker);
       if (block.label) out.push(block.label);
       out.push(block.body);
+      for (const p of block.paragraphs ?? []) out.push(p);
     }
   }
-  return out;
+  // Empty bodies are model-legal (a headline-only connection block during
+  // scaffolding) but emit no PDF text — a "" in the expected sequence would
+  // make a byte-equality comparison vacuous rather than stricter.
+  return out.filter((x) => x.length > 0);
 }
 
 /** Render + decode the real bytes for a payload (the byte-level substrate). */
@@ -262,12 +271,14 @@ describe("property 3 — for a full profile the PDF emits exactly the shared mod
     const pdfSections = snapshotPdfSections(sections);
     const ids = pdfSections.map((s) => s.id);
     expect(ids[0]).toBe("big-picture");
-    // primary connection headline is inside the big-picture section
+    // primary connection block is pulled up beside the big-picture section (§9).
+    // Its label is the Connection headline (plan D5 decoupled it from the
+    // friction title), so pair it with connectionHeadline, not headline.
     const bp = pdfSections[0].blocks.map((b) => b.label ?? b.body);
-    expect(bp).toContain(view.connections[0].headline);
+    expect(bp).toContain(view.connections[0].connectionHeadline);
     // the secondary connection is NOT in the big-picture section
     const connectionSection = pdfSections.find((s) => s.id === "connection");
-    expect(connectionSection?.blocks.some((b) => b.label === view.connections[1].headline)).toBe(true);
+    expect(connectionSection?.blocks.some((b) => b.label === view.connections[1].connectionHeadline)).toBe(true);
   });
 });
 

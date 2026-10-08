@@ -21,6 +21,15 @@
  *      == vocabulary JSON
  *  5c. MD vs JSON: Narrative Library MD (context / perception-gap / activation /
  *      attention-area / big-picture-template keys) == narratives JSON
+ *  6.  2.0.0 FAMILY COMPLETENESS + NON-EMPTY (Phase 5 hardening): section_intros,
+ *      big_picture (default + headline/body on every node), evidence_openers
+ *      (>=3 distinct per level), attention short_label + body, connection
+ *      {headline, framing}, destination theme_clauses (all 11 Q16 codes) +
+ *      lede/tail, activation {stateLabel, body} on all 12 bands — every string
+ *      non-empty, and the approved MDs carry the matching 2.0.0 sections. The
+ *      historical failure mode this closes: a parse that succeeds VACUOUSLY
+ *      (missing heading -> empty section -> empty==empty) passing on absence.
+ *  7.  Version agreement: config `version` 2.0.x and every MD Version line 2.0.0.
  *
  * RUN: node tests/unit/copy-library-consistency.mjs
  * (Plain Node — no test runner is set up in this repo yet. When a runner
@@ -35,7 +44,9 @@ import { fileURLToPath } from "node:url";
 const here = dirname(fileURLToPath(import.meta.url));
 const repoRoot = join(here, "..", "..");
 const configDir = join(repoRoot, "config");
-const downloadsDir = "/Users/erspaulding/Downloads";
+// Env-overridable so the guard can run against a staged copy of the approved
+// libraries (plan Phase 5) — the operator default is the real Downloads dir.
+const downloadsDir = process.env.COPY_LIBRARY_DIR || "/Users/erspaulding/Downloads";
 
 const NARRATIVES_JSON = join(configDir, "narratives-v1.0.json");
 const CONNECTION_JSON = join(configDir, "connection-statements-v1.0.json");
@@ -275,12 +286,151 @@ const tplMd = [...narrativeMd.matchAll(/`(PRIMARY_FRICTION|CAPACITY_FIRST|NO_MEA
   .map((m) => m[1])
   .filter((v, i, a) => a.indexOf(v) === i)
   .sort();
-const tplJson = sortedKeys(narratives.big_picture_templates);
+const tplJson = sortedKeys(narratives.big_picture);
 check(
-  "5c-v narrative MD big-picture templates == JSON big_picture_templates",
+  "5c-v narrative MD big-picture templates == JSON big_picture",
   setEq(tplMd, tplJson),
   `MD: ${tplMd.join(",")} JSON: ${tplJson.join(",")}`,
 );
+
+// ---- 5c non-empty hardening: a missing MD section must FAIL, not vacuously pass ----
+{
+  const named = [
+    ["context", "## Context narratives"],
+    ["perception gap", "## Perception Gap"],
+    ["activation", "## Activation narratives"],
+    ["attention areas", "## Educational attention areas"],
+  ];
+  for (const [name, heading] of named) {
+    const body = narrativeMd.split(new RegExp(`^${heading}`, "m"))[1]?.split(/^## /m)[0] ?? "";
+    check(`5c-EMPTY narrative MD "${name}" section exists and is non-empty`, body.trim().length > 0,
+      body.trim().length > 0 ? `${body.trim().length} chars` : "section missing or empty");
+  }
+  check("5a-EMPTY connection MD parsed", connMdKeys.length > 0, `${connMdKeys.length} keys`);
+  check("5b-EMPTY vocab MD parsed", vocabMdSignals.length > 0, `${vocabMdSignals.length} signals`);
+}
+
+// ---- 6: 2.0.0 family completeness + non-empty (config side) ----
+const nonEmpty = (v) => typeof v === "string" && v.trim().length > 0;
+
+const si = narratives.section_intros ?? {};
+const siKeys = Object.keys(si);
+const siBad = siKeys.filter((k) => !Array.isArray(si[k]) || si[k].length === 0 || si[k].some((p) => !nonEmpty(p)));
+check("6a section_intros present, all paragraph arrays non-empty",
+  siKeys.length > 0 && siBad.length === 0,
+  siBad.length === 0 ? `${siKeys.length} sections` : `bad: ${siBad.join(", ")}`);
+
+const bp = narratives.big_picture ?? {};
+const bpBad = [];
+for (const [tpl, areas] of Object.entries(bp)) {
+  if (!areas.default) bpBad.push(`${tpl}:missing-default`);
+  for (const [area, node] of Object.entries(areas)) {
+    if (!nonEmpty(node?.headline)) bpBad.push(`${tpl}.${area}:headline`);
+    if (!Array.isArray(node?.body) || node.body.length === 0 || node.body.some((p) => !nonEmpty(p))) {
+      bpBad.push(`${tpl}.${area}:body`);
+    }
+  }
+}
+check("6b big_picture: default + non-empty headline/body on every node",
+  Object.keys(bp).length > 0 && bpBad.length === 0,
+  bpBad.length === 0 ? `${Object.values(bp).reduce((n, a) => n + Object.keys(a).length, 0)} nodes` : bpBad.join(", "));
+
+const eo = narratives.evidence_openers ?? {};
+const eoBad = ["high", "moderate", "limited"].filter((lvl) => {
+  const pool = eo[lvl];
+  return !Array.isArray(pool) || pool.length < 3 ||
+    new Set(pool).size < 3 || pool.some((p) => !nonEmpty(p));
+});
+check("6c evidence_openers: >=3 distinct non-empty openers per level",
+  eoBad.length === 0, eoBad.length === 0 ? "high,moderate,limited" : `bad: ${eoBad.join(", ")}`);
+
+const att = narratives.attention_areas ?? {};
+const attBad = Object.keys(att).filter((k) =>
+  !nonEmpty(att[k]?.short_label) || !nonEmpty(att[k]?.label) ||
+  !Array.isArray(att[k]?.body) || att[k].body.length === 0);
+check("6d attention_areas: label + short_label + non-empty body on every area",
+  Object.keys(att).length > 0 && attBad.length === 0,
+  attBad.length === 0 ? `${Object.keys(att).length} areas` : attBad.join(", "));
+
+const connBad = [];
+for (const home of [standalone, narratives.connection_statements ?? {}]) {
+  for (const [k, e] of Object.entries(home)) {
+    if (k.startsWith("_") || k === "version") continue;
+    if (!nonEmpty(e?.headline) || !nonEmpty(e?.body)) connBad.push(`${k}:friction`);
+    if (!nonEmpty(e?.connection?.headline)) connBad.push(`${k}:connection.headline`);
+    if (!Array.isArray(e?.connection?.framing) || e.connection.framing.length === 0 ||
+        e.connection.framing.some((p) => !nonEmpty(p))) connBad.push(`${k}:connection.framing`);
+  }
+}
+check("6e connection entries: friction title/body + connection headline/framing (both homes)",
+  connBad.length === 0, connBad.length === 0 ? "18 × 2 homes" : connBad.join(", "));
+
+const dest = narratives.destination ?? {};
+const destCodes = ["Q16_A","Q16_B","Q16_C","Q16_D","Q16_E","Q16_F","Q16_G","Q16_H","Q16_I","Q16_J","Q16_K"];
+const destBad = destCodes.filter((c) =>
+  !nonEmpty(dest.theme_clauses?.[c]?.framing) || !nonEmpty(dest.theme_clauses?.[c]?.outcome));
+if (Object.keys(dest.theme_clauses ?? {}).sort().join(",") !== [...destCodes].sort().join(",")) {
+  destBad.push("key-set");
+}
+if (!Array.isArray(dest.intro) || dest.intro.length === 0) destBad.push("intro");
+if (!nonEmpty(dest.lede?.contrast) || !nonEmpty(dest.lede?.plain)) destBad.push("lede");
+if (!nonEmpty(dest.tail)) destBad.push("tail");
+if (!nonEmpty(dest._default)) destBad.push("_default");
+check("6f destination: all 11 theme_clauses + intro/lede/tail/fallback non-empty",
+  destBad.length === 0, destBad.length === 0 ? "11 codes" : destBad.join(", "));
+
+const actBad = [];
+for (const item of ["A1", "A2", "A3", "A4"]) {
+  for (const band of ["LOW", "MID", "HIGH"]) {
+    const n = narratives.activation?.[item]?.[band];
+    if (!nonEmpty(n?.stateLabel)) actBad.push(`${item}.${band}:label`);
+    if (!Array.isArray(n?.body) || n.body.length === 0 || n.body.some((p) => !nonEmpty(p))) {
+      actBad.push(`${item}.${band}:body`);
+    }
+  }
+}
+check("6g activation: non-empty stateLabel + body on all 12 bands",
+  actBad.length === 0, actBad.length === 0 ? "12 bands" : actBad.join(", "));
+
+// ---- 6 (MD side): the approved documents carry the 2.0.0 sections ----
+const mdHas = (md, needle) => md.includes(needle);
+check("6h narrative MD carries the 2.0.0 appended sections",
+  mdHas(narrativeMd, "## Section intros (2.0.0)") &&
+    mdHas(narrativeMd, "## Destination synthesis (2.0.0, COMPOSITIONAL)") &&
+    mdHas(narrativeMd, "## Signal confidence voices (2.0.0)"),
+  "section intros + destination + confidence voices");
+check("6i narrative MD mirrors every Q16 theme code",
+  destCodes.every((c) => mdHas(narrativeMd, `\`${c}\``)),
+  `${destCodes.length} codes`);
+check("6j narrative MD mirrors every attention short_label",
+  Object.values(att).every((e) => mdHas(narrativeMd, `**Short label (KEEP IN VIEW):** \`${e.short_label}\``)),
+  `${Object.keys(att).length} short labels`);
+check("6k connection MD mirrors every connection headline",
+  Object.keys(standalone).filter((k) => !k.startsWith("_") && k !== "version")
+    .every((k) => mdHas(connectionMd, `**Connection headline:** ${standalone[k].connection.headline}`)),
+  "18 connection headlines");
+check("6l narrative MD mirrors every activation state label",
+  ["A1","A2","A3","A4"].flatMap((i) => ["LOW","MID","HIGH"].map((b) => narratives.activation[i][b].stateLabel))
+    .every((label) => mdHas(narrativeMd, label)),
+  "12 state labels");
+check("6m vocabulary MD mirrors the moderate representative of every ladder state",
+  SIGNALS.every((s) => LEVELS.every((l) => mdHas(vocabMd, ` — ${vocab[s][l].label}`))),
+  "30 state labels");
+
+// ---- 7: version agreement ----
+for (const [name, obj] of [
+  ["narratives", narratives],
+  ["connection-statements", standalone],
+  ["signal-state-vocabulary", vocab],
+]) {
+  check(`7a config ${name} version is 2.0.x`,
+    /^2\.0\./.test(String(obj.version ?? "")), `version=${obj.version}`);
+}
+for (const [name, md] of [["narrative", narrativeMd], ["connection", connectionMd], ["vocabulary", vocabMd]]) {
+  const m = md.match(/^\*\*Version ([^*]+)\*\*$/m);
+  check(`7b ${name} MD Version line is 2.0.0`,
+    Boolean(m) && m[1].includes("2.0.0"), m ? m[1] : "no version line");
+}
 
 // ---- summary ----
 const failed = results.filter((r) => !r.pass);

@@ -151,7 +151,12 @@ const styles = StyleSheet.create({
   kicker: {
     fontSize: 9,
     letterSpacing: 1.2,
-    textTransform: "uppercase",
+    // NO textTransform: react-pdf bakes the transform into the content stream,
+    // so an uppercasing kicker made the extracted PDF text differ from the
+    // model string for any kicker stored in title case (the Readiness dimension
+    // names) — a web/PDF parity break the byte-level guard correctly caught.
+    // The §2.4 human questions are stored FULL CAPS in config, so their
+    // rendered look is unchanged.
     color: "#9b2c2c",
     marginBottom: 4,
   },
@@ -162,6 +167,8 @@ const styles = StyleSheet.create({
     color: "#0f3d33",
   },
   body: { fontSize: 12 },
+  /** Gap above a continuation paragraph inside one block (multi-paragraph copy). */
+  bodyParagraphGap: { marginTop: 8 },
   footer: {
     position: "absolute",
     bottom: 32,
@@ -250,6 +257,12 @@ export async function renderSnapshotPdf(
 
   const contentPages = pdfSections.map((section) => (
     <Page key={section.id} size="LETTER" style={styles.page}>
+      {/* Section intros/outros (the governed `section_intros` + destination
+          framing/synthesis) are WEB-ONLY: the PDF is a fixed-layout editorial
+          document whose pages are numbered by §9, and the shared section
+          model's intro/outro deliberately do not reach it. Recorded here as a
+          renderer difference, not an omission — a test pins that the PDF emits
+          no intro/outro string. */}
       {section.blocks.map((block, i) => (
         // The wrapper MUST be a View (block container), not a Text. Nested
         // <Text> children of a <Text> flow inline and render the kicker, label
@@ -258,6 +271,11 @@ export async function renderSnapshotPdf(
           {block.kicker ? <Text style={styles.kicker}>{block.kicker}</Text> : null}
           {block.label ? <Text style={styles.label}>{block.label}</Text> : null}
           <Text style={styles.body}>{block.body}</Text>
+          {(block.paragraphs ?? []).map((p, pi) => (
+            <Text key={pi} style={[styles.body, styles.bodyParagraphGap]}>
+              {p}
+            </Text>
+          ))}
         </View>
       ))}
       <PdfFooter />

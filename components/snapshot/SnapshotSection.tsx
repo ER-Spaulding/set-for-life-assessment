@@ -52,7 +52,8 @@ export function SnapshotSection({
   toneBleed = false,
 }: {
   title: string;
-  intro?: string;
+  /** The governed section-intro paragraphs (the shared model's `section.intro`). */
+  intro?: string[];
   children: ReactNode;
   id?: string;
   /**
@@ -96,7 +97,9 @@ export function SnapshotSection({
       >
         {title.toUpperCase()}
       </h2>
-      {intro ? <SectionIntro tone={plate ? "deep" : "ivory"}>{intro}</SectionIntro> : null}
+      {intro && intro.length > 0 ? (
+        <SectionIntro tone={plate ? "deep" : "ivory"} paragraphs={intro} />
+      ) : null}
       {children}
       <div className="pb-16 lg:pb-24" />
     </section>
@@ -104,31 +107,38 @@ export function SnapshotSection({
 }
 
 /**
- * The short framing line under a section heading.
+ * The framing paragraphs under a section heading — one `<p>` per approved
+ * paragraph, from the governed `section_intros` family via the shared model.
  *
- * Rendered as a `<p>` so it reads as prose to assistive tech, but it sits
- * OUTSIDE the section's content region: sections whose guards count paragraphs
- * within the content (e.g. the attention area, which asserts exactly one body
- * paragraph) are unaffected by the intro's presence. `aria-hidden` is NOT used —
- * the line is real, approved framing and must be readable.
+ * Rendered as `<p>`s so each paragraph reads as its own prose unit to
+ * assistive tech, and they sit OUTSIDE the section's content region: sections
+ * whose guards count paragraphs within the content (e.g. the attention area,
+ * which asserts exactly one body paragraph) are unaffected by the intro's
+ * presence. `aria-hidden` is NOT used — the lines are real, approved framing
+ * and must be readable.
  */
 export function SectionIntro({
-  children,
+  paragraphs,
   tone = "ivory",
 }: {
-  children: ReactNode;
+  paragraphs: string[];
   /** `deep` inverts the type for the Money Picture plate. */
   tone?: "ivory" | "deep";
 }) {
   return (
-    <p
-      className={`prose-measure mt-6 font-serif ${
-        tone === "deep" ? "text-ivory/85" : "text-obsidian/80"
-      }`}
-      style={{ fontSize: "22px", lineHeight: "32px" }}
-    >
-      {children}
-    </p>
+    <>
+      {paragraphs.map((text, i) => (
+        <p
+          key={i}
+          className={`prose-measure mt-6 font-serif ${
+            tone === "deep" ? "text-ivory/85" : "text-obsidian/80"
+          }`}
+          style={{ fontSize: "22px", lineHeight: "32px" }}
+        >
+          {text}
+        </p>
+      ))}
+    </>
   );
 }
 
@@ -194,14 +204,20 @@ export function DecorativeBand({
   );
 }
 
-/** The approved decorative backgrounds, by section. Used by the sections below. */
+/**
+ * The approved decorative backgrounds, by section. Used by the sections below.
+ *
+ * The Attention spotlight (`09-attention`, the hazy radial-gradient SVG) is
+ * deliberately ABSENT — the Owner rejected it in the narrative-rewrite pass
+ * (plan D11): one dominant Attention area, no spotlight artwork. The asset file
+ * stays on disk for provenance; `SECTION_ART` simply no longer points at it.
+ */
 export const SECTION_ART = {
   "02-big-picture": "/images/snapshot/section-02-big-picture-background-v1.svg",
   "04-strengths": "/images/snapshot/section-04-strengths-background-v1.svg",
   "05-friction": "/images/snapshot/section-05-friction-background-v1.svg",
   "06-connection": "/images/snapshot/section-06-connection-background-v1.svg",
   "07-destination": "/images/snapshot/section-07-destination-background-v1.svg",
-  "09-attention": "/images/snapshot/section-09-attention-background-v1.svg",
   "10-masterclass-cta": "/images/snapshot/section-10-masterclass-cta-background-v1.svg",
   "11-download": "/images/snapshot/section-11-download-background-v1.svg",
 } as const;

@@ -293,12 +293,17 @@ export function expectedPdfText(sections: SnapshotSection[], firstName: string |
     footerLine(1, totalPages),
   ];
 
+    // Section intro/outro (governed `section_intros` + destination framing) are
+    // WEB-ONLY by renderer decision — the PDF is fixed-layout with §9 page
+    // furniture, and snapshot-pdf.tsx records the same skip. Only block content
+    // (kicker/label/body/paragraphs) enters the byte-level universe here.
   let page = 2;
   for (const section of pdfSections) {
     for (const block of section.blocks) {
       if (block.kicker) parts.push(block.kicker);
       if (block.label) parts.push(block.label);
       parts.push(block.body);
+      for (const p of block.paragraphs ?? []) parts.push(p);
     }
     parts.push(footerLine(page, totalPages));
     page += 1;

@@ -15,10 +15,11 @@
 // a component.
 //
 // WHERE THIS COPY COMES FROM. Every string below is the owner's approved
-// campaign copy, supplied verbatim in the visual-implementation directive
-// (2026-10-05) and matching the approved wireframe spec §10, which LOCKED the
-// three benefit bullets word-for-word. None of it is authored here, and the
-// renderer never re-words, re-orders, or truncates it.
+// campaign copy for the Girl, I Got You Masterclass, verbatim from the
+// approved sample Snapshot §10 (narrative-rewrite standard, 2026-10-07),
+// which superseded the pilot's Financial Makeover copy (the URL is unchanged
+// by Owner decision). None of it is authored here, and the renderer never
+// re-words, re-orders, or truncates it.
 //
 // THE CAMPAIGN MUST NOT READ THE PARTICIPANT. This module takes no participant
 // input at all. The wireframe spec is explicit that the CTA is an invitation and
@@ -40,7 +41,7 @@ export interface SnapshotCampaign {
   /** The working headline. */
   headline: string;
   /** Optional supporting paragraph. Omitted (never faked) when a campaign has
-   *  none — the approved masterclass campaign supplies headline + bullets. */
+   *  none — the current campaign supplies body + bullets. */
   body?: string;
   /** The benefits, rendered in order. Exactly three in the approved campaign. */
   bullets: readonly string[];
@@ -51,24 +52,28 @@ export interface SnapshotCampaign {
 }
 
 /**
- * The approved campaign running in the pilot: the Financial Makeover Masterclass.
+ * The approved campaign: the Girl, I Got You Masterclass (sample §10).
  *
- * Copy is the owner's, verbatim. The bullet strings are the spec's LOCKED
- * bullets, including the sentence-cased first letter and the absence of closing
- * periods — preserved exactly as approved.
+ * Copy is the owner's, verbatim from the approved sample — headline, body,
+ * the three benefit bullets (sentence-cased first letters, no closing
+ * periods), and the button label. Same registration URL as the pilot
+ * campaign, per Owner decision (plan D10).
  */
 export const MASTERCLASS_CAMPAIGN: SnapshotCampaign = Object.freeze({
-  id: "financial_makeover_masterclass",
+  id: "girl_i_got_you_masterclass",
   active: true,
   eyebrow: "READY TO GO DEEPER?",
-  headline:
-    "Your Snapshot helped you see the picture. Now let’s help you understand what to do with what you see.",
+  headline: "Girl, I Got You.",
+  body:
+    "Your Snapshot showed you the pattern. The Girl, I Got You Masterclass is where " +
+    "we help you go deeper—so you can better understand what your financial picture " +
+    "is telling you and begin thinking more intentionally about what comes next.",
   bullets: Object.freeze([
-    "See your financial picture more clearly",
-    "Understand which areas deserve your attention",
-    "Learn how to think about your next moves with greater intention",
+    "See which part of your financial picture deserves your attention first",
+    "Understand why knowing more does not always create more movement",
+    "Think about your next financial decisions without trying to fix everything at once",
   ]),
-  buttonLabel: "SAVE MY SEAT FOR THE MASTERCLASS",
+  buttonLabel: "SAVE MY SEAT FOR THE GIRL, I GOT YOU MASTERCLASS",
   url: "https://masterclass.setforlifelive.com/register",
 });
 

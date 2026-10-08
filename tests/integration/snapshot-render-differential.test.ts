@@ -75,7 +75,16 @@ const RENDERED_SECTION_IDS = [
   "continuation",
 ];
 
-function expectedSignal(signal: string, narrativeKey: string): {
+function expectedSignal(
+  signal: string,
+  narrativeKey: string,
+  /**
+   * The evidence voice the FIXTURE carries (both fixtures set "high"). The
+   * resolver selects the same voice from the payload, so the expected string is
+   * derived the same way — never assumed to be a plain string anymore.
+   */
+  confidence: "high" | "moderate" | "limited" = "high",
+): {
   question: string;
   label: string;
   copy: string;
@@ -88,28 +97,55 @@ function expectedSignal(signal: string, narrativeKey: string): {
         ? narratives.special_signal_states[parts[1]]
         : null;
   if (!entry) throw new Error(`unexpected narrative key: ${narrativeKey}`);
-  if (typeof entry.label !== "string" || typeof entry.copy !== "string") {
+  if (typeof entry.label !== "string") {
+    throw new Error(`malformed narrative entry: ${narrativeKey}`);
+  }
+  let copy: string;
+  if (typeof entry.copy === "string") {
+    copy = entry.copy; // special states keep a single capacity-context voice
+  } else if (entry.copy && typeof entry.copy === "object") {
+    const v = (entry.copy as Record<string, string>)[confidence];
+    if (typeof v !== "string") throw new Error(`missing ${confidence} voice: ${narrativeKey}`);
+    copy = v;
+  } else {
     throw new Error(`malformed narrative entry: ${narrativeKey}`);
   }
   const question = questionFor[signal];
   if (typeof question !== "string") throw new Error(`unknown signal: ${signal}`);
-  return { question, label: entry.label, copy: entry.copy };
+  return { question, label: entry.label, copy };
 }
 
-function expectedConnection(code: string): { headline: string; body: string } {
+function expectedConnection(code: string): {
+  headline: string;
+  /** The paragraph texts the connection article should render, in order. */
+  paragraphs: string[];
+} {
   const entry = connectionStatements[code];
   if (!entry || typeof entry.headline !== "string" || typeof entry.body !== "string") {
     throw new Error(`unexpected connection code: ${code}`);
   }
-  return { headline: entry.headline, body: entry.body };
+  // The Connection section's own headline/framing (the sub-object), falling
+  // back to the statement headline/body — and the statement body joins the
+  // block only when the entry has NO framing of its own (Phase 1 scaffolding).
+  const sub = entry as { connection?: { headline?: string; framing?: string[] } };
+  const headline = typeof sub.connection?.headline === "string" ? sub.connection.headline : entry.headline;
+  const framing = (sub.connection?.framing ?? []).filter((p): p is string => typeof p === "string");
+  // keySpacePayload carries NO frictions or strengths, so the statement body
+  // renders HERE (bodyRenderedElsewhere false): framing first, then the body —
+  // exactly the resolver's rule. Empty framing collapses to [body], which is
+  // today's (Phase 1) behaviour.
+  const paragraphs = [...framing, entry.body];
+  return { headline, paragraphs };
 }
 
-function expectedAttention(key: string): { label: string; body: string } {
+function expectedAttention(key: string): { label: string; paragraphs: string[] } {
   const entry = narratives.attention_areas[key];
-  if (!entry || typeof entry.label !== "string" || typeof entry.body !== "string") {
+  if (!entry || typeof entry.label !== "string" || !Array.isArray(entry.body)) {
     throw new Error(`unexpected attention area: ${key}`);
   }
-  return { label: entry.label, body: entry.body };
+  const paragraphs = entry.body.filter((p): p is string => typeof p === "string");
+  if (paragraphs.length === 0) throw new Error(`empty attention body: ${key}`);
+  return { label: entry.label, paragraphs };
 }
 
 // ---------------------------------------------------------------------------
@@ -243,7 +279,7 @@ describe("the rendered view and the pinned config agree, element for element", (
 
     [...ladderSignals, ...specialSignals].forEach((s, i) => {
       const article = articles[i];
-      const expected = expectedSignal(s.signal, s.narrativeKey);
+      const expected = expectedSignal(s.signal, s.narrativeKey, "high");
 
       expect(article.children.length, `${s.narrativeKey} article has extra children`).toBe(3);
 
@@ -274,15 +310,22 @@ describe("the rendered view and the pinned config agree, element for element", (
       const article = articles[i];
       const expected = expectedConnection(code);
 
-      expect(article.children.length, `${code} article has extra children`).toBe(2);
+      // h3 + one <p> per approved paragraph — derived from the config, so a
+      // Phase 3 framing addition raises the count honestly while a minted
+      // wrapper still fails.
+      expect(article.children.length, `${code} article has extra children`).toBe(
+        1 + expected.paragraphs.length,
+      );
 
       const heading = article.querySelector("h3");
       expect(heading, `${code} must have one <h3>`).not.toBeNull();
       expect(heading!.textContent, `${code} headline mismatch`).toBe(expected.headline);
 
       const paragraphs = article.querySelectorAll("p");
-      expect(paragraphs.length, `${code} body/paragraph count`).toBe(1);
-      expect(paragraphs[0].textContent, `${code} body mismatch`).toBe(expected.body);
+      expect(paragraphs.length, `${code} body/paragraph count`).toBe(expected.paragraphs.length);
+      expected.paragraphs.forEach((p, pi) => {
+        expect(paragraphs[pi].textContent, `${code} paragraph ${pi} mismatch`).toBe(p);
+      });
     });
   });
 
@@ -310,8 +353,12 @@ describe("the rendered view and the pinned config agree, element for element", (
       expect(region, `${key}: attention region missing`).toBeDefined();
 
       const paragraphs = region!.querySelectorAll("p");
-      expect(paragraphs.length, `${key}: attention body paragraph count`).toBe(1);
-      expect(paragraphs[0].textContent, `${key}: attention body mismatch`).toBe(expected.body);
+      expect(paragraphs.length, `${key}: attention body paragraph count`).toBe(
+        expected.paragraphs.length,
+      );
+      expected.paragraphs.forEach((p, pi) => {
+        expect(paragraphs[pi].textContent, `${key}: attention paragraph ${pi} mismatch`).toBe(p);
+      });
     }
   });
 

@@ -218,13 +218,15 @@ describe("all six signals at S4 — a legitimate null finding", () => {
     expect(p.bigPicture.template).toBe("NO_MEANINGFUL_FRICTION");
 
     // The approved sentence, verbatim, from the library.
-    const copy = narratives.big_picture_templates.NO_MEANINGFUL_FRICTION as string;
+    const copy = (narratives.big_picture.NO_MEANINGFUL_FRICTION as {
+      default: { body: string[] };
+    }).default.body.join(" ");
     console.log("  null copy:", copy);
     expect(copy).toContain(
       "Nothing in your responses points to one area that needs to take center stage right now.",
     );
     expect(copy).toContain(
-      "Several parts of your financial picture may still be coming into focus.",
+      "Several threads are still taking shape.",
     );
   });
 });
@@ -371,7 +373,7 @@ describe("the rename kept historical payloads readable", () => {
   });
 
   it("both names exist in the library so neither renderer path 404s", () => {
-    const tpl = narratives.big_picture_templates as Record<string, string>;
+    const tpl = narratives.big_picture as unknown as Record<string, unknown>;
     expect(Object.keys(tpl).sort()).toEqual(
       ["CAPACITY_FIRST", "DEVELOPING_PICTURE", "NO_MEANINGFUL_FRICTION", "PRIMARY_FRICTION"].sort(),
     );

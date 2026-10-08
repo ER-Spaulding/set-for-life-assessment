@@ -1,5 +1,9 @@
 // Issue a verification message to a participant found by Set for Life Number.
 //
+// PARTICIPANT UI RETIRED, MODULE RETAINED (Owner decision, 2026-10-07): the
+// journey recovers via verified email (start-returning); this number-based
+// path remains for internal lookup/support/QA with D-1 untouched.
+//
 // Addendum 02 v1.1 §4.4: "perform the required secure verification step using the
 // verified contact method associated with the participant."
 //

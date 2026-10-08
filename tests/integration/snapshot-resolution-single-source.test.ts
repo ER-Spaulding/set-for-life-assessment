@@ -434,8 +434,30 @@ describe("the web results page and snapshot components resolve copy through one 
 // MD was updated in the same act, and both were verified byte-identical across
 // all 12 activation bands. This is the deliberate, reviewable act this pin
 // exists to force — not a bypass of it. The connection library hash is unmoved.
-const PINNED_NARRATIVES_HASH = "0412dbee924e76bb2e93343f6a69ae7fc36551c458238a366ae7cc6e8bb06f5a";
-const PINNED_CONNECTION_HASH = "b28fd325207c324cb75a79263b89bd33b68e8c0bafcc27d1ce2439c3f1083ff2";
+//
+// MOVED 2026-10-07 (Owner narrative-rewrite standard; narrative + connection
+// libraries 1.0.1/1.0 -> 2.0.0): STRUCTURAL, not just copy — signal_states
+// copy became a three-voice confidence variant, activation bands became
+// {stateLabel, body[]}, attention_areas gained short_label with paragraph
+// bodies, dead big_picture_templates became the keyed big_picture synthesis
+// family, and section_intros / destination / evidence_openers were added
+// (the retired DRAFT web-copy constants moved into the governed source). The
+// connection library gained the connection {headline, framing} sub-object.
+// _version_note in each config records the full rationale; both hashes were
+// recomputed with contentHash's canonical algorithm (verified reproducible
+// against both pre-move pins). Golden fixture: Owner walkthrough session
+// 660fef00, 2026-10-07. The approved-library MDs follow in the same revision
+// (Phase 5 close-out).
+//
+// MOVED 2026-10-07 (Phase 3 copy authoring): the 2.0.0 families moved from
+// scaffolded old copy to the Owner's authored standard — 90 confidence-voice
+// signal copies + signal_strengths framings, all 18 connection entries
+// (friction title/body + connection headline/framing), the big_picture
+// synthesis family, section_intros, activation bodies, attention bodies, and
+// the compositional destination family (theme_clauses). Same reviewable act:
+// hash + approved-library MD move together in Phase 5.
+const PINNED_NARRATIVES_HASH = "9a79a6315e00deb73774d8685cd40c0274ba82301e682baef156973c3f634b61";
+const PINNED_CONNECTION_HASH = "a66978227eaca0820de270772cbb0d1ff5c99ad4d53aff62bb05eec42e00c7ff";
 
 describe("the narrative and connection libraries are PINNED by content hash", () => {
   it("config/narratives-v1.0.json matches its pinned hash", () => {
@@ -467,41 +489,94 @@ describe("the narrative and connection libraries are PINNED by content hash", ()
  * The participant-facing narrative/connection/attention strings that must live
  * ONLY in the pinned config libraries. Read from the configs, so a hardcoded
  * second copy that currently AGREES with the config is still recognised as a
- * literal and flagged.
+ * literal and flagged. Strengthened 2026-10-07 for the 2.0.0 restructure: walks
+ * every NEW family too (three-voice signal variants, activation state labels,
+ * big_picture synthesis, section_intros, destination framing/syntheses,
+ * evidence_openers, connection sub-object, attention short labels) so the new
+ * strings cannot be inlined into source either (plan F3 note).
  */
 function approvedCopyStrings(): string[] {
-  const narratives = JSON.parse(read("config/narratives-v1.0.json")) as {
-    signal_states: Record<string, Record<string, { label?: unknown; copy?: unknown }>>;
-    special_signal_states: Record<string, { label?: unknown; copy?: unknown }>;
-    attention_areas: Record<string, { label?: unknown; body?: unknown }>;
-  };
+  const narratives = JSON.parse(read("config/narratives-v1.0.json")) as Record<string, unknown>;
   const connection = JSON.parse(read("config/connection-statements-v1.0.json")) as Record<
     string,
-    { headline?: unknown; body?: unknown }
+    Record<string, unknown>
   >;
 
   const out: string[] = [];
   const push = (v: unknown) => {
     if (typeof v === "string" && v.trim().length > 0) out.push(v);
   };
-  for (const sig of Object.keys(narratives.signal_states)) {
-    for (const state of Object.keys(narratives.signal_states[sig])) {
-      push(narratives.signal_states[sig][state].label);
-      push(narratives.signal_states[sig][state].copy);
+  /**
+   * Walk only the COPY-BEARING fields of an entry. A blind recursive walk
+   * would also collect internal metadata (`attention_area` keys, `source`
+   * question lists) and the `evidence_openers` vocabulary fragments — strings
+   * that legitimately appear as code identifiers or in ordinary UI prose, and
+   * whose presence in source is not a second copy path. The 2026-10-07 first
+   * run of the broad version flagged exactly those false positives.
+   */
+  // `short_label` is DELIBERATELY not here: it is a short structural label
+  // ("VISIBILITY", "RESILIENCE") whose substring appears inside internal
+  // tension codes (HIGH_VISIBILITY_LOW_CAPACITY, …_LOW_RESILIENCE) in engine
+  // source — flagging those would be a false positive, not a second copy path.
+  // The rendered composed string ("KEEP IN VIEW — …") is covered by the
+  // membership guards instead.
+  const COPY_FIELDS = [
+    "label",
+    "copy",
+    "body",
+    "headline",
+    "stateLabel",
+    "framing",
+    "intro",
+    "outro",
+  ];
+  const walkEntry = (entry: unknown): void => {
+    if (!entry || typeof entry !== "object" || Array.isArray(entry)) return;
+    const e = entry as Record<string, unknown>;
+    for (const field of COPY_FIELDS) {
+      const v = e[field];
+      if (typeof v === "string") push(v);
+      else if (Array.isArray(v)) v.forEach((p) => typeof p === "string" && push(p));
+      else if (v && typeof v === "object") {
+        Object.values(v).forEach((p) => typeof p === "string" && push(p));
+      }
     }
-  }
-  for (const key of Object.keys(narratives.special_signal_states)) {
-    push(narratives.special_signal_states[key].label);
-    push(narratives.special_signal_states[key].copy);
-  }
-  for (const key of Object.keys(narratives.attention_areas)) {
-    push(narratives.attention_areas[key].label);
-    push(narratives.attention_areas[key].body);
-  }
+  };
+  /**
+   * A family is either `{key: leaf}` or `{key: {subkey: leaf}}` (and, for
+   * section_intros, `{key: string[]}`). Handle all three shapes without ever
+   * descending into metadata fields.
+   */
+  const walkFamily = (family: unknown): void => {
+    if (!family || typeof family !== "object" || Array.isArray(family)) return;
+    for (const v of Object.values(family as Record<string, unknown>)) {
+      if (Array.isArray(v)) {
+        v.forEach((p) => typeof p === "string" && push(p));
+      } else if (v && typeof v === "object") {
+        const e = v as Record<string, unknown>;
+        const isLeaf = COPY_FIELDS.some((f) => f in e);
+        if (isLeaf) walkEntry(v);
+        else
+          for (const leaf of Object.values(e)) {
+            if (Array.isArray(leaf)) leaf.forEach((p) => typeof p === "string" && push(p));
+            else walkEntry(leaf);
+          }
+      }
+    }
+  };
+
+  walkFamily(narratives.signal_states);
+  walkFamily(narratives.special_signal_states);
+  walkFamily(narratives.attention_areas);
+  walkFamily(narratives.activation);
+  walkFamily(narratives.big_picture);
+  walkFamily(narratives.section_intros);
+  walkFamily(narratives.destination);
   for (const key of Object.keys(connection)) {
     if (["version", "_version_note"].includes(key)) continue;
-    push(connection[key].headline);
-    push(connection[key].body);
+    walkEntry(connection[key]);
+    const sub = (connection[key] as Record<string, unknown>).connection;
+    if (sub && typeof sub === "object") walkEntry(sub);
   }
   // Longest first, so a longer body that embeds a shorter one reports clearly;
   // ignore trivially-short strings that would collide with everyday source.
@@ -620,7 +695,7 @@ describe("the resolved view preserves capacity protections", () => {
     expect(row).not.toBeNull();
     expect(row!.isCapacity).toBe(true);
     expect(row!.label).toBe("Intentional — Capacity Constrained");
-    expect(row!.copy).toContain("not a lack of intentionality");
+    expect(row!.copy).toContain("intentional decisions rather than a lack of intentionality");
     // Never the S-ladder copy, never a raw code.
     expect(row!.copy).not.toMatch(/DIRECT_CAPACITY_LIMITED/);
     expect(row!.copy).not.toMatch(/S3|S[1-5]\b/);
@@ -654,7 +729,7 @@ describe("tension precedence comes from the payload, never re-derived", () => {
     const view = resolveSnapshotView(payload);
     expect(view.connections.map((c) => c.headline)).toEqual([
       "A Lot Is Happening. The Destination Needs More Say.",
-      "You May Not Need More Information. You May Need a Bridge to Action.",
+      "You Have the Information. The Bridge to Action Is Missing.",
     ]);
     expect(view.primaryAttentionArea?.label).toBe("SEE IT MORE CLEARLY");
     expect(view.secondaryAttentionArea).toBeNull();
@@ -665,16 +740,20 @@ describe("no internal vocabulary reaches a resolved prose string (§24)", () => 
   function proseStrings(view: ReturnType<typeof resolveSnapshotView>): string[] {
     const out: string[] = [];
     for (const s of view.signals) out.push(s.question, s.label, s.copy);
-    for (const c of view.connections) out.push(c.headline, c.body);
-    for (const a of [view.primaryAttentionArea, view.secondaryAttentionArea]) {
-      if (a) out.push(a.label, a.body);
+    for (const c of view.connections) {
+      out.push(c.headline, c.body, c.connectionHeadline, ...c.connectionFraming);
     }
-    out.push(...(view.bigPicture?.sentences ?? []));
+    for (const a of [view.primaryAttentionArea, view.secondaryAttentionArea]) {
+      if (a) out.push(a.label, a.shortLabel, ...a.paragraphs);
+    }
+    if (view.bigPicture) out.push(view.bigPicture.headline, ...view.bigPicture.body);
     for (const f of [...view.strengths, ...view.frictions]) out.push(f.label, f.copy);
     out.push(...view.context);
     if (view.perceptionGap) out.push(view.perceptionGap.label, view.perceptionGap.body);
-    out.push(...view.activation.flatMap((a) => [a.label, a.copy]));
+    out.push(...view.activation.flatMap((a) => [a.label, a.dimension, ...a.paragraphs]));
     out.push(...view.destinationThemes.map((d) => d.label));
+    for (const paras of Object.values(view.sectionIntros)) out.push(...paras);
+    out.push(...view.destinationFrame.intro, ...view.destinationFrame.outro);
     return out;
   }
 
@@ -712,7 +791,10 @@ describe("module completeness is a pure function of the payload", () => {
     expect(view.signals).toHaveLength(6);
     expect(view.connections).toHaveLength(2);
     expect(view.bigPicture?.template).toBe("PRIMARY_FRICTION");
-    expect(view.bigPicture?.sentences).toHaveLength(3);
+    // The synthesis entry (template × primary attention area, defaulting to
+    // the template's `default`) — never the borrowed `parts`.
+    expect(view.bigPicture?.headline.length).toBeGreaterThan(0);
+    expect(view.bigPicture?.body.length).toBeGreaterThan(0);
     expect(view.strengths).toHaveLength(1);
     expect(view.frictions).toHaveLength(1);
     expect(view.context).toHaveLength(1);
@@ -745,8 +827,12 @@ describe("module completeness is a pure function of the payload", () => {
       "A3=LOW",
       "A4=HIGH",
     ]);
-    // Four separate values, never averaged into one scalar.
-    expect(view.activation.map((a) => a.copy)).toHaveLength(4);
+    // Four separate dimensions, each with its own state label + paragraphs.
+    expect(view.activation).toHaveLength(4);
+    for (const a of view.activation) {
+      expect(a.label.length, `${a.item} state label`).toBeGreaterThan(0);
+      expect(a.paragraphs.length, `${a.item} paragraphs`).toBeGreaterThan(0);
+    }
   });
 });
 
@@ -770,13 +856,19 @@ describe("the migration changed no copy (identity against the pinned libraries)"
     const view = resolveSnapshotView(payload);
 
     const narratives = JSON.parse(read("config/narratives-v1.0.json")) as {
-      signal_states: Record<string, Record<string, { label: string; copy: string }>>;
+      signal_states: Record<
+        string,
+        Record<string, { label: string; copy: string | { high: string; moderate: string; limited: string } }>
+      >;
       special_signal_states: Record<string, { label: string; copy: string }>;
-      attention_areas: Record<string, { label: string; body: string }>;
+      attention_areas: Record<string, { label: string; short_label?: string; body: string[] }>;
     };
     const connectionStatements = JSON.parse(
       read("config/connection-statements-v1.0.json"),
-    ) as Record<string, { headline: string; body: string }>;
+    ) as Record<
+      string,
+      { headline: string; body: string; connection?: { headline?: string; framing?: string[] } }
+    >;
 
     const questionFor = Object.fromEntries(
       HUMAN_QUESTIONS.map((q) => [q.signal, q.question]),
@@ -791,11 +883,27 @@ describe("the migration changed no copy (identity against the pinned libraries)"
             ? narratives.special_signal_states[parts[1]]
             : null;
       if (!stateCopy) throw new Error(`unexpected narrative key: ${narrativeKey}`);
+      // Ladder copy is a three-voice variant; select the voice the PAYLOAD
+      // carries (absent evidence → limited, the legacy rule) — exactly what
+      // the resolver does.
+      const payloadSignal = payload.signals.find((s) => s.signal === signal);
+      const voice =
+        payloadSignal && payloadSignal.evidence.confidence !== "high" &&
+        payloadSignal.evidence.confidence !== "moderate" &&
+        payloadSignal.evidence.confidence !== "limited"
+          ? "limited"
+          : payloadSignal
+            ? payloadSignal.evidence.confidence
+            : "limited";
+      const copy =
+        typeof stateCopy.copy === "object"
+          ? stateCopy.copy[voice]
+          : stateCopy.copy;
       return {
         signal,
         question: questionFor[signal],
         label: stateCopy.label,
-        copy: stateCopy.copy,
+        copy,
         isCapacity: narrativeKey.startsWith("special_signal_states."),
       };
     };
@@ -804,25 +912,38 @@ describe("the migration changed no copy (identity against the pinned libraries)"
       payload.signals.map((s) => expectedSignal(s.signal, s.narrativeKey!)),
     );
 
+    const findingCodes = new Set(
+      [...payload.frictions, ...payload.strengths].map((f) => f.code),
+    );
     expect(view.connections).toEqual(
       payload.connections.map((c) => {
         const entry = connectionStatements[c.code];
         if (!entry) throw new Error(`unexpected connection code: ${c.code}`);
-        return { headline: entry.headline, body: entry.body };
+        return {
+          headline: entry.headline,
+          body: entry.body,
+          connectionHeadline: entry.connection?.headline ?? entry.headline,
+          connectionFraming: entry.connection?.framing ?? [],
+          bodyRenderedElsewhere: findingCodes.has(c.code),
+        };
       }),
     );
 
     const attention = narratives.attention_areas[payload.attentionAreas[0]];
     expect(view.primaryAttentionArea).toEqual({
       label: attention.label,
-      body: attention.body,
+      shortLabel: attention.short_label ?? attention.label,
+      paragraphs: attention.body,
     });
   });
 
   it("the low-level primitives agree with resolveSnapshotView (one implementation)", () => {
     const view = resolveSnapshotView(makePayload({}));
     // The page resolves through the primitives; they must be the same code path.
-    expect(resolveSignalRow("SEE", "signal_states.SEE.S2")).toEqual(view.signals[0]);
+    // The confidence voice is passed explicitly: the fixture's signals carry
+    // evidence "high", and the primitive's default (key-existence representative)
+    // is deliberately different from any render-time selection.
+    expect(resolveSignalRow("SEE", "signal_states.SEE.S2", "high")).toEqual(view.signals[0]);
     expect(signalLabel("SEE")).toBe(signalQuestionLabel("SEE"));
     expect(signalQuestionLabel("SEE")).toBe("WHAT CAN YOU SEE?");
     expect(isSpecialState("special_signal_states.DIRECT_CAPACITY_LIMITED")).toBe(true);

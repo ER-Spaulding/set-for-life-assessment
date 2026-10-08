@@ -166,10 +166,11 @@ export function resolveParticipantCopy(key: string): string | null {
     return finding ? finding.copy : null;
   }
 
-  // Attention areas carry label + body, never a bare string.
+  // Attention areas carry label + paragraphs, never a bare string. The first
+  // paragraph is the representative the write path needs for existence.
   if (key.startsWith("attention_areas.")) {
     const area = resolveAttentionArea(key.slice("attention_areas.".length));
-    return area ? area.body : null;
+    return area ? area.paragraphs[0] : null;
   }
 
   // Activation stores LEVELS, not keys; the key is composed at read time as

@@ -32,7 +32,7 @@
 import Image from "next/image";
 import { BRAND_LOGO, BRAND_NAME } from "@/lib/brand";
 import { SNAPSHOT_DISCLOSURE } from "@/lib/ui/snapshot-doc-copy";
-import { FOOTER_DISCLOSURE_LABEL } from "@/lib/ui/snapshot-web-copy";
+import { CLOSING_LINES, FOOTER_DISCLOSURE_LABEL } from "@/lib/ui/snapshot-web-copy";
 
 export function SnapshotFooter() {
   return (
@@ -45,6 +45,34 @@ export function SnapshotFooter() {
         height={BRAND_LOGO.height}
         className="h-auto w-[140px] sm:w-[160px]"
       />
+
+      {/* §12 — the closing brand moment, Owner sample verbatim (approved
+          narrative-rewrite standard, 2026-10-07). Paragraphs, never headings:
+          the render guards enumerate the page's <h2>s. */}
+      <div className="mt-10 max-w-[720px]">
+        <p
+          className="font-serif text-evergreen"
+          style={{
+            fontSize: "var(--type-t05-size)",
+            lineHeight: "var(--type-t05-line)",
+            textWrap: "balance",
+          }}
+        >
+          {CLOSING_LINES[0]}
+        </p>
+        <p
+          className="mt-4 font-body text-obsidian/90"
+          style={{ fontSize: "17px", lineHeight: "28px" }}
+        >
+          {CLOSING_LINES[1]}
+        </p>
+        <p
+          className="mt-2 font-body text-obsidian/90"
+          style={{ fontSize: "17px", lineHeight: "28px" }}
+        >
+          {CLOSING_LINES[2]}
+        </p>
+      </div>
 
       <p
         className="mt-6 font-body text-rose"

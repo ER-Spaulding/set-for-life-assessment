@@ -95,12 +95,12 @@ export function ConnectionSection({ section }: { section: SnapshotSection }) {
   // the §5 divergence the shared model exists to prevent. The "never more than
   // two" rule is enforced where the model is built.
   //
-  // ⚠️ EVERY CONNECTION RENDERS AS AN `<article>` WITH EXACTLY TWO ELEMENT
-  // CHILDREN — `<h3>` then `<p>`, nothing else. The render-differential guard
-  // asserts `article.children.length === 2` and one `<p>`. The relationship
-  // graphic and the artwork are therefore SIBLINGS of the articles, never
-  // children. A wrapper, a caption, or a decorative span inside an article
-  // fails the suite.
+  // ⚠️ EVERY CONNECTION RENDERS AS AN `<article>` WITH `<h3>` THEN ONE OR MORE
+  // `<p>`s — NOTHING ELSE. The render-differential guard derives the expected
+  // child count from the shared model (1 heading + 1 body + any `paragraphs`),
+  // so framing paragraphs raise the count honestly while a minted wrapper,
+  // caption, or decorative span still fails the suite. The relationship graphic
+  // and the artwork are therefore SIBLINGS of the articles, never children.
   const primary = blocks.find((b) => b.variant === "primary");
   const secondary = blocks.find((b) => b.variant === "secondary");
   // Defensive: if the resolver ever emits only a secondary, it must still
@@ -130,6 +130,15 @@ export function ConnectionSection({ section }: { section: SnapshotSection }) {
               >
                 {primary.body}
               </p>
+              {(primary.paragraphs ?? []).map((p, i) => (
+                <p
+                  key={i}
+                  className="mt-4 font-body text-obsidian"
+                  style={{ fontSize: "18px", lineHeight: "29px" }}
+                >
+                  {p}
+                </p>
+              ))}
             </article>
           </div>
 
@@ -175,6 +184,15 @@ export function ConnectionSection({ section }: { section: SnapshotSection }) {
               >
                 {block.body}
               </p>
+              {(block.paragraphs ?? []).map((p, i) => (
+                <p
+                  key={i}
+                  className="mt-4 font-body text-obsidian/85"
+                  style={{ fontSize: "17px", lineHeight: "28px" }}
+                >
+                  {p}
+                </p>
+              ))}
             </article>
           ))}
         </div>

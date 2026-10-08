@@ -67,7 +67,6 @@
 import type { SnapshotSection } from "@/lib/render/snapshot-sections";
 import {
   MONEY_PICTURE_CENTER_LABEL,
-  MONEY_PICTURE_INTRO,
 } from "@/lib/ui/snapshot-web-copy";
 import { SnapshotSection as Section } from "./SnapshotSection";
 
@@ -135,7 +134,7 @@ export function MoneyPictureSection({ section }: { section: SnapshotSection }) {
   return (
     <Section
       title={section.heading}
-      intro={MONEY_PICTURE_INTRO}
+      intro={section.intro}
       id="money-picture"
       plate
     >

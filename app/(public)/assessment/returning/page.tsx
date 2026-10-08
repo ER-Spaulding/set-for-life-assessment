@@ -1,80 +1,78 @@
 "use client";
 
-// Returning participant — Set for Life Number lookup, then verification.
+// Returning participant — VERIFIED IDENTITY RECOVERY (email), not a
+// memorized-identifier lookup (Owner decision, narrative-rewrite scope,
+// 2026-10-07; plan D12).
 //
-// Addendum 02 v1.1 §4:
-//   "1. Ask for the participant's Grease the Wheel number as the returning
-//       lookup identifier.
-//    2. Use the number to locate the participant record/session association.
-//    3. Do NOT treat the Grease the Wheel number alone as sufficient
-//       authentication for access to prior sensitive assessment responses or
-//       Snapshots.
-//    4. If protected prior data/resume access is requested, perform the required
-//       secure verification step using the verified contact method associated
-//       with the participant."
+// WHAT CHANGED AND WHY. This screen used to ask for the Set for Life Number.
+// The Owner removed the number from the participant journey entirely: it is
+// an INTERNAL system identifier (generation, storage, support lookup, QA —
+// all preserved), but a participant completes, saves, leaves, returns,
+// recovers and resumes without ever knowing it. Recovery is the verified
+// contact on file, exactly as Addendum 02 §4.4 requires:
 //
-// §4.2 states the rule flatly: "The Grease the Wheel number is a lookup/routing
-// identifier, not a password. A participant must never gain access to another
-// person's prior financial assessment or Snapshot solely by entering a
-// known/guessed number."
+//   "If protected prior data/resume access is requested, perform the required
+//    secure verification step using the verified contact method associated
+//    with the participant."
 //
-// SO THIS SCREEN RETURNS NO PROTECTED DATA. The lookup tells the participant
-// whether the number is valid and, if so, triggers a verification message to the
-// contact already on file. What comes back to the browser is a message about
-// what happens NEXT — never a name, never a session, never a Snapshot. The
-// server refuses to resolve a number into participant data here at all, which is
-// why there is no branch in this file that could render one.
+// THE FLOW, END TO END (none of it new — only the entry point changed):
+//   email → POST /api/auth/start-returning (byte-identical 202
+//           anti-enumeration response, same as start-new) →
+//   VerificationState "check your email" → the EXISTING verification callback
+//   → /auth/verified → ResumeCard (resume / begin new).
 //
-// Participant-facing label is "Your Set for Life Number" (#4's internal "Grease
-// the Wheel" term never reaches a participant).
+// SO THIS SCREEN RETURNS NO PROTECTED DATA — same posture the number lookup
+// had. The route answers 202 for every well-formed address, so nothing here
+// can branch on whether the record exists: no name, no session, no Snapshot
+// ever reaches the browser from this flow's entry step.
+//
+// D-1 IS UNTOUCHED. Token HMAC/purpose/TTL, signed cookies, callback routing
+// and /auth/recover (claim-conflict only) are the identity layer this screen
+// merely sits in front of; this file speaks to one endpoint and holds no
+// credential logic.
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { VerificationState } from "@/components/identity/VerificationState";
 
-type Stage = "lookup" | "sent" | "malformed" | "not_found";
+// Two stages only. `malformed`/`not_found` are gone with the number input:
+// start-returning answers 202 for EVERY well-formed email (anti-enumeration),
+// so the only client-visible failure is a bad-shape address (400 → inline)
+// or the request itself failing.
+type Stage = "lookup" | "sent";
 
 export default function ReturningPage() {
   const router = useRouter();
-  const [value, setValue] = useState("");
+  const [email, setEmail] = useState("");
   const [stage, setStage] = useState<Stage>("lookup");
   const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   async function submit() {
     if (busy) return;
     setBusy(true);
+    setError(null);
     try {
-      // §16: `returning_flow_started` / `returning_flow_completed` are recorded
-      // by the lookup route itself. Both are statements about what the SERVER
-      // did — it received a well-formed number and it sent (or did not send) a
-      // verification message — so neither belongs in a client claim.
-      const res = await fetch("/api/auth/lookup", {
+      const res = await fetch("/api/auth/start-returning", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ sflNumber: value.trim() }),
+        body: JSON.stringify({ email: email.trim() }),
       });
 
-      // The route distinguishes MALFORMED from NOT_FOUND deliberately. A
-      // mistyped number is actionable ("check the number") while "no record"
-      // reads as "your record is gone" — conflating them is how a participant
-      // concludes their data was lost.
       if (res.status === 400) {
-        setStage("malformed");
-        return;
-      }
-      if (res.status === 404) {
-        setStage("not_found");
+        // Bad-shape address: actionable, inline, and it never leaves the form.
+        setError("Enter a valid email address — the one you used for the assessment.");
         return;
       }
       if (!res.ok) {
-        setStage("not_found");
+        setError("We could not complete that just now. Try again in a moment.");
         return;
       }
-      // 202 for every WELL-FORMED number, matching the anti-enumeration posture
-      // of the existing verification routes: the response does not reveal
-      // whether the record exists.
+      // 202 for every WELL-FORMED address — the response cannot and must not
+      // say whether a record exists.
       setStage("sent");
     } catch {
-      setStage("not_found");
+      setError("We could not complete that just now. Try again in a moment.");
     } finally {
       setBusy(false);
     }
@@ -108,8 +106,8 @@ export default function ReturningPage() {
                 className="prose-measure mt-4 font-body text-obsidian"
                 style={{ fontSize: "18px", lineHeight: "29px" }}
               >
-                Enter your Set for Life Number and we will send a secure link to
-                the contact we have on file.
+                Enter the email you used for your assessment and we will send a
+                secure link to continue where you left off.
               </p>
 
               <form
@@ -121,38 +119,44 @@ export default function ReturningPage() {
               >
                 <div>
                   <label
-                    htmlFor="sfl-number"
+                    htmlFor="returning-email"
                     className="block font-body text-rose"
                     style={{ fontSize: "16px", lineHeight: "24px" }}
                   >
-                    Your Set for Life Number
+                    Email
                   </label>
                   <input
-                    id="sfl-number"
-                    name="sflNumber"
-                    // Not type=email/number: the value is a formatted identifier
-                    // and the input normalises case, dashes and spaces server
-                    // side, so a participant typing it however they remember it
-                    // still resolves.
-                    type="text"
-                    inputMode="text"
-                    autoComplete="off"
-                    autoCapitalize="characters"
+                    id="returning-email"
+                    name="email"
+                    type="email"
+                    autoComplete="email"
+                    inputMode="email"
                     spellCheck={false}
-                    placeholder="XXXX-XXXX"
                     className="mt-2 w-full border border-blush/60 bg-white px-4 py-3 font-body text-obsidian focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-evergreen"
                     style={{ borderRadius: "2px", fontSize: "18px", lineHeight: "29px" }}
-                    value={value}
-                    onChange={(e) => setValue(e.target.value)}
+                    value={email}
+                    onChange={(e) => {
+                      setEmail(e.target.value);
+                      if (error) setError(null);
+                    }}
                   />
+                  {error ? (
+                    <p
+                      role="alert"
+                      className="mt-3 font-body text-rose"
+                      style={{ fontSize: "16px", lineHeight: "24px" }}
+                    >
+                      {error}
+                    </p>
+                  ) : null}
                 </div>
                 <div>
                   <button
                     type="submit"
-                    disabled={busy || value.trim().length === 0}
+                    disabled={busy || !email.trim().includes("@")}
                     className={[
                       "px-8 py-4 font-serif transition-colors",
-                      busy || value.trim().length === 0
+                      busy || !email.trim().includes("@")
                         ? "cursor-not-allowed bg-evergreen/40 text-ivory"
                         : "bg-evergreen text-ivory hover:bg-evergreen/90",
                       "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-evergreen",
@@ -171,59 +175,11 @@ export default function ReturningPage() {
             </>
           ) : null}
 
-          {stage === "sent" ? (
-            <>
-              <h1
-                className="font-display text-evergreen"
-                style={{ fontSize: "var(--type-t03-size)", lineHeight: "var(--type-t03-line)" }}
-              >
-                Check your messages.
-              </h1>
-              <p
-                className="prose-measure mt-4 font-body text-obsidian"
-                style={{ fontSize: "18px", lineHeight: "29px" }}
-              >
-                If that number matches a record, we have sent a secure link to the
-                contact on file. Open it to continue.
-              </p>
-            </>
-          ) : null}
-
-          {stage === "malformed" ? (
-            <>
-              <h1
-                className="font-display text-evergreen"
-                style={{ fontSize: "var(--type-t03-size)", lineHeight: "var(--type-t03-line)" }}
-              >
-                That does not look like a Set for Life Number.
-              </h1>
-              <p
-                className="prose-measure mt-4 font-body text-obsidian"
-                style={{ fontSize: "18px", lineHeight: "29px" }}
-              >
-                Set for Life Numbers look like XXXX-XXXX. Check the number and try
-                again — it is worth a second look at the letters and numbers.
-              </p>
-            </>
-          ) : null}
-
-          {stage === "not_found" ? (
-            <>
-              <h1
-                className="font-display text-evergreen"
-                style={{ fontSize: "var(--type-t03-size)", lineHeight: "var(--type-t03-line)" }}
-              >
-                We could not complete that just now.
-              </h1>
-              <p
-                className="prose-measure mt-4 font-body text-obsidian"
-                style={{ fontSize: "18px", lineHeight: "29px" }}
-              >
-                You can try again, or start a new assessment. Nothing you have
-                already answered is affected.
-              </p>
-            </>
-          ) : null}
+          {/* The ready-made "check your email" state — this component was
+              built for exactly this moment (anti-enumeration wording, no
+              branch on whether the address is known) and was dead code until
+              this rebuild revived it. Its own copy, verbatim. */}
+          {stage === "sent" ? <VerificationState email={email.trim()} /> : null}
 
           {/*
             TAP TARGET. This rendered at 38x28px — measured, not guessed, by the
@@ -245,7 +201,7 @@ export default function ReturningPage() {
             className="mt-10 inline-flex max-w-full items-center rounded-sm px-3 py-4 font-serif text-rose underline-offset-4 hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-evergreen"
             style={{ fontSize: "20px", lineHeight: "28px", minHeight: "56px" }}
           >
-            {stage === "lookup" ? "Back" : "Try a different number"}
+            {stage === "lookup" ? "Back" : "Try a different email"}
           </button>
         </div>
       </div>

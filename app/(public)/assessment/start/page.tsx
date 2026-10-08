@@ -24,7 +24,8 @@
 // WHAT DISAPPEARED FROM THIS ROUTE: the identity form, the returning-email form,
 // and the "we sent you a link" state. Identity is now collected ONLY if the
 // participant chooses Save My Progress after Money Moment 01 (§3), and the
-// returning path is reached through the Set for Life Number, not an email.
+// returning path is reached through VERIFIED EMAIL recovery (start-returning),
+// not a memorized identifier (Owner decision, 2026-10-07).
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
@@ -57,7 +58,6 @@ export default function StartPage() {
       const data = (await res.json()) as {
         participantId: string;
         sessionId: string;
-        sflNumber: string;
       };
 
       // §16: `assessment_started` is recorded by the provisional route, at the
@@ -65,22 +65,18 @@ export default function StartPage() {
       // reported from here — a browser claiming an assessment started is not
       // evidence that one did.
       //
-      // The Set for Life Number is shown AFTER Opening B (§3: it is offered at
-      // the Save My Progress moment), so it is carried rather than displayed
-      // here. Stashing it in sessionStorage keeps it available across the first
-      // few screens without putting a durable identifier in the URL, where it
-      // would end up in browser history and any referrer header.
+      // Only the participant id is stashed — no identifier of any kind: the
+      // Set for Life Number never enters the browser from this route anymore
+      // (Owner decision, 2026-10-07; plan D12). sessionStorage keeps the id
+      // available across the first few screens without putting it in the URL,
+      // where it would end up in browser history or a referrer header.
       try {
         window.sessionStorage.setItem(
           "sfl_provisional",
-          JSON.stringify({
-            participantId: data.participantId,
-            sflNumber: data.sflNumber,
-          }),
+          JSON.stringify({ participantId: data.participantId }),
         );
       } catch {
-        /* private mode: the participant can still complete; they just will not
-           see the number offered again until they claim */
+        /* private mode: the participant can still complete */
       }
       // F-06: `replace`, not `push`. A push would leave the submittable front
       // door in browser history, so Back would re-run the provisional POST and

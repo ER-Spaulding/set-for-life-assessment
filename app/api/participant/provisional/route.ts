@@ -4,7 +4,8 @@
 // before a first-time participant can answer this question and begin."
 //
 // This route is the whole of that change. It creates an anonymous participant
-// and an empty session, and returns the participant-facing Set for Life Number
+// and an empty session, and returns the ids the front door needs (the Set
+// for Life Number stays server-side — internal-system-only from 2026-10-07)
 // so the participant can keep it. No name, no email, no verification, no link.
 //
 // WHAT IT DOES NOT DO, and why the omissions are the point:
@@ -37,7 +38,7 @@ export async function POST() {
   }
 
   try {
-    const { participantId, sessionId, sflNumber } = await createProvisionalParticipant();
+    const { participantId, sessionId } = await createProvisionalParticipant();
 
     // §16: the participant and session now exist, so an assessment has actually
     // started. Recorded HERE rather than by the browser that asked, because this
@@ -57,7 +58,6 @@ export async function POST() {
         // Participant-facing label is "Your Set for Life Number" (§ operator
         // decision). GTW / Grease the Wheel stays internal and must not appear
         // in anything a participant reads.
-        sflNumber,
       },
       { status: 201 },
     );

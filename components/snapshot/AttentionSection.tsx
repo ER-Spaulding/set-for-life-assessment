@@ -51,8 +51,7 @@
 //      one.
 
 import type { SnapshotSection } from "@/lib/render/snapshot-sections";
-import { ATTENTION_INTRO } from "@/lib/ui/snapshot-web-copy";
-import { SECTION_ART, SnapshotSection as Section } from "./SnapshotSection";
+import { SnapshotSection as Section } from "./SnapshotSection";
 
 export function AttentionSection({ section }: { section: SnapshotSection }) {
   const primary = section.blocks.find((b) => b.variant === "primary");
@@ -60,41 +59,23 @@ export function AttentionSection({ section }: { section: SnapshotSection }) {
   if (!primary && !secondary) return null;
 
   // NOTE ON STRUCTURE. The render-differential guard asserts that an attention
-  // area's section carries exactly ONE body paragraph. That is a statement about
+  // area's region carries exactly ONE body paragraph. That is a statement about
   // the AREA's own copy — the concern beneath it is that a renderer might mint a
   // second paragraph of its own beside the approved body. The framing intro this
-  // section renders is therefore placed in its own region, and the guard is
-  // scoped to the spotlight region below, so the check still means exactly what
-  // it meant: one approved body paragraph per area, nothing minted.
+  // section renders comes from the shared model and sits in the frame ABOVE the
+  // regions, so the guard still means exactly what it meant: one approved body
+  // paragraph per area, nothing minted. (Additional approved paragraphs, if the
+  // library ever authors them, travel as `block.paragraphs` and are rendered
+  // below — they are model strings, not minted prose.)
+  //
+  // THE SPOTLIGHT ARTWORK IS GONE (Owner, plan D11). The hazy radial-gradient
+  // background behind the primary area was rejected in the narrative-rewrite
+  // pass; this section renders on the plain page surface. The asset file stays
+  // on disk for provenance, but nothing points at it.
   return (
-    <Section title={section.heading} id="attention">
-      <p
-        className="prose-measure mt-6 font-serif text-obsidian/80"
-        style={{ fontSize: "22px", lineHeight: "32px" }}
-      >
-        {ATTENTION_INTRO}
-      </p>
-
+    <Section title={section.heading} intro={section.intro} id="attention">
       {primary ? (
         <div className="relative mt-14" data-attention-region>
-          {/* Spotlight art behind the primary area only — now spanning the
-              whole region and anchored top-left, so it reads as light falling
-              on this area rather than as a band above it. */}
-          <div
-            aria-hidden="true"
-            role="presentation"
-            className="pointer-events-none absolute inset-x-0 inset-y-0 w-full"
-            style={{
-              backgroundImage: `url("${SECTION_ART["09-attention"]}")`,
-              backgroundSize: "cover",
-              backgroundPosition: "left center",
-              opacity: 0.7,
-              maskImage:
-                "radial-gradient(ellipse 70% 90% at 22% 42%, black 12%, transparent 76%)",
-              WebkitMaskImage:
-                "radial-gradient(ellipse 70% 90% at 22% 42%, black 12%, transparent 76%)",
-            }}
-          />
           <div className="relative max-w-[880px] py-10 lg:py-14">
             {/* A Gold marker rule gives the primary a focal point above the
                 display heading. It is a rule, NOT a label: an eyebrow such as
@@ -119,12 +100,22 @@ export function AttentionSection({ section }: { section: SnapshotSection }) {
             >
               {primary.body}
             </p>
+            {(primary.paragraphs ?? []).map((p, i) => (
+              <p
+                key={i}
+                className="mt-4 font-body text-obsidian"
+                style={{ fontSize: "18px", lineHeight: "29px" }}
+              >
+                {p}
+              </p>
+            ))}
           </div>
         </div>
       ) : null}
 
       {/* The optional second area: plainly subordinate — smaller type, a quieter
-          rule, and NO spotlight art. Never a placeholder when absent. */}
+          rule, and NO artwork. Never a placeholder when absent. Its label is
+          composed by the shared model as "KEEP IN VIEW — <short label>". */}
       {secondary ? (
         <div className="mt-16 max-w-[880px] border-t border-champagne pt-8" data-attention-region>
           <h4
@@ -142,6 +133,15 @@ export function AttentionSection({ section }: { section: SnapshotSection }) {
           >
             {secondary.body}
           </p>
+          {(secondary.paragraphs ?? []).map((p, i) => (
+            <p
+              key={i}
+              className="mt-4 font-body text-obsidian/85"
+              style={{ fontSize: "17px", lineHeight: "28px" }}
+            >
+              {p}
+            </p>
+          ))}
         </div>
       ) : null}
     </Section>

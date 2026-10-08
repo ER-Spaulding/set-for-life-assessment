@@ -47,7 +47,6 @@
 // The dynamic-case rule, the copy, and the ordering are unchanged.
 
 import type { SnapshotSection } from "@/lib/render/snapshot-sections";
-import { FRICTION_INTRO } from "@/lib/ui/snapshot-web-copy";
 import { SnapshotSection as Section } from "./SnapshotSection";
 
 /**
@@ -60,7 +59,17 @@ import { SnapshotSection as Section } from "./SnapshotSection";
  * titled section, so their position is conveyed by document structure. The
  * render guard flagged it correctly.
  */
-function Friction({ label, body, featured }: { label: string; body: string; featured: boolean }) {
+function Friction({
+  label,
+  body,
+  paragraphs,
+  featured,
+}: {
+  label: string;
+  body: string;
+  paragraphs?: string[];
+  featured: boolean;
+}) {
   return (
     <article className="border-t border-blush pt-6">
       <h3
@@ -79,6 +88,15 @@ function Friction({ label, body, featured }: { label: string; body: string; feat
       >
         {body}
       </p>
+      {(paragraphs ?? []).map((p, i) => (
+        <p
+          key={i}
+          className="mt-4 font-body text-obsidian"
+          style={{ fontSize: "18px", lineHeight: "29px" }}
+        >
+          {p}
+        </p>
+      ))}
     </article>
   );
 }
@@ -88,15 +106,15 @@ export function FrictionSection({ section }: { section: SnapshotSection }) {
   if (blocks.length === 0) return null;
 
   return (
-    <Section title={section.heading} intro={FRICTION_INTRO} id="friction">
+    <Section title={section.heading} intro={section.intro} id="friction">
       {blocks.length === 1 ? (
         <div className="mt-12 max-w-[880px]">
-          <Friction label={blocks[0].label ?? ""} body={blocks[0].body} featured />
+          <Friction label={blocks[0].label ?? ""} body={blocks[0].body} paragraphs={blocks[0].paragraphs} featured />
         </div>
       ) : blocks.length === 2 ? (
         <div className="mt-12 grid grid-cols-1 gap-x-14 gap-y-12 md:grid-cols-2">
           {blocks.map((block, i) => (
-            <Friction key={i} label={block.label ?? ""} body={block.body} featured={false} />
+            <Friction key={i} label={block.label ?? ""} body={block.body} paragraphs={block.paragraphs} featured={false} />
           ))}
         </div>
       ) : (

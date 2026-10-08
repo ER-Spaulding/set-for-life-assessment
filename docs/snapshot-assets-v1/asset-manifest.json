@@ -33,7 +33,8 @@
     "png": "section-09-attention-background-v1.png",
     "svg": "section-09-attention-background-v1.svg",
     "dimensions": "2880x1024",
-    "role": "static decorative production asset"
+    "role": "static decorative production asset",
+    "status": "REJECTED — retired with the Owner narrative rewrite (plan D11, 2026-10-07): the Attention spotlight artwork was removed from the render (one dominant Attention area, no hazy spotlight wash). The asset files remain on disk for provenance; no code imports them."
   },
   "section-10-masterclass-cta-background-v1": {
     "png": "section-10-masterclass-cta-background-v1.png",

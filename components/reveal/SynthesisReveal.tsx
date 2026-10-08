@@ -302,7 +302,8 @@ export function SynthesisReveal({ sessionId }: { sessionId: string }) {
     // The copy is the owner's, verbatim, from lib/ui/snapshot-failure.ts. It is
     // NOT a Snapshot-error narrative: it is the approved fresh-assessment
     // experience, which is the one thing that is actually true and actionable
-    // here. The landing route resolves the Set for Life Number, verifies
+    // here. The landing route resolves the verified email (start-returning),
+// verifies
     // identity, and renders the same "Welcome back, {First Name}." greeting
     // where the name is legitimately known.
     return (

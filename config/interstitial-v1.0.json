@@ -104,11 +104,21 @@
     "primaryCta": "SAVE MY PROGRESS",
     "secondaryCta": "KEEP GOING WITHOUT SAVING",
     "_note": "Do not frame identity collection as the price of admission (§3.1). The participant has already been answering; this offers a way to not lose that, and declining costs nothing they have not already been given.",
-    "keepNumber": {
-      "_source": "Operator decision 2026-10-01",
-      "label": "Your Set for Life Number",
-      "instructions": "Keep this number. It helps us find your Set for Life record when you return.",
-      "_note": "Must not overstate the number as a security credential (operator, 2026-10-01). It is a lookup aid; verification is what protects the record."
+    "_retired": {
+      "keepNumber": {
+        "_retiredOn": "2026-10-07",
+        "_reason": "Set for Life Number is internal-system-only (Owner decision, narrative-rewrite scope): the participant-facing read-back screen, the 'Keep this number' language, and the returning-user number input are removed from the journey. Recovery is verified-identity (email), never a memorized identifier. The identifier itself is unchanged in generation, storage, and internal/support lookup; D-1 identity/recovery security is untouched."
+      }
+    },
+    "sent": {
+      "_source": "Owner narrative-rewrite standard / plan D12 (2026-10-07)",
+      "label": "Check your email",
+      "body": [
+        "If that email can be used with the assessment, a verification link is on its way. Open it to continue.",
+        "The link expires in 30 minutes. If it does not arrive, check your spam folder, or return here and try again."
+      ],
+      "cta": "CONTINUE MY ASSESSMENT",
+      "_note": "Anti-enumeration wording — identical for known and unknown addresses, mirroring components/identity/VerificationState.tsx. The claimed screen confirms the EMAIL flow; no identifier is ever shown (Owner decision, 2026-10-07)."
     }
   }
 }

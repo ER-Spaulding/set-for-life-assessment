@@ -13,20 +13,14 @@ import { DOWNLOAD_CTA } from "@/lib/ui/snapshot-copy";
 import { HERO_ALT } from "@/lib/ui/snapshot-hero";
 import { activeCampaign } from "@/lib/ui/snapshot-campaign";
 import {
-  ACTION_TRANSITION_STATEMENT,
-  ATTENTION_INTRO,
-  BIG_PICTURE_OVERALL_LABEL,
-  DESTINATION_INTRO,
+  ACTION_TRANSITION_LINES,
+  CLOSING_LINES,
   FOOTER_DISCLOSURE_LABEL,
-  FRICTION_INTRO,
   HERO_CONCEPTUAL_LINE,
   HERO_TRANSITION_CUE,
   KEEP_SNAPSHOT_BODY,
   KEEP_SNAPSHOT_HEADING,
   MONEY_PICTURE_CENTER_LABEL,
-  MONEY_PICTURE_INTRO,
-  READINESS_INTRO,
-  STRENGTHS_INTRO,
   heroGreetingLine,
 } from "@/lib/ui/snapshot-web-copy";
 import { questionById } from "@/lib/ui/questions";
@@ -120,7 +114,7 @@ const PERCEPTION_GAP_KEYS = Object.keys(
   (narrativesJson as { perception_gap: Record<string, unknown> }).perception_gap,
 );
 const BIG_PICTURE_TEMPLATES = Object.keys(
-  (narrativesJson as { big_picture_templates?: Record<string, unknown> }).big_picture_templates ?? {},
+  (narrativesJson as { big_picture?: Record<string, unknown> }).big_picture ?? {},
 );
 const Q16_CODES = (questionById("Q16")?.options ?? []).map((o) => o.code);
 
@@ -130,7 +124,7 @@ if (Q16_CODES.length === 0) {
   throw new Error("snapshot-web-string-membership: questionById('Q16') yielded no options");
 }
 if (BIG_PICTURE_TEMPLATES.length === 0) {
-  throw new Error("snapshot-web-string-membership: narratives big_picture_templates is empty");
+  throw new Error("snapshot-web-string-membership: narratives big_picture is empty");
 }
 
 // ---------------------------------------------------------------------------
@@ -374,10 +368,13 @@ function modelStrings(sections: SnapshotSection[]): string[] {
   const out: string[] = [];
   for (const s of sections) {
     out.push(s.heading);
+    for (const p of s.intro ?? []) out.push(p);
+    for (const p of s.outro ?? []) out.push(p);
     for (const b of s.blocks) {
       if (b.kicker) out.push(b.kicker);
       if (b.label) out.push(b.label);
       out.push(b.body);
+      for (const p of b.paragraphs ?? []) out.push(p);
     }
   }
   return out.filter((x) => x.length > 0);
@@ -403,10 +400,13 @@ function buildAttribution(
 
   for (const s of sections) {
     add(`section:${s.id}`, s.heading);
+    for (const p of s.intro ?? []) add(`section:${s.id}`, p);
+    for (const p of s.outro ?? []) add(`section:${s.id}`, p);
     for (const b of s.blocks) {
       if (b.kicker) add(`section:${s.id}`, b.kicker);
       if (b.label) add(`section:${s.id}`, b.label);
       add(`section:${s.id}`, b.body);
+      for (const p of b.paragraphs ?? []) add(`section:${s.id}`, p);
     }
   }
   add("cover", coverTitle);
@@ -435,6 +435,7 @@ function buildAttribution(
   add("footer", BRAND_NAME);
   add("footer", SNAPSHOT_DISCLOSURE);
   add("footer", FOOTER_DISCLOSURE_LABEL);
+  for (const line of CLOSING_LINES) add("footer", line);
   add("footer", BRAND_LOGO.alt);
   add("cover", BRAND_LOGO.alt);
   // The download CTA renders iff a session id is present (the renderer's own
@@ -466,13 +467,19 @@ function buildAttribution(
   // A section's chrome renders ONLY when that section exists in the model, so
   // each chrome string is registered against the presence of its own section —
   // a conditional registration, not a blanket one. This keeps the presence
-  // direction honest: the guard still fails if a section renders but its intro
+  // direction honest: the guard still fails if a section renders but its chrome
   // is dropped.
+  //
+  // THE SECTION INTROS ARE NO LONGER CHROME. Since the 2026-10-07 rewrite they
+  // live in the governed `section_intros` family and arrive on
+  // `section.intro`, so `buildAttribution`'s model loop above registers them
+  // with the section automatically — registering the old draft constants here
+  // as well would double-own them, and the constants no longer exist in
+  // snapshot-web-copy.ts.
   const sectionIds = new Set(sections.map((s) => s.id));
   const has = (id: string) => sectionIds.has(id as never);
 
   if (has("money-picture")) {
-    add("section:money-picture", MONEY_PICTURE_INTRO);
     // The centre label renders only when the map has nodes to surround — the
     // component's own `hasBlocks` branch. A degenerate payload (no resolved
     // signals) renders the heading and intro with no map and no centre.
@@ -480,12 +487,6 @@ function buildAttribution(
       add("section:money-picture", MONEY_PICTURE_CENTER_LABEL);
     }
   }
-  if (has("strengths")) add("section:strengths", STRENGTHS_INTRO);
-  if (has("friction")) add("section:friction", FRICTION_INTRO);
-  if (has("destination")) add("section:destination", DESTINATION_INTRO);
-  if (has("readiness")) add("section:readiness", READINESS_INTRO);
-  if (has("attention")) add("section:attention", ATTENTION_INTRO);
-  if (has("big-picture")) add("section:big-picture", BIG_PICTURE_OVERALL_LABEL);
 
   // The Section 11 utility block renders iff a session id is present — the
   // renderer's own `{sessionId ? <SnapshotDownload/> : null}` branch, the same
@@ -502,7 +503,7 @@ function buildAttribution(
   // landmark: it is the threshold OF the continuation, the last thing the page
   // says before the invitation. The string is imported, never retyped, so this
   // registration cannot drift from what the component renders.
-  add("continuation", ACTION_TRANSITION_STATEMENT);
+  for (const line of ACTION_TRANSITION_LINES) add("continuation", line);
 
   // The campaign renders iff a campaign is active — the component's own
   // `if (!campaign) return null` branch.

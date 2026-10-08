@@ -172,13 +172,16 @@ function paragraphBodiesWithinSection(sections: SnapshotSection[]): Array<{
   for (const section of sections) {
     const counts = new Map<string, number>();
     for (const block of section.blocks) {
-      // BODY ONLY. The kicker (human question) and label (state title / finding
-      // headline / connection headline / activation label / attention label) are
-      // STRUCTURAL labels, not paragraph body, and the section `heading` is the
-      // uppercased module title. None of these is paragraph-level copy, so none
-      // is subject to the duplication rule.
-      if (!block.body) continue;
-      counts.set(block.body, (counts.get(block.body) ?? 0) + 1);
+      // BODY + PARAGRAPHS. The kicker (human question / readiness dimension)
+      // and label (state title / finding headline / connection headline /
+      // activation label / attention label) are STRUCTURAL labels, not
+      // paragraph body, and the section `heading` is the uppercased module
+      // title. None of these is paragraph-level copy, so none is subject to the
+      // duplication rule.
+      for (const body of [block.body, ...(block.paragraphs ?? [])]) {
+        if (!body) continue;
+        counts.set(body, (counts.get(body) ?? 0) + 1);
+      }
     }
     for (const [body, count] of counts) {
       if (count > 1) out.push({ id: section.id, body, count });
@@ -201,19 +204,27 @@ describe("guard (a) — the known duplicated paragraph cannot repeat in the rend
     expect(new Set(payload.bigPicture.parts).size).toBe(payload.bigPicture.parts.length);
   });
 
-  it("the resolved Big Picture narration has no duplicate sentence", () => {
+  it("the resolved Big Picture contains NONE of the borrowed statement sentences", () => {
+    // SUPERSEDED BY THE OWNER'S "UNFOLD, NOT ECHO" STANDARD (2026-10-07).
+    // This assertion used to require the duplicated paragraph to appear EXACTLY
+    // ONCE in the Big Picture narration (the 2026-10-02 fix's end-state, after
+    // removing the accidental second push). The narrative rewrite goes further:
+    // the Big Picture no longer renders `bigPicture.parts` at all — it resolves
+    // the governed `big_picture` synthesis family instead — so every sentence
+    // the later sections render now appears in those sections ONLY. The
+    // regression is still pinned from the other side: parts are still unique,
+    // and the statement still renders exactly once in the document (below).
     const sections = resolveSnapshotContent(assembleFrictionIsConnection());
     const bigPicture = sections.find((s) => s.id === "big-picture");
     expect(bigPicture, "big-picture section exists").toBeDefined();
 
-    const sentences = bigPicture!.blocks.map((b) => b.body);
+    const sentences = bigPicture!.blocks.flatMap((b) => [b.body, ...(b.paragraphs ?? [])]);
     expect(new Set(sentences).size).toBe(sentences.length);
-    // And the duplicated paragraph specifically appears exactly once there.
     const para = duplicatedParagraph();
-    expect(sentences.filter((s) => s === para)).toHaveLength(1);
+    expect(sentences, "the Big Picture must not borrow section statements").not.toContain(para);
   });
 
-  it("the decoded PDF bytes carry the paragraph exactly 3 times, never 4", async () => {
+  it("the decoded PDF bytes carry the paragraph exactly once", async () => {
     const sections = resolveSnapshotContent(assembleFrictionIsConnection());
     const bytes = await renderSnapshotPdf(sections, {
       firstName: null,
@@ -223,13 +234,16 @@ describe("guard (a) — the known duplicated paragraph cannot repeat in the rend
     const text = squash(extractPdfText(bytes));
     const para = squash(duplicatedParagraph());
 
-    // The paragraph legitimately appears once per module that names this finding:
-    //   Big Picture sentence (1) + Friction module (1) + The Connection (1) = 3.
-    // The pre-fix count was 4 (the Big Picture said it twice). The fix removes
-    // exactly that duplicate sentence. Asserting the exact count, not merely
-    // "no 4", pins BOTH directions: the paragraph must not vanish, and must not
-    // be doubled.
-    expect(countOccurrences(text, para)).toBe(3);
+    // THE EXPECTED COUNT MOVED 3 → 1, AND THAT IS THE OWNER'S §14 RULE, NOT A
+    // WEAKENING. The historical counts were: 4 before the 2026-10-02 fix (the
+    // Big Picture said it twice), and 3 after it (once each in Big Picture +
+    // Friction + Connection). The 2026-10-07 rewrite makes ONE approved string
+    // render in exactly ONE section: the Big Picture no longer borrows
+    // `bigPicture.parts`, and the Connection block carries framing only when
+    // the statement already renders as a friction. So the statement appears
+    // once — in the Friction module — and asserting the exact count pins BOTH
+    // directions: the paragraph must not vanish, and must not repeat.
+    expect(countOccurrences(text, para)).toBe(1);
   });
 });
 

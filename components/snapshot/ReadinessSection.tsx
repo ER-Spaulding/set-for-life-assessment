@@ -41,16 +41,18 @@
 // All four panels are structurally identical, so no dimension outranks another.
 //
 // ⚠️ THE FOUR DIMENSION NAMES ARE NEVER TYPED IN THIS FILE. They arrive as
-// `dimension.label` from the resolver. A source-scan guard walks this directory
-// and fails if any of the four label strings appears as a literal here — the
-// labels have exactly one source, and typing one would fork it.
+// `block.kicker` from the resolver (the ONE source remains
+// lib/ui/snapshot-activation.ts). The band's STATE label ("No Manufactured
+// Emergency") arrives as `block.label`. A source-scan guard walks this
+// directory and fails if any of the four dimension-name strings appears as a
+// literal here — the names have exactly one source, and typing one would fork
+// it.
 //
 // ⚠️ NO NEW `<h4>` ANYWHERE. A separate guard asserts `querySelector("h4")` is
 // null for payloads with no secondary attention area, so the panel title must
 // stay an `<h3>`.
 
 import type { SnapshotSection } from "@/lib/render/snapshot-sections";
-import { READINESS_INTRO } from "@/lib/ui/snapshot-web-copy";
 import { SnapshotSection as Section } from "./SnapshotSection";
 
 export function ReadinessSection({ section }: { section: SnapshotSection }) {
@@ -63,7 +65,7 @@ export function ReadinessSection({ section }: { section: SnapshotSection }) {
   const count = dimensions.length;
 
   return (
-    <Section title={section.heading} intro={READINESS_INTRO} id="readiness">
+    <Section title={section.heading} intro={section.intro} id="readiness">
       <div
         className={`mt-12 grid grid-cols-1 gap-y-12 ${
           count === 4 ? "md:grid-cols-4 md:gap-x-0" : "md:grid-cols-2 md:gap-x-12"
@@ -105,8 +107,19 @@ export function ReadinessSection({ section }: { section: SnapshotSection }) {
               style={{ fontSize: "28px", lineHeight: "32px" }}
             />
 
+            {/* The dimension NAME (Urgency / Readiness / Commitment / Support
+                Readiness) — a model string from the one shared source. */}
+            <p
+              className="mt-3 font-body text-rose"
+              style={{ fontSize: "16px", lineHeight: "24px", letterSpacing: "0.08em" }}
+            >
+              {dimension.kicker}
+            </p>
+
+            {/* The band's STATE label — what this dimension's current posture
+                actually is for this participant. */}
             <h3
-              className="mt-4 font-serif text-evergreen"
+              className="mt-2 font-serif text-evergreen"
               style={{
                 fontSize: "var(--type-t08-size)",
                 lineHeight: "var(--type-t08-line)",
@@ -123,6 +136,15 @@ export function ReadinessSection({ section }: { section: SnapshotSection }) {
             >
               {dimension.body}
             </p>
+            {(dimension.paragraphs ?? []).map((p, pi) => (
+              <p
+                key={pi}
+                className="mt-4 font-body text-obsidian"
+                style={{ fontSize: "17px", lineHeight: "28px" }}
+              >
+                {p}
+              </p>
+            ))}
           </article>
         ))}
       </div>

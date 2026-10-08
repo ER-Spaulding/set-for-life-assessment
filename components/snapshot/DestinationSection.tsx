@@ -40,7 +40,6 @@
 // equal treatment changes.
 
 import type { SnapshotSection } from "@/lib/render/snapshot-sections";
-import { DESTINATION_INTRO } from "@/lib/ui/snapshot-web-copy";
 import { SnapshotSection as Section } from "./SnapshotSection";
 
 export function DestinationSection({ section }: { section: SnapshotSection }) {
@@ -53,7 +52,7 @@ export function DestinationSection({ section }: { section: SnapshotSection }) {
   const twoCol = themes.length >= 3;
 
   return (
-    <Section title={section.heading} intro={DESTINATION_INTRO} id="destination">
+    <Section title={section.heading} intro={section.intro} id="destination">
       {/* ⚠️ ONE `<ul>` OF ONE `<li>` PER THEME, AND NOTHING ELSE THAT IS AN
           `<li>` ANYWHERE IN THIS SECTION. The render guard reads
           `section.querySelectorAll("li")` (descendant, not scoped to this list)
@@ -83,6 +82,20 @@ export function DestinationSection({ section }: { section: SnapshotSection }) {
           </li>
         ))}
       </ul>
+
+      {/* The governed closing synthesis (the section model's `outro`): present
+          only when this participant's exact Q16 selection set has an authored
+          synthesis — never manufactured (Owner §9/§10). Rendered OUTSIDE the
+          single `<ul>`, so the li-count guard is unaffected. */}
+      {(section.outro ?? []).map((p, i) => (
+        <p
+          key={i}
+          className="prose-measure mt-10 font-serif text-obsidian"
+          style={{ fontSize: "20px", lineHeight: "32px" }}
+        >
+          {p}
+        </p>
+      ))}
     </Section>
   );
 }

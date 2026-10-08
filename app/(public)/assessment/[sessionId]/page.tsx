@@ -80,7 +80,6 @@ export default function SessionPage() {
   /** §3.4: the optional Save My Progress offer, after MM01. */
   const [showSavePrompt, setShowSavePrompt] = useState(false);
   const [claimed, setClaimed] = useState(false);
-  const [sflNumber, setSflNumber] = useState<string | null>(null);
   const [claimSending, setClaimSending] = useState(false);
   const [claimError, setClaimError] = useState<string | null>(null);
   /** The provisional participant id, read from sessionStorage. */
@@ -136,9 +135,8 @@ export default function SessionPage() {
     try {
       const raw = window.sessionStorage.getItem("sfl_provisional");
       if (!raw) return;
-      const parsed = JSON.parse(raw) as { participantId?: string; sflNumber?: string };
+      const parsed = JSON.parse(raw) as { participantId?: string };
       if (parsed.participantId) setParticipantId(parsed.participantId);
-      if (parsed.sflNumber) setSflNumber(parsed.sflNumber);
     } catch {
       /* private mode or first load: the Save prompt simply will not offer */
     }
@@ -362,7 +360,6 @@ export default function SessionPage() {
   if (showSavePrompt) {
     return (
       <SaveMyProgress
-        sflNumber={sflNumber}
         claimed={claimed}
         sending={claimSending}
         error={claimError}

@@ -245,15 +245,15 @@ describe("engine-mintable narrative keys ⊆ configured narrative keys", () => {
   it("big-picture template keys resolve for the whole configured vocabulary", () => {
     const templates = (
       narratives as unknown as {
-        big_picture_templates?: Record<string, unknown>;
+        big_picture?: Record<string, unknown>;
       }
-    ).big_picture_templates;
+    ).big_picture;
     const keys = Object.keys(templates ?? {}).filter((k) => !k.startsWith("_"));
     expect(keys.length).toBeGreaterThan(0);
     for (const key of keys) {
       expect(
         resolveParticipantCopy(key),
-        `big_picture_templates.${key} must resolve`,
+        `big_picture.${key} must resolve`,
       ).not.toBeNull();
     }
   });
@@ -306,8 +306,8 @@ describe("the guard delegates to the resolver (one implementation, not two)", ()
       .filter((k) => !k.startsWith("_"))
       .map((k) => `attention_areas.${k}`),
     ...Object.keys(
-      (narratives as unknown as { big_picture_templates?: Record<string, unknown> })
-        .big_picture_templates ?? {},
+      (narratives as unknown as { big_picture?: Record<string, unknown> })
+        .big_picture ?? {},
     )
       .filter((k) => !k.startsWith("_")),
   ];

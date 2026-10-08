@@ -1,0 +1,54 @@
+{
+  "artifact_set": "set-for-life narrative library v1.0.1 (historical, immutable)",
+  "created": "2026-10-08",
+  "source_commit": {
+    "sha": "54bfb171aa7feb0c7d906d36ddbd57b185cf9298",
+    "short": "54bfb17",
+    "subject": "feat: complete Set for Life Financial Snapshot experience",
+    "committed_at": "2026-10-06T10:15:58-05:00",
+    "author": "ER-Spaulding"
+  },
+  "declared_versions_at_source_commit": {
+    "narratives-v1.0.1.json": "1.0.1",
+    "connection-statements-v1.0.1.json": "1.0",
+    "signal-state-vocabulary-v1.0.1.json": "1.0"
+  },
+  "files": {
+    "narratives-v1.0.1.json": {
+      "source_path": "config/narratives-v1.0.json",
+      "git_blob_id": "6fd4a335173844db95edd66723af0fffa9810e5f",
+      "sha256": "dec8a33dbce740e39fa994595318ed26f98c5c47657c6ed310017e39d43a1db5",
+      "bytes": 31330,
+      "byte_exact_match": true,
+      "declared_version": "1.0.1",
+      "note": "PATCH revision 1.0.1 (2026-10-05): copy-only change to four activation bands (A1.LOW, A2.LOW, A4.LOW, A4.HIGH) removing internal/methodology language; no key, diagnostic, or behaviour change."
+    },
+    "connection-statements-v1.0.1.json": {
+      "source_path": "config/connection-statements-v1.0.json",
+      "git_blob_id": "cb25d28603afd5f14b664bada86b38f23112a1dd",
+      "sha256": "224a99e73a5ed1e58041546d1d923255891fc032abf90101fcdfa8d1059aa9e0",
+      "bytes": 8008,
+      "byte_exact_match": true,
+      "declared_version": "1.0",
+      "note": "Companion library of the same release; declared version 1.0 at this commit."
+    },
+    "signal-state-vocabulary-v1.0.1.json": {
+      "source_path": "config/signal-state-vocabulary-v1.0.json",
+      "git_blob_id": "b2baae6a811219c8eb8e95299234ba41c552108e",
+      "sha256": "7a8b4bda07857747d31367dda90393d01d9e60fc2aced6ec9e1df9067285af09",
+      "bytes": 11475,
+      "byte_exact_match": true,
+      "declared_version": "1.0",
+      "note": "Companion library of the same release; declared version 1.0 at this commit."
+    }
+  },
+  "recovery": {
+    "method": "git show <sha>:<path> redirected to file, then verified by git hash-object reproducing the blob id and by sha256 equality with git cat-file -p output",
+    "gaps": []
+  },
+  "immutability": {
+    "status": "FROZEN — historical artifact set",
+    "rules": "Never edit these files in place; corrections go to a new versioned directory. Not live config; application code reads config/*-v1.0.json by exact filename and never reads docs/.",
+    "live_config_status_at_creation": "live config/*-v1.0.json working tree carries uncommitted 2.0.0 revisions (HEAD ee5608f still holds the 1.0/1.0.1 blobs)"
+  }
+}

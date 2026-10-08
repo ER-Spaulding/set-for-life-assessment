@@ -1,5 +1,12 @@
 // Returning-participant lookup by Set for Life Number — Addendum 02 v1.1 §4.
 //
+// PARTICIPANT UI RETIRED, ROUTE RETAINED (Owner decision, 2026-10-07). The
+// participant journey no longer asks for the number — returning recovery is
+// verified email via /api/auth/start-returning — but the number remains an
+// internal system identifier: this route stays for internal lookup, support
+// and QA use, with its security posture exactly as documented below. Nothing
+// about D-1 identity/recovery changes with it.
+//
 // THE SECURITY SHAPE OF THIS ROUTE IS THE FEATURE. §4.2:
 //
 //   "The Grease the Wheel number is a lookup/routing identifier, not a password.

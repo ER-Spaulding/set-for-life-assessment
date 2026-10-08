@@ -31,7 +31,10 @@ import type { SnapshotPayload, PayloadSignal } from "@/lib/assessment/snapshot-p
  * adds characters the derived sequence does not have and fails.
  */
 
-/** The model strings the PDF must render (the PDF omits headings by §9). */
+/**
+ * The model strings the PDF must render (the PDF omits headings by §9, and
+ * section intro/outro are web-only by renderer decision — see snapshot-pdf.tsx).
+ */
 function pdfRequiredStrings(sections: SnapshotSection[]): string[] {
   const out: string[] = [];
   for (const s of sections) {
@@ -39,6 +42,7 @@ function pdfRequiredStrings(sections: SnapshotSection[]): string[] {
       if (b.kicker) out.push(b.kicker);
       if (b.label) out.push(b.label);
       out.push(b.body);
+      for (const p of b.paragraphs ?? []) out.push(p);
     }
   }
   return out.filter((x) => x.length > 0);

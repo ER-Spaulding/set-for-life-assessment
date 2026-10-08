@@ -40,11 +40,20 @@
 // same 1-featured / 2-column / 3-panel count rule.
 
 import type { SnapshotSection } from "@/lib/render/snapshot-sections";
-import { STRENGTHS_INTRO } from "@/lib/ui/snapshot-web-copy";
 import { SECTION_ART, SnapshotSection as Section } from "./SnapshotSection";
 
 /** One strength: its approved title and its why-it-matters explanation. */
-function Strength({ label, body, featured }: { label: string; body: string; featured: boolean }) {
+function Strength({
+  label,
+  body,
+  paragraphs,
+  featured,
+}: {
+  label: string;
+  body: string;
+  paragraphs?: string[];
+  featured: boolean;
+}) {
   return (
     <article className={featured ? "border-t border-gold/60 pt-8" : "border-t border-blush pt-6"}>
       <h3
@@ -63,6 +72,15 @@ function Strength({ label, body, featured }: { label: string; body: string; feat
       >
         {body}
       </p>
+      {(paragraphs ?? []).map((p, i) => (
+        <p
+          key={i}
+          className="mt-4 font-body text-obsidian"
+          style={{ fontSize: "18px", lineHeight: "29px" }}
+        >
+          {p}
+        </p>
+      ))}
     </article>
   );
 }
@@ -74,13 +92,13 @@ export function StrengthsSection({ section }: { section: SnapshotSection }) {
   const featured = blocks.length === 1;
 
   return (
-    <Section title={section.heading} intro={STRENGTHS_INTRO} id="strengths">
+    <Section title={section.heading} intro={section.intro} id="strengths">
       <div className="mt-12 grid grid-cols-1 gap-x-14 gap-y-12 lg:grid-cols-5">
         {/* THE FINDINGS — 3 of 5 columns on desktop. */}
         <div className="lg:col-span-3">
           {featured ? (
             // 1 — a single featured panel, given the full measure.
-            <Strength label={blocks[0].label ?? ""} body={blocks[0].body} featured />
+            <Strength label={blocks[0].label ?? ""} body={blocks[0].body} paragraphs={blocks[0].paragraphs} featured />
           ) : (
             // 2 or 3 — a grid whose column count is the ACTUAL item count, so no
             // participant ever sees an empty slot holding a place for a finding
@@ -91,7 +109,7 @@ export function StrengthsSection({ section }: { section: SnapshotSection }) {
               }`}
             >
               {blocks.map((block, i) => (
-                <Strength key={i} label={block.label ?? ""} body={block.body} featured={false} />
+                <Strength key={i} label={block.label ?? ""} body={block.body} paragraphs={block.paragraphs} featured={false} />
               ))}
             </div>
           )}

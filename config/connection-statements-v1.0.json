@@ -1,94 +1,223 @@
 {
   "HIGH_ACTIVITY_LOW_DIRECTION": {
     "headline": "A Lot Is Happening. The Destination Needs More Say.",
-    "body": "Your responses suggest that you are making decisions and handling what is in front of you, but that activity is not always organized around a clearly defined destination. The opportunity may not be to do more. It may be to make the future you want a stronger filter for what gets your money today.",
-    "attention_area": "DEFINE_THE_DESTINATION"
+    "body": "You are making decisions and handling what is in front of you, but that activity is not always organized around a clearly defined destination. The opportunity may not be to do more. It may be to make the future you want a stronger filter for what gets your money today.",
+    "attention_area": "DEFINE_THE_DESTINATION",
+    "connection": {
+      "headline": "Activity Without a Say From the Future.",
+      "framing": [
+        "The activity itself is not the problem — decisions are being made and things are getting handled. What is worth noticing is how few of those decisions ask the future first.",
+        "You do not need more motion. You need the destination you already sense to get a vote in today's choices."
+      ]
+    }
   },
   "HIGH_INFORMATION_LOW_ACTION": {
-    "headline": "You May Not Need More Information. You May Need a Bridge to Action.",
-    "body": "Your responses suggest that you can take in and evaluate financial information, but useful information does not always become follow-through. The friction appears to be between knowing and doing, not simply a lack of education.",
-    "attention_area": "TURN_INFORMATION_INTO_ACTION"
+    "headline": "You Have the Information. The Bridge to Action Is Missing.",
+    "body": "You can take in and evaluate financial information, but useful information does not always become follow-through. The friction appears to be between knowing and doing, not simply a lack of education. The question is not whether you understand — it is what stands between understanding and the next step.",
+    "attention_area": "TURN_INFORMATION_INTO_ACTION",
+    "connection": {
+      "headline": "The Distance Between Knowing and Doing.",
+      "framing": [
+        "Two things are showing up together: you are able to take in financial information, and that information does not always travel all the way into action.",
+        "That gap is not a verdict on what you know. It is a place worth looking at closely — because the fix for a knowing problem and the fix for a doing problem look nothing alike."
+      ]
+    }
   },
   "INFORMATION_ANALYSIS_BOTTLENECK": {
-    "headline": "The Information Is Arriving. The Decision Process Is Getting Crowded.",
-    "body": "Your responses suggest that you are exposed to financial information, but evaluating competing advice can become difficult enough that action slows down. A clearer way to sort what is relevant may matter more than consuming more content.",
-    "attention_area": "TURN_INFORMATION_INTO_ACTION"
+    "headline": "The Information Is Arriving. The Decision Process Is Crowded.",
+    "body": "You are exposed to financial information, but evaluating competing advice can become difficult enough that action slows down. A clearer way to sort what is relevant may matter more than consuming more content. The bottleneck is not availability — it is the sorting.",
+    "attention_area": "TURN_INFORMATION_INTO_ACTION",
+    "connection": {
+      "headline": "Too Many Voices at the Decision.",
+      "framing": [
+        "Information is reaching you. What is getting crowded is the part where you decide which of it applies to your life.",
+        "Once sorting becomes the hard step, adding more information adds weight rather than clarity. A simpler rule for what deserves attention may do more than another source."
+      ]
+    }
   },
   "INFORMATION_EXECUTION_BOTTLENECK": {
-    "headline": "You Can Evaluate It. The Next Step Is Making It Move.",
-    "body": "Your responses suggest that you can generally sort and evaluate financial information, but follow-through is less consistent. The opportunity appears to be turning a sound decision into a concrete next action.",
-    "attention_area": "TURN_INFORMATION_INTO_ACTION"
+    "headline": "You Can Evaluate It. The Next Step Keeps Slipping.",
+    "body": "You can generally sort and evaluate financial information, but follow-through is less consistent. The opportunity appears to be turning a sound decision into a concrete next action — small enough to do, soon enough to matter. Knowing what you would do is not the same as having done it.",
+    "attention_area": "TURN_INFORMATION_INTO_ACTION",
+    "connection": {
+      "headline": "The Last Step Is the One That Counts.",
+      "framing": [
+        "Your evaluation looks sound. Where things slip is the handoff — the moment a good decision is supposed to become something you actually did.",
+        "That handoff is where intentions usually go quiet. Naming it as the friction, rather than as a character trait, is what makes it workable."
+      ]
+    }
   },
   "INFORMATION_OVERLOAD_PATTERN": {
-    "headline": "More Information May Be Adding Noise, Not Clarity.",
-    "body": "Your responses suggest that financial information can become overwhelming before it becomes useful. When too many voices compete at once, the next step may be a simpler process for deciding what deserves attention and what can be set aside.",
-    "attention_area": "TURN_INFORMATION_INTO_ACTION"
+    "headline": "More Information Is Adding Noise, Not Clarity.",
+    "body": "Financial information can become overwhelming before it becomes useful. When too many voices compete at once, the next step may be a simpler process for deciding what deserves attention and what can be set aside. The volume, not the content, is what is getting in the way.",
+    "attention_area": "TURN_INFORMATION_INTO_ACTION",
+    "connection": {
+      "headline": "When More Information Becomes Less Clarity.",
+      "framing": [
+        "There is a point where information stops informing and starts competing — and your answers suggest you have reached it.",
+        "The relief is not another source. It is a smaller queue: fewer things allowed to speak at once, so the ones that matter can be heard."
+      ]
+    }
   },
   "HIGH_VISIBILITY_LOW_CAPACITY": {
-    "headline": "You Can See It. The Pressure Is the Room.",
-    "body": "Your responses suggest that you have a relatively clear understanding of what is happening with your money. The larger friction appears to be how little financial room remains after current obligations. Seeing the picture is a strength; the constraint is capacity, not awareness.",
-    "attention_area": "CREATE_MORE_ROOM"
+    "headline": "Your Money Has Less Breathing Room Than Your Plans Need",
+    "body": "A large share of your available dollars appears to already have a job before you get the opportunity to make additional choices with them. Limited margin does more than make a budget feel tight. It can reduce your ability to respond to opportunities, absorb surprises, accelerate a goal, or make one decision without another priority having to give something up. Visibility tells you what is happening. It does not automatically create flexibility.",
+    "attention_area": "CREATE_MORE_ROOM",
+    "connection": {
+      "headline": "Limited Room May Be the Common Thread.",
+      "framing": [
+        "Three things that can look separate—day-to-day tradeoffs, slower movement toward the future, and less protection from disruption—may actually be connected by the same constraint: financial room.",
+        "You can see the picture. You have direction. And useful information often becomes movement for you.",
+        "But when too much of today's income is already committed, clarity cannot automatically become action.",
+        "That means the opportunity may not be to become more disciplined, consume more information, or want your goals more badly. It may be to create enough capacity for the discipline, clarity, and direction you already have to do more work.",
+        "And that same financial room matters twice: it gives you more freedom to move toward what you want and more ability to recover when life moves against the plan. That is the connection worth noticing."
+      ]
+    }
   },
   "LOW_VISIBILITY_HIGH_CAPACITY": {
-    "headline": "There Is Room. The Opportunity Is Seeing Where It Can Work Harder.",
-    "body": "Your responses suggest that you have some financial flexibility, but the day-to-day picture is not yet as visible as it could be. Greater clarity may help you decide more intentionally what the available room should accomplish.",
-    "attention_area": "SEE_IT_MORE_CLEARLY"
+    "headline": "You Have Room. The Picture Needs More Detail.",
+    "body": "There appears to be some financial flexibility available to you, while the day-to-day picture is not yet as visible as it could be. Room without a clear view makes it harder to decide what the available money should accomplish — the opportunity is clarity, not more income.",
+    "attention_area": "SEE_IT_MORE_CLEARLY",
+    "connection": {
+      "headline": "Room Is Waiting on a Clearer Picture.",
+      "framing": [
+        "The two halves of this pattern pull in opposite directions: the money is there, and the map of it is thin.",
+        "That is good news in an odd wrapper. Flexibility is the harder thing to build; visibility is the faster thing to fix — and a clearer picture is what lets the room start working on purpose."
+      ]
+    }
   },
   "HIGH_DIRECTION_LOW_CAPACITY": {
-    "headline": "The Destination Is Clear. The Room to Move Is Tight.",
-    "body": "Your responses suggest that you know what you want your money to make possible, but limited financial room may be slowing the connection between that destination and today’s choices. The friction appears to be capacity, not a lack of direction.",
-    "attention_area": "CREATE_MORE_ROOM"
+    "headline": "Your Direction Is Clear. Your Dollars Have Less Freedom to Follow.",
+    "body": "You know where you want to go, but the present appears to be consuming enough financial capacity that the future does not always get as much of your money as it gets of your attention. That creates a particular kind of tension: the goal is not missing; the ability to consistently fund the goal is what is under pressure.",
+    "attention_area": "CREATE_MORE_ROOM",
+    "connection": {
+      "headline": "The Destination Is Not Missing. The Margin Is.",
+      "framing": [
+        "You know what you want money to make possible, and today's dollars are largely spoken for before they can move toward it.",
+        "This is a funding gap, not a motivation gap. Attention and money are currently pointing in different directions — which is exactly the kind of tension that eases when room is made on purpose."
+      ]
+    }
   },
   "HIGH_FEAR_HIGH_ACTIVATION": {
     "headline": "The Concern Is Real. So Is Your Readiness to Move.",
-    "body": "Your responses suggest that fear or hesitation shows up around some financial decisions, while your urgency, readiness, or commitment to make progress is also strong. Both can be true at the same time. The goal is not to create more pressure; it is to make the next decision feel informed and owned by you.",
-    "attention_area": "BUILD_DECISION_CONFIDENCE"
+    "body": "Fear or hesitation shows up around some of your financial decisions, while your urgency, readiness, or commitment to make progress is also strong. Both can be true at the same time. The goal is not to create more pressure; it is to make the next decision feel informed and owned by you.",
+    "attention_area": "BUILD_DECISION_CONFIDENCE",
+    "connection": {
+      "headline": "Careful and Ready at the Same Time.",
+      "framing": [
+        "Two things that often cancel each other are both present: real caution about getting it wrong, and genuine readiness to move.",
+        "That combination works when the caution is aimed at the decision rather than at motion itself. The next step can be both careful and yours."
+      ]
+    }
   },
   "SUPPORT_OPENNESS_AGENCY_VULNERABILITY": {
-    "headline": "Open to Help Does Not Mean Handing Over the Wheel.",
-    "body": "Your responses suggest that you are open to professional support, while asking questions or challenging a recommendation may be less comfortable. Useful guidance should increase your understanding and decision ownership, not replace it.",
-    "attention_area": "BUILD_DECISION_CONFIDENCE"
+    "headline": "Open to Help — and Protective of the Wheel.",
+    "body": "You are open to professional support, while asking questions or challenging a recommendation may be less comfortable. Useful guidance should increase your understanding and decision ownership, not replace it. The test of any support is whether you understand your options better afterward.",
+    "attention_area": "BUILD_DECISION_CONFIDENCE",
+    "connection": {
+      "headline": "Guidance Should Widen, Not Replace, the Decision.",
+      "framing": [
+        "You are open to being helped, and you are less practiced at pushing back — those two facts often arrive together.",
+        "The standard worth holding: support that leaves you more able to decide for yourself has done its job. Support that asks you to hand the decision over has not."
+      ]
+    }
   },
   "HEALTHY_PRIVACY_BOUNDARY": {
-    "headline": "Private Does Not Mean Avoidant.",
-    "body": "Your responses suggest that you are selective about what financial information you share, while still being willing to look at your numbers and ask questions when needed. That pattern can reflect a healthy privacy boundary rather than financial avoidance.",
-    "attention_area": "BUILD_DECISION_CONFIDENCE"
+    "headline": "Selective About What You Share — and Still Willing to Look.",
+    "body": "You are selective about what financial information you share, while still being willing to look at your numbers and ask questions when needed. That pattern can reflect a healthy privacy boundary rather than financial avoidance. Discretion and honesty with yourself are not in tension.",
+    "attention_area": "BUILD_DECISION_CONFIDENCE",
+    "connection": {
+      "headline": "Private Does Not Mean Avoidant.",
+      "framing": [
+        "There is a version of privacy that protects a boundary and a version that postpones a hard conversation — and your answers point at the first.",
+        "You are willing to look. What you share, and with whom, stays yours to choose. Those are separate decisions, and you are treating them that way."
+      ]
+    }
   },
   "PRIVACY_AVOIDANCE_FRICTION": {
-    "headline": "Privacy May Be Interacting With Avoidance.",
-    "body": "Your responses suggest that keeping financial information private may sometimes show up alongside discomfort looking at the numbers or concern about judgment. One possibility worth examining is whether privacy is protecting a healthy boundary in some moments and making it easier to postpone a difficult conversation in others.",
-    "attention_area": "SEE_IT_MORE_CLEARLY"
+    "headline": "Privacy May Be Sitting on Top of Avoidance.",
+    "body": "Keeping financial information private may sometimes show up alongside discomfort looking at the numbers or concern about judgment. One possibility worth examining is whether privacy is protecting a healthy boundary in some moments and making it easier to postpone a difficult conversation in others.",
+    "attention_area": "SEE_IT_MORE_CLEARLY",
+    "connection": {
+      "headline": "When the Boundary Also Becomes the Wall.",
+      "framing": [
+        "Privacy is doing real work for you — and it may also be giving certain numbers a place to stay unexamined.",
+        "The distinction to notice is not public versus private. It is whether the keeping-private is a choice you are making, or a habit making itself."
+      ]
+    }
   },
   "HIGH_CONFIDENCE_LOW_VISIBILITY": {
-    "headline": "Confidence Is Present. The Picture May Need More Evidence.",
-    "body": "Your responses suggest confidence in evaluating financial information, while parts of your own financial picture remain less visible. Bringing those two together may help ensure that confidence is grounded in the numbers that matter most to your situation.",
-    "attention_area": "SEE_IT_MORE_CLEARLY"
+    "headline": "Confidence Is Present. The Picture Needs More Evidence.",
+    "body": "There is confidence in evaluating financial information, while parts of your own financial picture remain less visible. Bringing those two together may help ensure that confidence is grounded in the numbers that matter most to your situation. Capability is not the question; the evidence it has to work with is.",
+    "attention_area": "SEE_IT_MORE_CLEARLY",
+    "connection": {
+      "headline": "Strong Judgment, Thin Evidence.",
+      "framing": [
+        "You trust yourself to evaluate money questions — and parts of your own numbers are still outside the frame.",
+        "That combination is workable precisely because the capable half is already in place. Grounding the view in your own figures is the step that lets good judgment do good work."
+      ]
+    }
   },
   "PREPAREDNESS_KNOWLEDGE_LOW_RESILIENCE": {
-    "headline": "You Have Thought About the Risk. The Cushion May Not Match the Awareness Yet.",
-    "body": "Your responses suggest that you understand what a major disruption could mean, but your current ability to absorb or recover from one may be more limited. Awareness is already present; the next area worth examining is resilience.",
-    "attention_area": "STRENGTHEN_RESILIENCE"
+    "headline": "Your Awareness of Risk Is Ahead of the Cushion",
+    "body": "You have already thought about what a meaningful financial disruption could do. The vulnerability appears further downstream: whether enough resources, flexibility, or recovery capacity would be available if something actually interrupted the plan. Knowing that a risk exists and being financially positioned to absorb it are two different things. Your awareness appears to be ahead of the cushion.",
+    "attention_area": "STRENGTHEN_RESILIENCE",
+    "connection": {
+      "headline": "The Thinking Is Done. The Cushion Is the Question.",
+      "framing": [
+        "You have already done the part most people avoid: you know what a disruption would mean. What is still open is whether the resources on hand would match the plan in your head.",
+        "Awareness without a cushion is not a flaw — it is a head start pointing at a specific next question: what would absorb the interruption, and how much of that exists today?"
+      ]
+    }
   },
   "BIG_PICTURE_CASHFLOW_GAP": {
-    "headline": "You Know the Big Picture. The Monthly Flow Is Less Clear.",
-    "body": "Your responses suggest that you can describe your finances at a high level, while the month-to-month movement of money is harder to account for. Closing that gap may make the larger picture more actionable.",
-    "attention_area": "SEE_IT_MORE_CLEARLY"
+    "headline": "The Big Picture Is Clear. The Monthly Flow Is Not.",
+    "body": "You can describe your finances at a high level, while the month-to-month movement of money is harder to account for. Closing that gap may make the larger picture more actionable — the overview is the easy half; the flow is where decisions actually happen.",
+    "attention_area": "SEE_IT_MORE_CLEARLY",
+    "connection": {
+      "headline": "You Know the Shape. The Flow Is Fuzzy.",
+      "framing": [
+        "The overview version of your finances is available to you; the monthly version is harder to reconstruct.",
+        "That gap matters because most financial decisions are made at the monthly level, not the overview level. What is visible from above deserves a closer look from inside the month."
+      ]
+    }
   },
   "DESTINATION_EXISTS_ACTIVITY_NOT_ORGANIZED": {
-    "headline": "You Know Where You Want to Go. Your Financial Activity Is Not Fully Organized Around It Yet.",
-    "body": "Your responses suggest that the destination itself is not the problem. You can describe what you want money to make possible, but day-to-day financial activity may still be organized around immediate demands rather than that destination.",
-    "attention_area": "DEFINE_THE_DESTINATION"
+    "headline": "You Know Where You Want to Go. Today Is Not Organized Around It.",
+    "body": "The destination itself is not the problem. You can describe what you want money to make possible, but day-to-day financial activity may still be organized around immediate demands rather than that destination. The future has your answer — it just does not yet have much of your calendar or your dollars.",
+    "attention_area": "DEFINE_THE_DESTINATION",
+    "connection": {
+      "headline": "The Destination Has Your Answer. Not Yet Your Calendar.",
+      "framing": [
+        "You can say what you want money to make possible. What does not yet match that answer is the way ordinary weeks are arranged.",
+        "Reorganizing is not about effort — it is about letting the destination you already have choose between competing demands sooner, rather than later."
+      ]
+    }
   },
   "CLEAR_DESTINATION_CAPACITY_CONSTRAINED_ALIGNMENT": {
-    "headline": "The Destination Is Not Missing. The Margin Is.",
-    "body": "Your responses suggest that you know what you want your money to make possible, but limited financial room may be preventing your current decisions from reflecting that future as strongly as you would like. This is a capacity constraint, not evidence that you lack direction.",
-    "attention_area": "CREATE_MORE_ROOM"
+    "headline": "The Goal Is Clear. The Margin to Fund It Is Not.",
+    "body": "Several of your answers describe the same squeeze from different angles: what you intend for the money and what the month allows it to do are running on different budgets. The plan is not short on intent — it is short on uncommitted dollars. Until margin opens, the future keeps getting funded last, with whatever is left.",
+    "attention_area": "CREATE_MORE_ROOM",
+    "connection": {
+      "headline": "The Destination Is Not Missing. The Margin Is.",
+      "framing": [
+        "Your direction is not the open question. What is open is how much of today's money can actually travel toward it.",
+        "When margin is the constraint, decisions start reflecting the bills before they reflect the future you described. That is a spacing problem — and spacing problems respond to deliberate room-making."
+      ]
+    }
   },
   "NO_MEANINGFUL_FRICTION_IDENTIFIED": {
     "headline": "Nothing Here Needs to Be Invented.",
     "body": "Your responses do not point to one meaningful area of friction that clearly explains the rest of your financial picture. That does not mean there is nothing to improve. It means this assessment should not manufacture a problem that your responses do not support.",
-    "attention_area": "KEEP_OBSERVING"
+    "attention_area": "KEEP_OBSERVING",
+    "connection": {
+      "headline": "No Single Pressure Worth Naming.",
+      "framing": [
+        "Nothing in this picture insists on being called a problem, and this Snapshot will not invent one.",
+        "What is here instead is a set of working parts — some sharper than others — worth continuing to observe rather than to fix on schedule."
+      ]
+    }
   },
-  "version": "1.0",
-  "_version_note": "Added 2026-10-01 so this library declares its own version. It is part of the participant-facing narrative surface, so a revision must be attributable."
+  "version": "2.0.0",
+  "_version_note": "Revised to 2.0.0 on 2026-10-07 with the narrative library (Owner narrative-rewrite standard). headline/body keep their key names but their ROLE is now the Friction/Strength finding title and explanation; the new connection sub-object {headline, framing[]} carries the Connection section's own headline and prose, so one approved string renders in exactly one section (Owner §14). connection.headline scaffolds as the existing headline and connection.framing starts empty — Phase 3 authoring decouples them. Filename -v1.0 is the stable family id; version field is authoritative."
 }

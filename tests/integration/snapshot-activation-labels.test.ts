@@ -20,10 +20,12 @@ import type { SnapshotPayload } from "@/lib/assessment/snapshot-payload";
  * renderer hardcoded them in `components/snapshot/results-view.tsx` while the
  * PDF renderer OMITTED them. This file pins the fixed structure:
  *
- *   1. ONE SOURCE — the four labels live in `lib/ui/snapshot-activation.ts`
- *      and nowhere else. Both renderers consume them THROUGH the shared resolver
- *      (`resolveSnapshotView` attaches `activation[].label`), so a divergence
- *      requires changing SHARED code, never one renderer's local code.
+ *   1. ONE SOURCE — the four DIMENSION names live in
+ *      `lib/ui/snapshot-activation.ts` and nowhere else. Both renderers consume
+ *      them THROUGH the shared resolver (`resolveSnapshotView` attaches
+ *      `activation[].dimension`; the band's STATE label — "No Manufactured
+ *      Emergency" etc. — rides `activation[].label` from the governed config),
+ *      so a divergence requires changing SHARED code, never one renderer's.
  *   2. FOUR SEPARATE MEASURES — no lead score, no composite, no average. The
  *      source exports four labels keyed A1–A4 and no combined value.
  *   3. NO SECOND COPY — neither renderer, nor any file under the rendering
@@ -103,15 +105,20 @@ describe("the four measures remain separate — never combined", () => {
     expect(code).not.toMatch(/\b(score|average|composite|combined|leadScore|motivation)\b/i);
   });
 
-  it("the resolver produces four separate dimensions, each carrying its label", () => {
+  it("the resolver produces four separate dimensions, each carrying its name and state", () => {
     const view = resolveSnapshotView(payload());
     expect(view.activation).toHaveLength(4);
     expect(view.activation.map((a) => a.item)).toEqual(["A1", "A2", "A3", "A4"]);
     for (const a of view.activation) {
-      expect(a.label).toBe(ACTIVATION_LABELS[a.item]);
+      // The canonical DIMENSION name (the ruling's subject) rides `dimension`,
+      // still sourced from the ONE shared map.
+      expect(a.dimension).toBe(ACTIVATION_LABELS[a.item]);
+      // The band's STATE label comes from the governed narrative config.
+      expect(a.label.length).toBeGreaterThan(0);
+      expect(a.paragraphs.length).toBeGreaterThan(0);
     }
-    // Four distinct labels + four distinct copies — no collapsed scalar field.
-    expect(new Set(view.activation.map((a) => a.label)).size).toBe(4);
+    // Four distinct dimension names — no collapsed scalar field.
+    expect(new Set(view.activation.map((a) => a.dimension)).size).toBe(4);
   });
 });
 
@@ -170,7 +177,7 @@ describe("no second independent copy of the labels exists in a renderer", () => 
   it("the resolver imports the ONE source and attaches it as activation[].label", () => {
     const code = stripComments(read("lib/render/snapshot-view.ts"));
     expect(code).toMatch(/from\s+"\.\.\/ui\/snapshot-activation"/);
-    expect(code).toContain("label: ACTIVATION_LABELS[item]");
+    expect(code).toContain("dimension: ACTIVATION_LABELS[item]");
   });
 });
 
@@ -183,7 +190,9 @@ describe("the resolved labels reach the web and PDF outputs", () => {
     const sections = resolveSnapshotContent(payload());
     const readiness = snapshotPdfSections(sections).find((s) => s.id === "readiness");
     expect(readiness).toBeDefined();
-    expect(readiness!.blocks.map((b) => b.label)).toEqual([...CANONICAL_LABELS]);
+    // The dimension NAME is the block kicker; the band's state label is `label`.
+    expect(readiness!.blocks.map((b) => b.kicker)).toEqual([...CANONICAL_LABELS]);
+    for (const b of readiness!.blocks) expect((b.label ?? "").length).toBeGreaterThan(0);
   });
 
   it("the rendered PDF bytes carry all four labels from the shared source", async () => {

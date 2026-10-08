@@ -22,11 +22,10 @@
 //     an assessment result (the same structural guarantee §10 relies on);
 //   - generous whitespace, one statement, one decorative rule.
 //
-// ⚠️ IT CARRIES ONE DRAFT STRING. ACTION_TRANSITION_STATEMENT is drafted, not
-// owner-approved. It is a canonical constant rather than an inline literal so
-// the copy-provenance rule holds and the string-membership guard can attribute
-// it; see that constant's note. Removing the constant and this component
-// together is a clean, complete reversal.
+// THE COPY IS OWNER-APPROVED — sample §9 of the approved narrative-rewrite
+// standard (2026-10-07), verbatim in ACTION_TRANSITION_LINES. It is canonical
+// constants rather than inline literals so the copy-provenance rule holds and
+// the string-membership guard can attribute each line.
 //
 // ⚠️ IT IS NOT A `<section>` WITH A HEADING, ON PURPOSE. The render guards
 // assert the page's `<h2>` elements are exactly the eight model modules plus the
@@ -34,16 +33,12 @@
 // the document and fail the heading checks. The statement is a `<p>` — which is
 // also the honest markup for a pull-quote.
 
-import { ACTION_TRANSITION_STATEMENT } from "@/lib/ui/snapshot-web-copy";
+import { ACTION_TRANSITION_LINES } from "@/lib/ui/snapshot-web-copy";
 
 export function ActionTransition() {
+  const [lead, ...supporting] = ACTION_TRANSITION_LINES;
   return (
-    // A plain <div>, NOT a <section>. The membership guard's walker attributes
-    // every text node to a landmark by tag name, and its <section> branch falls
-    // through to "unknown-section" for any section whose heading is not a known
-    // module or chrome title — which the guard then asserts must not occur. A
-    // <div> is owned by its parent context, so the pause needs no new landmark
-    // and the guard needs no change.
+    // A plain <div>, NOT a <section> — see the landmark note above.
     <div className="mt-24 lg:mt-32" data-action-transition>
       {/* A centred Gold rule opens the pause. Decorative; no text. */}
       <div aria-hidden="true" role="presentation" className="section-rule mx-auto" />
@@ -56,8 +51,17 @@ export function ActionTransition() {
           textWrap: "balance",
         }}
       >
-        {ACTION_TRANSITION_STATEMENT}
+        {lead}
       </p>
+      {supporting.map((line) => (
+        <p
+          key={line}
+          className="mx-auto mt-4 max-w-[720px] text-center font-body text-obsidian/90"
+          style={{ fontSize: "17px", lineHeight: "28px" }}
+        >
+          {line}
+        </p>
+      ))}
     </div>
   );
 }

@@ -48,7 +48,7 @@ describe("the four identifiers are read from the artifacts, not asserted", () =>
 
     expect(v.instrumentVersion).toBe("1.0");
     expect(v.scoringEngineVersion).toBe("1.0");
-    expect(v.narrativeLibraryVersion).toBe("1.0.1");
+    expect(v.narrativeLibraryVersion).toBe("2.0.0");
     expect(v.snapshotSchemaVersion).toBe(SNAPSHOT_SCHEMA_VERSION);
     // All four are present — an absent one would be recorded as `undefined` and
     // serialise away entirely, which is how a report loses its provenance.
@@ -123,7 +123,8 @@ describe("a LATER config change does not move an EARLIER Snapshot's versions", (
     // 3. The NEW resolution reflects the revision...
     expect(afterRevision.narrativeLibraryVersion).toBe("2.0");
     // ...and the STORED row does not. This is the property.
-    expect(storedRow.narrativeLibraryVersion, "the historical record must not move").toBe("1.0.1");
+    expect(storedRow.narrativeLibraryVersion, "the historical record must not move")
+      .toBe(recorded.narrativeLibraryVersion);
     expect(storedRow).toEqual(recorded);
     // The other three identifiers are unaffected by a narrative revision.
     expect(afterRevision.instrumentVersion).toBe(recorded.instrumentVersion);

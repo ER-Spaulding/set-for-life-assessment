@@ -31,7 +31,7 @@ const repo = resolve(__dirname, "../..");
 const read = (p: string) => readFileSync(resolve(repo, p), "utf8");
 
 const narratives = JSON.parse(read("config/narratives-v1.0.json")) as {
-  attention_areas: Record<string, { label: string; body: string }>;
+  attention_areas: Record<string, { label: string; short_label?: string; body: string[] }>;
 };
 
 const PRIMARY = "SEE_IT_MORE_CLEARLY";
@@ -78,6 +78,12 @@ describe("module 11 — the subordinate secondary attention area renders from th
 
     const primary = narratives.attention_areas[PRIMARY];
     const secondary = narratives.attention_areas[SECONDARY];
+    const primaryBody = (primary.body as string[])[0];
+    const secondaryBody = (secondary.body as string[])[0];
+    // The secondary's label is COMPOSED by the shared model: "KEEP IN VIEW — "
+    // plus the area's short_label, so it reads as visibly subordinate (Owner
+    // standard §2). The primary keeps its own label.
+    const secondaryLabel = `KEEP IN VIEW — ${secondary.short_label}`;
 
     const section = attentionSection(html);
     expect(section, "attention section missing").toBeDefined();
@@ -87,16 +93,16 @@ describe("module 11 — the subordinate secondary attention area renders from th
     expect(h3?.textContent).toBe(primary.label);
 
     const h4 = section!.querySelector("h4");
-    expect(h4?.textContent, "secondary attention label missing").toBe(secondary.label);
+    expect(h4?.textContent, "secondary attention label missing").toBe(secondaryLabel);
 
     // Both bodies render, in order: primary body before secondary body.
     const paragraphs = Array.from(section!.querySelectorAll("p")).map(
       (p) => p.textContent ?? "",
     );
-    expect(paragraphs).toContain(primary.body);
-    expect(paragraphs).toContain(secondary.body);
-    expect(paragraphs.indexOf(primary.body)).toBeLessThan(
-      paragraphs.indexOf(secondary.body),
+    expect(paragraphs).toContain(primaryBody);
+    expect(paragraphs).toContain(secondaryBody);
+    expect(paragraphs.indexOf(primaryBody)).toBeLessThan(
+      paragraphs.indexOf(secondaryBody),
     );
   });
 
